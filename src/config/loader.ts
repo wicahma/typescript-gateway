@@ -11,7 +11,7 @@ import {
   ConfigFile,
   ConfigLoaderOptions,
   ConfigChangeEvent,
-  ConfigWatcherCallback
+  ConfigWatcherCallback,
 } from '../types/config.js';
 
 /**
@@ -28,7 +28,7 @@ export class ConfigLoader extends EventEmitter {
       ...options,
       hotReload: options.hotReload ?? false,
       reloadInterval: options.reloadInterval ?? 5000,
-      validate: options.validate ?? true
+      validate: options.validate ?? true,
     };
   }
 
@@ -94,7 +94,7 @@ export class ConfigLoader extends EventEmitter {
         path: this.options.configPath,
         oldValue: oldConfig,
         newValue: newConfig,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
       this.emit('change', event);
     }
@@ -153,12 +153,12 @@ export class ConfigLoader extends EventEmitter {
       ...config,
       server: {
         ...defaults.server,
-        ...config.server
+        ...config.server,
       },
       performance: {
         ...defaults.performance,
-        ...config.performance
-      }
+        ...config.performance,
+      },
     } as ConfigFile;
   }
 

@@ -18,12 +18,12 @@ export class ConfigValidator {
   constructor() {
     // Initialize AJV with performance optimizations
     this.ajv = new Ajv({
-      allErrors: true,          // Collect all errors
-      coerceTypes: true,         // Coerce types for better UX
-      useDefaults: true,         // Apply default values
-      removeAdditional: false,   // Keep additional properties
-      strict: true,              // Strict mode
-      validateFormats: true,     // Validate formats
+      allErrors: true, // Collect all errors
+      coerceTypes: true, // Coerce types for better UX
+      useDefaults: true, // Apply default values
+      removeAdditional: false, // Keep additional properties
+      strict: true, // Strict mode
+      validateFormats: true, // Validate formats
     });
 
     // Pre-compile schema for better performance
@@ -40,19 +40,19 @@ export class ConfigValidator {
     if (valid) {
       return {
         valid: true,
-        errors: []
+        errors: [],
       };
     }
 
     const errors: ValidationError[] = (this.validateFn.errors || []).map(err => ({
       path: err.instancePath || err.schemaPath,
       message: err.message || 'Validation error',
-      code: err.keyword || 'unknown'
+      code: err.keyword || 'unknown',
     }));
 
     return {
       valid: false,
-      errors
+      errors,
     };
   }
 
@@ -62,12 +62,10 @@ export class ConfigValidator {
    */
   validateOrThrow(config: unknown): asserts config is ConfigFile {
     const result = this.validate(config);
-    
+
     if (!result.valid) {
-      const errorMessages = result.errors
-        .map(err => `  - ${err.path}: ${err.message}`)
-        .join('\n');
-      
+      const errorMessages = result.errors.map(err => `  - ${err.path}: ${err.message}`).join('\n');
+
       throw new Error(`Configuration validation failed:\n${errorMessages}`);
     }
   }

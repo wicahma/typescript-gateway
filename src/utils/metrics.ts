@@ -26,7 +26,7 @@ class LatencyHistogram {
   record(latencyMs: number): void {
     this.samples[this.index] = latencyMs;
     this.index = (this.index + 1) % this.size;
-    
+
     if (this.index === 0) {
       this.filled = true;
     }
@@ -37,7 +37,7 @@ class LatencyHistogram {
    */
   percentile(p: number): number {
     const validSamples = this.filled ? this.samples : this.samples.slice(0, this.index);
-    
+
     if (validSamples.length === 0) {
       return 0;
     }
@@ -52,7 +52,7 @@ class LatencyHistogram {
    */
   average(): number {
     const validSamples = this.filled ? this.samples : this.samples.slice(0, this.index);
-    
+
     if (validSamples.length === 0) {
       return 0;
     }
@@ -131,9 +131,7 @@ export class MetricsCollector {
   snapshot(): MetricsSnapshot {
     const now = Date.now();
     const elapsedSeconds = (now - this.lastResetTime) / 1000;
-    const requestsPerSecond = elapsedSeconds > 0 
-      ? this.totalRequests / elapsedSeconds 
-      : 0;
+    const requestsPerSecond = elapsedSeconds > 0 ? this.totalRequests / elapsedSeconds : 0;
 
     return {
       totalRequests: this.totalRequests,
@@ -146,7 +144,7 @@ export class MetricsCollector {
       activeConnections: this.activeConnections,
       memoryUsage: process.memoryUsage(),
       cpuUsage: process.cpuUsage(),
-      timestamp: now
+      timestamp: now,
     };
   }
 
@@ -178,7 +176,7 @@ export class MetricsCollector {
       `RPS: ${metrics.requestsPerSecond}`,
       `Latency: avg=${metrics.avgLatency.toFixed(2)}ms, p50=${metrics.p50Latency.toFixed(2)}ms, p95=${metrics.p95Latency.toFixed(2)}ms, p99=${metrics.p99Latency.toFixed(2)}ms`,
       `Connections: ${metrics.activeConnections}`,
-      `Memory: ${Math.round(metrics.memoryUsage.heapUsed / 1024 / 1024)}MB`
+      `Memory: ${Math.round(metrics.memoryUsage.heapUsed / 1024 / 1024)}MB`,
     ].join(' | ');
   }
 }

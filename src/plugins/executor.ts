@@ -21,7 +21,7 @@ export class PluginExecutor {
       invocations: 0,
       errors: 0,
       avgExecutionTime: 0,
-      maxExecutionTime: 0
+      maxExecutionTime: 0,
     };
 
     const context: PluginExecutionContext = {
@@ -32,10 +32,10 @@ export class PluginExecutor {
         description: plugin.description,
         author: plugin.author,
         enabled: true,
-        order: 0
+        order: 0,
       },
       config,
-      stats
+      stats,
     };
 
     this.contexts.set(plugin.name, context);
@@ -107,21 +107,23 @@ export class PluginExecutor {
         const endTime = process.hrtime.bigint();
         const executionTime = Number(endTime - startTime) / 1000; // microseconds
 
-        context.stats.avgExecutionTime = 
-          (context.stats.avgExecutionTime * (context.stats.invocations - 1) + executionTime) / 
+        context.stats.avgExecutionTime =
+          (context.stats.avgExecutionTime * (context.stats.invocations - 1) + executionTime) /
           context.stats.invocations;
 
         if (executionTime > context.stats.maxExecutionTime) {
           context.stats.maxExecutionTime = executionTime;
         }
-
       } catch (err) {
         context.stats.errors++;
-        logger.error({
-          err,
-          plugin: context.plugin.name,
-          hook
-        }, 'Plugin execution error');
+        logger.error(
+          {
+            err,
+            plugin: context.plugin.name,
+            hook,
+          },
+          'Plugin execution error'
+        );
       }
     }
   }

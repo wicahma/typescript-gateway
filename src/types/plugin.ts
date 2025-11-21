@@ -22,7 +22,7 @@ export enum PluginHook {
   /** Called on request error */
   ON_ERROR = 'onError',
   /** Called when plugin is unloaded */
-  DESTROY = 'destroy'
+  DESTROY = 'destroy',
 }
 
 /**
@@ -38,45 +38,45 @@ export interface Plugin {
   description: string;
   /** Plugin author */
   author?: string;
-  
+
   /**
    * Initialize plugin
    * Called once during plugin loading
    */
   init?(config: Record<string, unknown>): Promise<void> | void;
-  
+
   /**
    * Pre-route hook
    * Called before route matching
    * Can modify request or short-circuit by setting ctx.responded = true
    */
   preRoute?(ctx: RequestContext): Promise<void> | void;
-  
+
   /**
    * Pre-handler hook
    * Called after route matching, before handler execution
    */
   preHandler?(ctx: RequestContext): Promise<void> | void;
-  
+
   /**
    * Post-handler hook
    * Called after handler execution, before response is sent
    */
   postHandler?(ctx: RequestContext): Promise<void> | void;
-  
+
   /**
    * Post-response hook
    * Called after response is sent
    * Useful for logging, metrics, cleanup
    */
   postResponse?(ctx: RequestContext): Promise<void> | void;
-  
+
   /**
    * Error handler hook
    * Called when an error occurs during request processing
    */
   onError?(ctx: RequestContext, error: Error): Promise<void> | void;
-  
+
   /**
    * Cleanup/destroy hook
    * Called when plugin is unloaded or gateway shuts down

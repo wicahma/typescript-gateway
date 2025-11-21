@@ -56,7 +56,7 @@ describe('Router', () => {
 
     expect(match?.params).toEqual({
       userId: '123',
-      postId: '456'
+      postId: '456',
     });
   });
 
