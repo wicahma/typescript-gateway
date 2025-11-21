@@ -1,12 +1,9 @@
 /**
  * Route handler type definitions
  * Designed for V8 optimization with monomorphic functions
+ * 
+ * Note: RouteHandler is defined in src/types/core.ts to avoid circular dependencies
+ * This file is kept for future handler-related utilities
  */
 
-import { RequestContext } from './core.js';
-
-/**
- * Route handler function signature
- * Handlers should be monomorphic for V8 optimization
- */
-export type RouteHandler = (ctx: RequestContext) => Promise<void> | void;
+export type { RouteHandler } from './core.js';
