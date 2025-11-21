@@ -126,7 +126,7 @@ export class HttpClientPool {
     if (!pool) return;
 
     const connection = pool.find((c) => c.agent === agent);
-    if (connection !== undefined) {
+    if (connection) {
       connection.inUse = false;
       connection.lastUsed = Date.now();
     }
