@@ -113,6 +113,12 @@ export interface UpstreamTarget {
   healthy: boolean;
   /** Circuit breaker state */
   circuitBreaker: CircuitBreakerState;
+  /** Connection pool configuration (Phase 4) */
+  connectionPool?: ConnectionPoolConfig;
+  /** Weight for weighted round robin (Phase 4) */
+  weight?: number;
+  /** Active connections count (Phase 4) */
+  activeConnections?: number;
 }
 
 /**
@@ -129,6 +135,14 @@ export interface HealthCheckConfig {
   path: string;
   /** Expected status code */
   expectedStatus: number;
+  /** Health check type (Phase 4) */
+  type?: HealthCheckType;
+  /** Grace period before marking unhealthy in milliseconds (Phase 4) */
+  gracePeriod?: number;
+  /** Number of consecutive failures before unhealthy (Phase 4) */
+  unhealthyThreshold?: number;
+  /** Number of consecutive successes before healthy (Phase 4) */
+  healthyThreshold?: number;
 }
 
 /**
@@ -251,6 +265,12 @@ export interface GatewayConfig {
   plugins: PluginConfig[];
   /** Performance tuning */
   performance: PerformanceConfig;
+  /** Body parser configuration (Phase 4) */
+  bodyParser?: BodyParserConfig;
+  /** Load balancer configuration (Phase 4) */
+  loadBalancer?: LoadBalancerConfig;
+  /** Circuit breaker configuration (Phase 4) */
+  circuitBreaker?: CircuitBreakerConfig;
 }
 
 /**
@@ -279,4 +299,67 @@ export interface PerformanceConfig {
   responsePoolSize: number;
   /** Enable object pooling */
   enablePooling: boolean;
+}
+
+/**
+ * Body parser configuration (Phase 4)
+ */
+export interface BodyParserConfig {
+  /** Enable body parsing */
+  enabled: boolean;
+  /** Size limits per content type in bytes */
+  limits: {
+    json: number;
+    urlencoded: number;
+    multipart: number;
+    text: number;
+  };
+  /** Parser timeout in milliseconds */
+  timeout: number;
+  /** Enable parser pooling */
+  enablePooling: boolean;
+}
+
+/**
+ * Connection pool configuration (Phase 4)
+ */
+export interface ConnectionPoolConfig {
+  /** Minimum pool size */
+  minSize: number;
+  /** Maximum pool size */
+  maxSize: number;
+  /** Idle timeout in milliseconds */
+  idleTimeout: number;
+  /** Connection timeout in milliseconds */
+  connectionTimeout: number;
+  /** Request timeout in milliseconds */
+  requestTimeout: number;
+  /** Enable HTTP/2 */
+  http2: boolean;
+}
+
+/**
+ * Health check type (Phase 4)
+ */
+export type HealthCheckType = 'active' | 'passive' | 'hybrid';
+
+/**
+ * Health status (Phase 4)
+ */
+export enum HealthStatus {
+  HEALTHY = 'HEALTHY',
+  DEGRADED = 'DEGRADED',
+  UNHEALTHY = 'UNHEALTHY',
+}
+
+/**
+ * Load balancer configuration (Phase 4)
+ */
+export interface LoadBalancerConfig {
+  /** Load balancing strategy */
+  strategy: LoadBalancerStrategy;
+  /** Health check type */
+  healthCheckType: HealthCheckType;
+  /** Enable health-aware routing */
+  healthAware: boolean;
 }
