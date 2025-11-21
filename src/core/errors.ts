@@ -365,7 +365,7 @@ export function wrapError(
       requestContext?.upstream || 'unknown',
       'OPEN',
       'CIRCUIT_BREAKER_OPEN',
-      statusCode,
+      503, // Circuit breaker errors are always 503
       retryable,
       { requestContext, originalError: error }
     );
