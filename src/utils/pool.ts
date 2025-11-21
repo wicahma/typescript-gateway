@@ -146,11 +146,26 @@ export class ObjectPool<T extends Poolable> {
 }
 
 /**
+ * Wrapper for Buffer to add Poolable interface
+ */
+class PoolableBuffer implements Poolable {
+  buffer: Buffer;
+
+  constructor(size: number) {
+    this.buffer = Buffer.allocUnsafe(size);
+  }
+
+  reset(): void {
+    this.buffer.fill(0);
+  }
+}
+
+/**
  * Buffer pool for reusing byte buffers
- * Special optimizations for Buffer objects
+ * Uses wrapper class to avoid monkey-patching Buffer prototype
  */
 export class BufferPool {
-  private pools: Map<number, ObjectPool<Buffer & Poolable>>;
+  private pools: Map<number, ObjectPool<PoolableBuffer>>;
   private defaultSize: number;
 
   constructor(defaultSize: number = 8192) {
@@ -161,14 +176,11 @@ export class BufferPool {
   /**
    * Get or create pool for specific buffer size
    */
-  private getPool(size: number): ObjectPool<Buffer & Poolable> {
+  private getPool(size: number): ObjectPool<PoolableBuffer> {
     let pool = this.pools.get(size);
 
     if (!pool) {
-      pool = new ObjectPool(() => {
-        const buf = Buffer.allocUnsafe(size) as Buffer & Poolable;
-        return buf;
-      }, 100);
+      pool = new ObjectPool(() => new PoolableBuffer(size), 100);
       this.pools.set(size, pool);
     }
 
@@ -181,7 +193,8 @@ export class BufferPool {
   acquire(size?: number): Buffer {
     const bufferSize = size || this.defaultSize;
     const pool = this.getPool(bufferSize);
-    return pool.acquire();
+    const poolable = pool.acquire();
+    return poolable.buffer;
   }
 
   /**
@@ -189,9 +202,9 @@ export class BufferPool {
    */
   release(buffer: Buffer): void {
     const pool = this.getPool(buffer.length);
-    // Fill with zeros for security
-    buffer.fill(0);
-    pool.release(buffer as Buffer & Poolable);
+    const poolable = new PoolableBuffer(buffer.length);
+    poolable.buffer = buffer;
+    pool.release(poolable);
   }
 
   /**
@@ -211,14 +224,4 @@ export class BufferPool {
   clear(): void {
     this.pools.forEach(pool => pool.clear());
   }
-}
-
-/**
- * Add reset method to Buffer prototype for pooling
- * This is a monkey-patch but safe for our use case
- */
-if (!('reset' in Buffer.prototype)) {
-  (Buffer.prototype as Buffer & Poolable).reset = function (this: Buffer) {
-    this.fill(0);
-  };
 }
