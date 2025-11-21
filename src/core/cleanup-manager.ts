@@ -414,10 +414,12 @@ export class CleanupManager {
   }
 
   /**
-   * Generate unique resource ID
+   * Generate unique resource ID using timestamp and counter for better uniqueness
    */
+  private resourceIdCounter = 0;
+  
   private generateResourceId(): string {
-    return `res-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    return `res-${Date.now()}-${++this.resourceIdCounter}`;
   }
 
   /**

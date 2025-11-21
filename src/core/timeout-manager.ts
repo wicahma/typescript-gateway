@@ -139,8 +139,14 @@ export class TimeoutManager {
         this.timeoutsByType.set(type, typeCount + 1);
 
         // Map type to timeout error type
-        const timeoutType: 'connection' | 'request' | 'upstream' | 'plugin' =
-          type === 'idle' ? 'connection' : (type as 'connection' | 'request' | 'upstream' | 'plugin');
+        const timeoutTypeMap: Record<keyof TimeoutConfig, 'connection' | 'request' | 'upstream' | 'plugin'> = {
+          connection: 'connection',
+          request: 'request',
+          upstream: 'upstream',
+          plugin: 'plugin',
+          idle: 'connection', // idle timeouts map to connection type
+        };
+        const timeoutType = timeoutTypeMap[type];
 
         const error = new TimeoutError(
           `Operation timed out after ${timeout}ms`,

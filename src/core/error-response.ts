@@ -6,6 +6,7 @@
  */
 
 import { GatewayError, getStatusCode } from './errors.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Standardized error response format
@@ -161,7 +162,7 @@ export class ErrorResponseBuilder {
     const duration = Number(process.hrtime.bigint() - startTime) / 1_000_000;
     if (duration > 0.5) {
       // Log if we exceed performance target
-      console.warn(
+      logger.warn(
         `Error response generation took ${duration.toFixed(3)}ms (target: < 0.5ms)`
       );
     }
