@@ -122,7 +122,7 @@ export class TokenBucketRateLimiter {
    */
   public check(key: string): RateLimitResult {
     const now = Date.now();
-    let bucket = this.buckets.get(key);
+    const bucket = this.buckets.get(key);
 
     if (!bucket) {
       return {

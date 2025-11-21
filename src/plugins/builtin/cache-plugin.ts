@@ -116,7 +116,7 @@ export class CachePlugin implements Plugin {
     }
   }
 
-  async preHandler(ctx: RequestContext): Promise<void> {
+  preHandler(ctx: RequestContext): void {
     if (!this.config.enabled || !this.cache) {
       return;
     }
@@ -197,7 +197,7 @@ export class CachePlugin implements Plugin {
     logger.debug({ requestId: ctx.requestId, cacheKey }, 'Cache miss');
   }
 
-  async postHandler(ctx: RequestContext): Promise<void> {
+  postHandler(ctx: RequestContext): void {
     if (!this.config.enabled || !this.cache || ctx.responded) {
       return;
     }
@@ -309,7 +309,7 @@ export class CachePlugin implements Plugin {
    */
   private matchPattern(path: string, pattern: string): boolean {
     // Convert pattern to regex
-    let regexPattern = pattern
+    const regexPattern = pattern
       .replace(/:[^/]+/g, '[^/]+')  // :param -> [^/]+
       .replace(/\*/g, '.*')          // * -> .*
       .replace(/\//g, '\\/');        // escape /

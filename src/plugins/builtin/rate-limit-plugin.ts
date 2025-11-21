@@ -102,7 +102,7 @@ export class RateLimitPlugin implements Plugin {
     logger.info({ strategies: this.config.strategies.length }, 'Rate limiting initialized');
   }
 
-  async preRoute(ctx: RequestContext): Promise<void> {
+  preRoute(ctx: RequestContext): void {
     if (!this.config.enabled) {
       return;
     }
