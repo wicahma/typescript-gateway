@@ -13,6 +13,7 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 
 /**
  * Pooled request context object
  * This object is reused across requests to minimize allocations
+ * Phase 2: Enhanced with route matching and performance timestamps
  */
 export interface RequestContext {
   /** Request ID for tracing */
@@ -41,6 +42,27 @@ export interface RequestContext {
   state: Record<string, unknown>;
   /** Whether the response has been sent */
   responded: boolean;
+
+  // Phase 2: Enhanced fields
+  /** Matched route information */
+  route: RouteMatch | null;
+  /** Performance tracking timestamps */
+  timestamps: {
+    routeMatch?: number;
+    pluginStart?: number;
+    pluginEnd?: number;
+    upstreamStart?: number;
+    upstreamEnd?: number;
+  };
+}
+
+/**
+ * Route match result (Phase 2)
+ */
+export interface RouteMatch {
+  handler: RouteHandler;
+  params: Record<string, string>;
+  route: Route;
 }
 
 /**

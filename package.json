@@ -14,6 +14,8 @@
     "test:perf": "vitest run tests/performance",
     "test:watch": "vitest",
     "benchmark": "node benchmarks/load-test.js",
+    "benchmark:router": "tsx benchmarks/router-benchmark.ts",
+    "benchmark:context": "tsx benchmarks/context-pool-benchmark.ts",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
