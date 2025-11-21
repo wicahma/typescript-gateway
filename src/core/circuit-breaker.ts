@@ -322,6 +322,11 @@ export class CircuitBreaker {
    */
   forceState(state: CircuitBreakerState): void {
     this.transitionTo(state);
+    
+    // Set nextHalfOpenTime when forcing OPEN state
+    if (state === CircuitBreakerState.OPEN) {
+      this.nextHalfOpenTime = Date.now() + this.config.timeout;
+    }
   }
 
   /**
