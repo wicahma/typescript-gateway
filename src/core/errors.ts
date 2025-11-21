@@ -350,10 +350,17 @@ export function wrapError(
   const statusCode = getStatusCode(error);
 
   if (message.includes('timeout')) {
+    // Try to extract timeout duration from message if present
+    let timeoutMs = 0;
+    const match = message.match(/(\d+)\s*ms/);
+    if (match && match[1]) {
+      timeoutMs = parseInt(match[1], 10);
+    }
+    
     return new TimeoutError(
       error.message,
       'request',
-      0,
+      timeoutMs,
       'TIMEOUT_ERROR',
       statusCode,
       retryable,

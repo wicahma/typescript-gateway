@@ -261,7 +261,9 @@ export class RetryManager {
    * Check if HTTP method is retryable
    */
   private isMethodRetryable(method: string, config: RetryConfig): boolean {
-    return config.retryableMethods.includes(method.toUpperCase());
+    // Normalize method once and use the normalized version
+    const normalizedMethod = method.toUpperCase();
+    return config.retryableMethods.includes(normalizedMethod);
   }
 
   /**
