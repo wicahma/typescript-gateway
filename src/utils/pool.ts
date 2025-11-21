@@ -158,6 +158,10 @@ class PoolableBuffer implements Poolable {
   reset(): void {
     this.buffer.fill(0);
   }
+
+  getBuffer(): Buffer {
+    return this.buffer;
+  }
 }
 
 /**
@@ -167,10 +171,13 @@ class PoolableBuffer implements Poolable {
 export class BufferPool {
   private pools: Map<number, ObjectPool<PoolableBuffer>>;
   private defaultSize: number;
+  // Map buffer instances back to their wrappers for release
+  private bufferMap: WeakMap<Buffer, PoolableBuffer>;
 
   constructor(defaultSize: number = 8192) {
     this.defaultSize = defaultSize;
     this.pools = new Map();
+    this.bufferMap = new WeakMap();
   }
 
   /**
@@ -194,17 +201,30 @@ export class BufferPool {
     const bufferSize = size || this.defaultSize;
     const pool = this.getPool(bufferSize);
     const poolable = pool.acquire();
-    return poolable.buffer;
+    const buffer = poolable.getBuffer();
+
+    // Store mapping for release
+    this.bufferMap.set(buffer, poolable);
+
+    return buffer;
   }
 
   /**
    * Release buffer back to pool
    */
   release(buffer: Buffer): void {
+    const poolable = this.bufferMap.get(buffer);
+
+    if (!poolable) {
+      // Buffer not from pool, ignore
+      return;
+    }
+
     const pool = this.getPool(buffer.length);
-    const poolable = new PoolableBuffer(buffer.length);
-    poolable.buffer = buffer;
     pool.release(poolable);
+
+    // Remove from map to allow GC if needed
+    this.bufferMap.delete(buffer);
   }
 
   /**
