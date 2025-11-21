@@ -1,0 +1,61 @@
+{
+  "version": "1.0.0",
+  "environment": "development",
+  "server": {
+    "port": 3000,
+    "host": "0.0.0.0",
+    "keepAlive": true,
+    "keepAliveTimeout": 65000,
+    "requestTimeout": 30000,
+    "maxHeaderSize": 16384,
+    "maxBodySize": 10485760
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/",
+      "priority": 0
+    },
+    {
+      "method": "GET",
+      "path": "/health",
+      "priority": 0
+    },
+    {
+      "method": "GET",
+      "path": "/metrics",
+      "priority": 0
+    },
+    {
+      "method": "GET",
+      "path": "/api/:id",
+      "priority": 0
+    }
+  ],
+  "upstreams": [
+    {
+      "id": "backend-service",
+      "protocol": "http",
+      "host": "localhost",
+      "port": 8080,
+      "basePath": "",
+      "poolSize": 10,
+      "timeout": 30000,
+      "healthCheck": {
+        "enabled": true,
+        "interval": 30000,
+        "timeout": 5000,
+        "path": "/health",
+        "expectedStatus": 200
+      }
+    }
+  ],
+  "plugins": [],
+  "performance": {
+    "workerCount": 0,
+    "contextPoolSize": 1000,
+    "bufferPoolSize": 1000,
+    "responsePoolSize": 1000,
+    "enablePooling": true
+  }
+}
