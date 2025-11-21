@@ -308,13 +308,17 @@ export class CachePlugin implements Plugin {
    * Match path against pattern (supports * wildcard and :param)
    */
   private matchPattern(path: string, pattern: string): boolean {
-    // Convert pattern to regex
-    const regexPattern = pattern
-      .replace(/:[^/]+/g, '[^/]+')  // :param -> [^/]+
-      .replace(/\*/g, '.*')          // * -> .*
-      .replace(/\//g, '\\/');        // escape /
+    // Escape special regex characters except : and * which we handle specially
+    let escaped = pattern;
+    
+    // First escape all special regex chars except : and *
+    escaped = escaped.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+    
+    // Then handle our special cases
+    escaped = escaped.replace(/:[^/]+/g, '[^/]+');  // :param -> [^/]+
+    escaped = escaped.replace(/\*/g, '.*');          // * -> .*
 
-    const regex = new RegExp(`^${regexPattern}$`);
+    const regex = new RegExp(`^${escaped}$`);
     return regex.test(path);
   }
 
