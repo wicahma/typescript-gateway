@@ -463,6 +463,12 @@ export class RequestTransformer {
       const part = parts[i];
       if (!part) continue;
       
+      // Guard against prototype pollution
+      if (part === '__proto__' || part === 'constructor' || part === 'prototype') {
+        logger.warn(`Blocked prototype pollution attempt: ${part}`);
+        return;
+      }
+      
       if (!(part in current)) {
         current[part] = {};
       }
@@ -470,7 +476,7 @@ export class RequestTransformer {
     }
 
     const lastPart = parts[parts.length - 1];
-    if (lastPart) {
+    if (lastPart && lastPart !== '__proto__' && lastPart !== 'constructor' && lastPart !== 'prototype') {
       current[lastPart] = value;
     }
   }
