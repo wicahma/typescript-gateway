@@ -251,12 +251,12 @@ export class RateLimitPlugin implements Plugin {
    * Match path against pattern (supports * wildcard)
    */
   private matchPattern(path: string, pattern: string): boolean {
-    // Convert glob pattern to regex
-    const regexPattern = pattern
-      .replace(/\*/g, '.*')
-      .replace(/\//g, '\\/');
+    // Escape special regex characters except * (which we want to convert to .*)
+    const escaped = pattern
+      .replace(/[.+?^${}()|[\]\\]/g, '\\$&')  // Escape all special chars including backslash
+      .replace(/\*/g, '.*');  // Convert * to .*
     
-    const regex = new RegExp(`^${regexPattern}$`);
+    const regex = new RegExp(`^${escaped}$`);
     return regex.test(path);
   }
 
