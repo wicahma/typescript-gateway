@@ -6,7 +6,7 @@
 
 import { createServer, IncomingMessage, ServerResponse, Server as HttpServer } from 'http';
 import { Socket } from 'net';
-import { ServerConfig, HttpMethod } from '../types/core.js';
+import { ServerConfig, HttpMethod, RequestContext } from '../types/core.js';
 import { Router } from './router.js';
 import { ContextPool } from './context.js';
 import { metrics } from '../utils/metrics.js';
@@ -192,11 +192,7 @@ export class Server {
   /**
    * Send response helper
    */
-  private sendResponse(
-    ctx: import('../types/core.js').RequestContext,
-    statusCode: number,
-    body: string | Buffer
-  ): void {
+  private sendResponse(ctx: RequestContext, statusCode: number, body: string | Buffer): void {
     if (ctx.responded) return;
 
     ctx.res.writeHead(statusCode, {
@@ -210,14 +206,14 @@ export class Server {
   /**
    * Send 404 response
    */
-  private send404(ctx: import('../types/core.js').RequestContext): void {
+  private send404(ctx: RequestContext): void {
     this.sendResponse(ctx, 404, 'Not Found');
   }
 
   /**
    * Handle request error
    */
-  private handleRequestError(ctx: import('../types/core.js').RequestContext, error: Error): void {
+  private handleRequestError(ctx: RequestContext, error: Error): void {
     metrics.recordError();
     logger.error({ err: error, requestId: ctx.requestId }, 'Request error');
 
