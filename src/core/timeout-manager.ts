@@ -129,6 +129,8 @@ export class TimeoutManager {
         if (handle) {
           handle.triggered = true;
           controller.abort();
+          // Delete from active timeouts
+          this.activeTimeouts.delete(handleId);
         }
 
         // Increment timeout counter
