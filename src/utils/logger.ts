@@ -50,19 +50,24 @@ export function createLogger(config: Partial<LoggerConfig> = {}): pino.Logger {
     },
   };
 
-  // Pretty print for development
+  // Pretty print for development (skip if pino-pretty not available)
   if (pretty) {
-    return pino({
-      ...options,
-      transport: {
-        target: 'pino-pretty',
-        options: {
-          colorize: true,
-          translateTime: 'HH:MM:ss.l',
-          ignore: 'pid,hostname',
+    try {
+      return pino({
+        ...options,
+        transport: {
+          target: 'pino-pretty',
+          options: {
+            colorize: true,
+            translateTime: 'HH:MM:ss.l',
+            ignore: 'pid,hostname',
+          },
         },
-      },
-    });
+      });
+    } catch {
+      // pino-pretty not available (e.g., in tests), fall back to standard output
+      return pino(options);
+    }
   }
 
   // Fast JSON output for production
