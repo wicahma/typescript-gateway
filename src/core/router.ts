@@ -3,7 +3,7 @@
  * Optimized for O(log n) route matching with O(1) static routes
  */
 
-import { Route, RouteHandler, HttpMethod } from '../types/core.js';
+import { Route, RouteHandler, HttpMethod, RouteMatch } from '../types/core.js';
 
 /**
  * Radix tree node for dynamic routes
@@ -31,6 +31,8 @@ interface RadixNode {
 export class Router {
   // Static routes: O(1) lookup with Map
   private staticRoutes: Map<HttpMethod, Map<string, RouteHandler>>;
+  // Track route definitions for static routes
+  private staticRouteDefinitions: Map<HttpMethod, Map<string, Route>>;
 
   // Dynamic routes: O(log n) lookup with radix tree
   private dynamicRoutes: Map<HttpMethod, RadixNode>;
@@ -40,12 +42,14 @@ export class Router {
 
   constructor() {
     this.staticRoutes = new Map();
+    this.staticRouteDefinitions = new Map();
     this.dynamicRoutes = new Map();
 
     // Initialize maps for each HTTP method
     const methods: HttpMethod[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
     methods.forEach(method => {
       this.staticRoutes.set(method, new Map());
+      this.staticRouteDefinitions.set(method, new Map());
       this.dynamicRoutes.set(method, this.createNode(''));
     });
   }
@@ -81,8 +85,10 @@ export class Router {
     if (!path.includes(':') && !path.includes('*')) {
       // Static route - use Map for O(1) lookup
       const methodMap = this.staticRoutes.get(method);
-      if (methodMap) {
+      const methodDefMap = this.staticRouteDefinitions.get(method);
+      if (methodMap && methodDefMap) {
         methodMap.set(path, handler);
+        methodDefMap.set(path, route);
       }
     } else {
       // Dynamic route - use radix tree
@@ -138,18 +144,17 @@ export class Router {
 
   /**
    * Match route and extract parameters
-   * Returns handler and params if found
+   * Returns RouteMatch with handler, params, and route definition
    */
-  match(
-    method: HttpMethod,
-    path: string
-  ): { handler: RouteHandler; params: Record<string, string> } | null {
+  match(method: HttpMethod, path: string): RouteMatch | null {
     // Try static routes first (O(1))
     const staticMap = this.staticRoutes.get(method);
-    if (staticMap) {
+    const staticDefMap = this.staticRouteDefinitions.get(method);
+    if (staticMap && staticDefMap) {
       const handler = staticMap.get(path);
-      if (handler) {
-        return { handler, params: {} };
+      const routeDef = staticDefMap.get(path);
+      if (handler && routeDef) {
+        return { handler, params: {}, route: routeDef };
       }
     }
 
@@ -162,7 +167,7 @@ export class Router {
 
     const result = this.matchRadix(root, segments, 0, params);
     if (result) {
-      return { handler: result, params };
+      return { handler: result.handler, params, route: result.route };
     }
 
     return null;
@@ -170,16 +175,20 @@ export class Router {
 
   /**
    * Recursive radix tree matching
+   * Returns handler and route definition if found
    */
   private matchRadix(
     node: RadixNode,
     segments: string[],
     index: number,
     params: Record<string, string>
-  ): RouteHandler | null {
+  ): { handler: RouteHandler; route: Route } | null {
     // Reached end of path
     if (index === segments.length) {
-      return node.handler;
+      if (node.handler && node.route) {
+        return { handler: node.handler, route: node.route };
+      }
+      return null;
     }
 
     const segment = segments[index];
@@ -205,8 +214,11 @@ export class Router {
     }
 
     // Try wildcard match (lowest priority)
-    if (node.wildcardChild) {
-      return node.wildcardChild.handler;
+    if (node.wildcardChild && node.wildcardChild.handler && node.wildcardChild.route) {
+      return {
+        handler: node.wildcardChild.handler,
+        route: node.wildcardChild.route,
+      };
     }
 
     return null;
@@ -224,12 +236,14 @@ export class Router {
    */
   clear(): void {
     this.staticRoutes.clear();
+    this.staticRouteDefinitions.clear();
     this.dynamicRoutes.clear();
     this.routes = [];
 
     const methods: HttpMethod[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
     methods.forEach(method => {
       this.staticRoutes.set(method, new Map());
+      this.staticRouteDefinitions.set(method, new Map());
       this.dynamicRoutes.set(method, this.createNode(''));
     });
   }
