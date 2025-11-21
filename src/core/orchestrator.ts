@@ -27,7 +27,7 @@ export class Orchestrator {
 
   constructor(config: GatewayConfig) {
     this.config = config;
-    
+
     // Determine worker count (0 = CPU count)
     this.workerCount = config.performance.workerCount || cpus().length;
   }
@@ -52,19 +52,19 @@ export class Orchestrator {
   private async spawnWorker(id: number): Promise<void> {
     return new Promise((resolve, reject) => {
       const worker = new WorkerThread('./dist/core/worker.js', {
-        workerData: { config: this.config }
+        workerData: { config: this.config },
       });
 
       const workerInfo: WorkerInfo = {
         id,
         thread: worker,
-        ready: false
+        ready: false,
       };
 
       // Handle worker messages
       worker.on('message', (message: WorkerMessage) => {
         this.handleWorkerMessage(workerInfo, message);
-        
+
         if (message.type === WorkerMessageType.INIT && message.payload) {
           const payload = message.payload as { status: string };
           if (payload.status === 'ready') {
@@ -75,19 +75,19 @@ export class Orchestrator {
       });
 
       // Handle worker errors
-      worker.on('error', (error) => {
+      worker.on('error', error => {
         logger.error({ workerId: id, err: error }, 'Worker error');
         reject(error);
       });
 
       // Handle worker exit
-      worker.on('exit', (code) => {
+      worker.on('exit', code => {
         if (code !== 0) {
           logger.error({ workerId: id, exitCode: code }, 'Worker exited with error');
         } else {
           logger.info({ workerId: id }, 'Worker exited');
         }
-        
+
         // Remove from workers list
         this.workers = this.workers.filter(w => w.id !== id);
       });
@@ -98,7 +98,7 @@ export class Orchestrator {
       this.sendToWorker(workerInfo, {
         type: WorkerMessageType.INIT,
         payload: this.config,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     });
   }
@@ -143,11 +143,11 @@ export class Orchestrator {
    */
   async updateConfig(config: GatewayConfig): Promise<void> {
     this.config = config;
-    
+
     this.broadcast({
       type: WorkerMessageType.CONFIG_UPDATE,
       payload: config,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     logger.info('Configuration updated for all workers');
@@ -160,7 +160,7 @@ export class Orchestrator {
     this.broadcast({
       type: WorkerMessageType.METRICS_REQUEST,
       payload: null,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
@@ -171,7 +171,7 @@ export class Orchestrator {
     this.broadcast({
       type: WorkerMessageType.HEALTH_CHECK,
       payload: null,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
@@ -184,15 +184,16 @@ export class Orchestrator {
     this.broadcast({
       type: WorkerMessageType.SHUTDOWN,
       payload: null,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     // Wait for workers to exit
     await Promise.all(
-      this.workers.map(worker => 
-        new Promise<void>(resolve => {
-          worker.thread.once('exit', () => resolve());
-        })
+      this.workers.map(
+        worker =>
+          new Promise<void>(resolve => {
+            worker.thread.once('exit', () => resolve());
+          })
       )
     );
 

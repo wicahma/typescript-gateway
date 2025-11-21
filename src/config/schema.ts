@@ -11,12 +11,12 @@ export const gatewayConfigSchema = {
     version: {
       type: 'string',
       pattern: '^\\d+\\.\\d+\\.\\d+$',
-      description: 'Configuration version (semver)'
+      description: 'Configuration version (semver)',
     },
     environment: {
       type: 'string',
       enum: ['development', 'staging', 'production'],
-      description: 'Deployment environment'
+      description: 'Deployment environment',
     },
     server: {
       type: 'object',
@@ -26,42 +26,42 @@ export const gatewayConfigSchema = {
           type: 'integer',
           minimum: 1,
           maximum: 65535,
-          description: 'Server port'
+          description: 'Server port',
         },
         host: {
           type: 'string',
-          description: 'Server host address'
+          description: 'Server host address',
         },
         keepAlive: {
           type: 'boolean',
           default: true,
-          description: 'Enable HTTP keep-alive'
+          description: 'Enable HTTP keep-alive',
         },
         keepAliveTimeout: {
           type: 'integer',
           minimum: 1000,
           default: 65000,
-          description: 'Keep-alive timeout in milliseconds'
+          description: 'Keep-alive timeout in milliseconds',
         },
         requestTimeout: {
           type: 'integer',
           minimum: 100,
           default: 30000,
-          description: 'Request timeout in milliseconds'
+          description: 'Request timeout in milliseconds',
         },
         maxHeaderSize: {
           type: 'integer',
           minimum: 1024,
           default: 16384,
-          description: 'Maximum header size in bytes'
+          description: 'Maximum header size in bytes',
         },
         maxBodySize: {
           type: 'integer',
           minimum: 1024,
           default: 10485760,
-          description: 'Maximum request body size in bytes (10MB default)'
-        }
-      }
+          description: 'Maximum request body size in bytes (10MB default)',
+        },
+      },
     },
     routes: {
       type: 'array',
@@ -72,22 +72,22 @@ export const gatewayConfigSchema = {
           method: {
             type: 'string',
             enum: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
-            description: 'HTTP method'
+            description: 'HTTP method',
           },
           path: {
             type: 'string',
             pattern: '^/',
-            description: 'Route path pattern'
+            description: 'Route path pattern',
           },
           priority: {
             type: 'integer',
             minimum: 0,
             default: 0,
-            description: 'Route priority (higher = checked first)'
-          }
-        }
+            description: 'Route priority (higher = checked first)',
+          },
+        },
       },
-      default: []
+      default: [],
     },
     upstreams: {
       type: 'array',
@@ -98,76 +98,76 @@ export const gatewayConfigSchema = {
           id: {
             type: 'string',
             pattern: '^[a-zA-Z0-9_-]+$',
-            description: 'Unique upstream identifier'
+            description: 'Unique upstream identifier',
           },
           protocol: {
             type: 'string',
             enum: ['http', 'https'],
-            description: 'Upstream protocol'
+            description: 'Upstream protocol',
           },
           host: {
             type: 'string',
-            description: 'Upstream hostname or IP'
+            description: 'Upstream hostname or IP',
           },
           port: {
             type: 'integer',
             minimum: 1,
             maximum: 65535,
-            description: 'Upstream port'
+            description: 'Upstream port',
           },
           basePath: {
             type: 'string',
             default: '',
-            description: 'Base path prefix for upstream'
+            description: 'Base path prefix for upstream',
           },
           poolSize: {
             type: 'integer',
             minimum: 1,
             default: 10,
-            description: 'Connection pool size'
+            description: 'Connection pool size',
           },
           timeout: {
             type: 'integer',
             minimum: 100,
             default: 30000,
-            description: 'Request timeout in milliseconds'
+            description: 'Request timeout in milliseconds',
           },
           healthCheck: {
             type: 'object',
             properties: {
               enabled: {
                 type: 'boolean',
-                default: true
+                default: true,
               },
               interval: {
                 type: 'integer',
                 minimum: 1000,
                 default: 30000,
-                description: 'Health check interval in milliseconds'
+                description: 'Health check interval in milliseconds',
               },
               timeout: {
                 type: 'integer',
                 minimum: 100,
                 default: 5000,
-                description: 'Health check timeout in milliseconds'
+                description: 'Health check timeout in milliseconds',
               },
               path: {
                 type: 'string',
                 default: '/health',
-                description: 'Health check endpoint path'
+                description: 'Health check endpoint path',
               },
               expectedStatus: {
                 type: 'integer',
                 minimum: 100,
                 maximum: 599,
                 default: 200,
-                description: 'Expected HTTP status code'
-              }
-            }
-          }
-        }
+                description: 'Expected HTTP status code',
+              },
+            },
+          },
+        },
       },
-      default: []
+      default: [],
     },
     plugins: {
       type: 'array',
@@ -178,20 +178,20 @@ export const gatewayConfigSchema = {
           name: {
             type: 'string',
             pattern: '^[a-zA-Z0-9_-]+$',
-            description: 'Plugin name'
+            description: 'Plugin name',
           },
           enabled: {
             type: 'boolean',
-            description: 'Enable/disable plugin'
+            description: 'Enable/disable plugin',
           },
           settings: {
             type: 'object',
             description: 'Plugin-specific settings',
-            additionalProperties: true
-          }
-        }
+            additionalProperties: true,
+          },
+        },
       },
-      default: []
+      default: [],
     },
     performance: {
       type: 'object',
@@ -200,39 +200,39 @@ export const gatewayConfigSchema = {
           type: 'integer',
           minimum: 0,
           default: 0,
-          description: 'Number of worker threads (0 = CPU count)'
+          description: 'Number of worker threads (0 = CPU count)',
         },
         contextPoolSize: {
           type: 'integer',
           minimum: 10,
           default: 1000,
-          description: 'Request context pool size'
+          description: 'Request context pool size',
         },
         bufferPoolSize: {
           type: 'integer',
           minimum: 10,
           default: 1000,
-          description: 'Buffer pool size'
+          description: 'Buffer pool size',
         },
         responsePoolSize: {
           type: 'integer',
           minimum: 10,
           default: 1000,
-          description: 'Response pool size'
+          description: 'Response pool size',
         },
         enablePooling: {
           type: 'boolean',
           default: true,
-          description: 'Enable object pooling'
-        }
+          description: 'Enable object pooling',
+        },
       },
       default: {
         workerCount: 0,
         contextPoolSize: 1000,
         bufferPoolSize: 1000,
         responsePoolSize: 1000,
-        enablePooling: true
-      }
-    }
-  }
+        enablePooling: true,
+      },
+    },
+  },
 };

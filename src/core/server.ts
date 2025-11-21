@@ -80,7 +80,7 @@ export class Server {
   constructor(config: ServerConfig, router: Router) {
     this.config = config;
     this.router = router;
-    
+
     // Initialize request context pool
     this.contextPool = new ObjectPool(
       () => new PoolableRequestContext(),
@@ -96,7 +96,7 @@ export class Server {
 
     // Setup request handler
     this.server.on('request', this.handleRequest.bind(this));
-    
+
     // Setup connection handler
     this.server.on('connection', this.handleConnection.bind(this));
 
@@ -109,7 +109,7 @@ export class Server {
    */
   private handleConnection(socket: import('net').Socket): void {
     metrics.incrementConnections();
-    
+
     socket.on('close', () => {
       metrics.decrementConnections();
     });
@@ -125,16 +125,16 @@ export class Server {
   private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
     // Generate request ID
     const requestId = `req-${++this.requestIdCounter}`;
-    
+
     // Record request start time (high precision)
     const startTime = process.hrtime.bigint();
-    
+
     // Record request metric
     metrics.recordRequest();
 
     // Acquire context from pool
     const ctx = this.contextPool.acquire();
-    
+
     try {
       // Populate context (minimal copying)
       ctx.requestId = requestId;
@@ -154,7 +154,7 @@ export class Server {
 
       // Match route
       const match = this.router.match(ctx.method, ctx.path);
-      
+
       if (!match) {
         this.send404(ctx);
         return;
@@ -170,13 +170,12 @@ export class Server {
       if (!ctx.responded) {
         this.sendResponse(ctx, 200, 'OK');
       }
-
     } catch (error) {
       this.handleRequestError(ctx, error as Error);
     } finally {
       // Record latency
       metrics.recordLatency(startTime);
-      
+
       // Release context back to pool
       this.contextPool.release(ctx);
     }
@@ -188,14 +187,14 @@ export class Server {
   private parseQuery(queryString: string): Record<string, string> {
     const query: Record<string, string> = {};
     const pairs = queryString.split('&');
-    
+
     for (const pair of pairs) {
       const [key, value] = pair.split('=');
       if (key) {
         query[decodeURIComponent(key)] = decodeURIComponent(value || '');
       }
     }
-    
+
     return query;
   }
 
@@ -207,7 +206,7 @@ export class Server {
 
     ctx.res.writeHead(statusCode, {
       'Content-Type': typeof body === 'string' ? 'text/plain' : 'application/octet-stream',
-      'Content-Length': Buffer.byteLength(body)
+      'Content-Length': Buffer.byteLength(body),
     });
     ctx.res.end(body);
     ctx.responded = true;
@@ -226,7 +225,7 @@ export class Server {
   private handleRequestError(ctx: RequestContext, error: Error): void {
     metrics.recordError();
     logger.error({ err: error, requestId: ctx.requestId }, 'Request error');
-    
+
     if (!ctx.responded) {
       this.sendResponse(ctx, 500, 'Internal Server Error');
     }
@@ -245,10 +244,13 @@ export class Server {
   async start(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.server.listen(this.config.port, this.config.host, () => {
-        logger.info({
-          host: this.config.host,
-          port: this.config.port
-        }, 'Server started');
+        logger.info(
+          {
+            host: this.config.host,
+            port: this.config.port,
+          },
+          'Server started'
+        );
         resolve();
       });
 
@@ -261,7 +263,7 @@ export class Server {
    */
   async stop(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.server.close((err) => {
+      this.server.close(err => {
         if (err) {
           reject(err);
         } else {

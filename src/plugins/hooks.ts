@@ -15,7 +15,7 @@ export const HOOK_ORDER = [
   PluginHook.POST_HANDLER,
   PluginHook.POST_RESPONSE,
   PluginHook.ON_ERROR,
-  PluginHook.DESTROY
+  PluginHook.DESTROY,
 ];
 
 /**
@@ -37,44 +37,44 @@ export function getHookMetadata(hook: PluginHook): HookMetadata {
       name: PluginHook.INIT,
       description: 'Called when plugin is loaded',
       async: true,
-      errorHandler: false
+      errorHandler: false,
     },
     [PluginHook.PRE_ROUTE]: {
       name: PluginHook.PRE_ROUTE,
       description: 'Called before request routing',
       async: true,
-      errorHandler: false
+      errorHandler: false,
     },
     [PluginHook.PRE_HANDLER]: {
       name: PluginHook.PRE_HANDLER,
       description: 'Called after route matching, before handler',
       async: true,
-      errorHandler: false
+      errorHandler: false,
     },
     [PluginHook.POST_HANDLER]: {
       name: PluginHook.POST_HANDLER,
       description: 'Called after handler, before response',
       async: true,
-      errorHandler: false
+      errorHandler: false,
     },
     [PluginHook.POST_RESPONSE]: {
       name: PluginHook.POST_RESPONSE,
       description: 'Called after response is sent',
       async: true,
-      errorHandler: false
+      errorHandler: false,
     },
     [PluginHook.ON_ERROR]: {
       name: PluginHook.ON_ERROR,
       description: 'Called on request error',
       async: true,
-      errorHandler: true
+      errorHandler: true,
     },
     [PluginHook.DESTROY]: {
       name: PluginHook.DESTROY,
       description: 'Called when plugin is unloaded',
       async: true,
-      errorHandler: false
-    }
+      errorHandler: false,
+    },
   };
 
   return metadata[hook];
@@ -109,7 +109,7 @@ export function getRequestLifecycleHooks(): PluginHook[] {
     PluginHook.PRE_ROUTE,
     PluginHook.PRE_HANDLER,
     PluginHook.POST_HANDLER,
-    PluginHook.POST_RESPONSE
+    PluginHook.POST_RESPONSE,
   ];
 }
 

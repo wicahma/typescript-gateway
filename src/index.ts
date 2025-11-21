@@ -23,7 +23,7 @@ export class Gateway {
       configPath,
       hotReload: false,
       reloadInterval: 5000,
-      validate: true
+      validate: true,
     });
   }
 

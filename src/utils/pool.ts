@@ -54,7 +54,7 @@ export class ObjectPool<T extends Poolable> {
       inUse: 0,
       hits: 0,
       misses: 0,
-      allocations: 0
+      allocations: 0,
     };
 
     // Pre-allocate pool
@@ -163,7 +163,7 @@ export class BufferPool {
    */
   private getPool(size: number): ObjectPool<Buffer & Poolable> {
     let pool = this.pools.get(size);
-    
+
     if (!pool) {
       pool = new ObjectPool(() => {
         const buf = Buffer.allocUnsafe(size) as Buffer & Poolable;
@@ -218,7 +218,7 @@ export class BufferPool {
  * This is a monkey-patch but safe for our use case
  */
 if (!('reset' in Buffer.prototype)) {
-  (Buffer.prototype as Buffer & Poolable).reset = function(this: Buffer) {
+  (Buffer.prototype as Buffer & Poolable).reset = function (this: Buffer) {
     this.fill(0);
   };
 }

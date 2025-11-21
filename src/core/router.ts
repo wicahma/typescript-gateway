@@ -31,17 +31,17 @@ interface RadixNode {
 export class Router {
   // Static routes: O(1) lookup with Map
   private staticRoutes: Map<HttpMethod, Map<string, RouteHandler>>;
-  
+
   // Dynamic routes: O(log n) lookup with radix tree
   private dynamicRoutes: Map<HttpMethod, RadixNode>;
-  
+
   // All registered routes for introspection
   private routes: Route[] = [];
 
   constructor() {
     this.staticRoutes = new Map();
     this.dynamicRoutes = new Map();
-    
+
     // Initialize maps for each HTTP method
     const methods: HttpMethod[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
     methods.forEach(method => {
@@ -61,7 +61,7 @@ export class Router {
       paramChild: null,
       paramName: null,
       wildcardChild: null,
-      route: null
+      route: null,
     };
   }
 
@@ -74,7 +74,7 @@ export class Router {
       method,
       path,
       handler,
-      priority
+      priority,
     };
 
     // Check if route is static (no params or wildcards)
@@ -104,7 +104,7 @@ export class Router {
 
     for (let i = 0; i < segments.length; i++) {
       const segment = segments[i];
-      
+
       if (!segment) continue;
 
       if (segment.startsWith(':')) {
@@ -140,7 +140,10 @@ export class Router {
    * Match route and extract parameters
    * Returns handler and params if found
    */
-  match(method: HttpMethod, path: string): { handler: RouteHandler; params: Record<string, string> } | null {
+  match(
+    method: HttpMethod,
+    path: string
+  ): { handler: RouteHandler; params: Record<string, string> } | null {
     // Try static routes first (O(1))
     const staticMap = this.staticRoutes.get(method);
     if (staticMap) {
@@ -180,7 +183,7 @@ export class Router {
     }
 
     const segment = segments[index];
-    
+
     if (!segment) return null;
 
     // Try exact match first (highest priority)
@@ -223,7 +226,7 @@ export class Router {
     this.staticRoutes.clear();
     this.dynamicRoutes.clear();
     this.routes = [];
-    
+
     const methods: HttpMethod[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
     methods.forEach(method => {
       this.staticRoutes.set(method, new Map());

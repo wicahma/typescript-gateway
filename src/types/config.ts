@@ -3,13 +3,7 @@
  * Separating config types for better organization
  */
 
-import { 
-  GatewayConfig, 
-  ServerConfig, 
-  PerformanceConfig,
-  UpstreamTarget,
-  Route 
-} from './core.js';
+import { GatewayConfig, ServerConfig, PerformanceConfig, UpstreamTarget, Route } from './core.js';
 import { PluginConfig } from './core.js';
 
 /**
@@ -81,11 +75,4 @@ export interface ConfigChangeEvent {
  */
 export type ConfigWatcherCallback = (event: ConfigChangeEvent) => void | Promise<void>;
 
-export type {
-  GatewayConfig,
-  ServerConfig,
-  PerformanceConfig,
-  UpstreamTarget,
-  Route,
-  PluginConfig
-};
+export type { GatewayConfig, ServerConfig, PerformanceConfig, UpstreamTarget, Route, PluginConfig };

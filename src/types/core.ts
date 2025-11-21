@@ -112,7 +112,7 @@ export interface HealthCheckConfig {
 /**
  * Load balancing strategies
  */
-export type LoadBalancerStrategy = 
+export type LoadBalancerStrategy =
   | 'round-robin'
   | 'least-connections'
   | 'random'
@@ -125,7 +125,7 @@ export type LoadBalancerStrategy =
 export enum CircuitBreakerState {
   CLOSED = 'CLOSED',
   OPEN = 'OPEN',
-  HALF_OPEN = 'HALF_OPEN'
+  HALF_OPEN = 'HALF_OPEN',
 }
 
 /**
@@ -151,7 +151,7 @@ export enum WorkerMessageType {
   SHUTDOWN = 'SHUTDOWN',
   METRICS_REQUEST = 'METRICS_REQUEST',
   METRICS_RESPONSE = 'METRICS_RESPONSE',
-  HEALTH_CHECK = 'HEALTH_CHECK'
+  HEALTH_CHECK = 'HEALTH_CHECK',
 }
 
 /**

@@ -13,7 +13,7 @@ describe('ConfigValidator', () => {
         keepAliveTimeout: 65000,
         requestTimeout: 30000,
         maxHeaderSize: 16384,
-        maxBodySize: 10485760
+        maxBodySize: 10485760,
       },
       routes: [],
       upstreams: [],
@@ -23,8 +23,8 @@ describe('ConfigValidator', () => {
         contextPoolSize: 1000,
         bufferPoolSize: 1000,
         responsePoolSize: 1000,
-        enablePooling: true
-      }
+        enablePooling: true,
+      },
     };
 
     const result = configValidator.validate(config);
@@ -38,8 +38,8 @@ describe('ConfigValidator', () => {
       environment: 'development',
       server: {
         port: 99999, // Invalid
-        host: '0.0.0.0'
-      }
+        host: '0.0.0.0',
+      },
     };
 
     const result = configValidator.validate(config);
@@ -52,8 +52,8 @@ describe('ConfigValidator', () => {
       environment: 'invalid',
       server: {
         port: 3000,
-        host: '0.0.0.0'
-      }
+        host: '0.0.0.0',
+      },
     };
 
     const result = configValidator.validate(config);
@@ -66,8 +66,8 @@ describe('ConfigValidator', () => {
       environment: 'production',
       server: {
         port: 3000,
-        host: '0.0.0.0'
-      }
+        host: '0.0.0.0',
+      },
     };
 
     const isValid = configValidator.isValid(config);

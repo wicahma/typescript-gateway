@@ -14,7 +14,7 @@ export enum LogLevel {
   INFO = 'info',
   WARN = 'warn',
   ERROR = 'error',
-  FATAL = 'fatal'
+  FATAL = 'fatal',
 }
 
 /**
@@ -33,7 +33,7 @@ export function createLogger(config: Partial<LoggerConfig> = {}): pino.Logger {
   const {
     level = LogLevel.INFO,
     pretty = process.env['NODE_ENV'] !== 'production',
-    destination
+    destination,
   } = config;
 
   const options: pino.LoggerOptions = {
@@ -41,13 +41,13 @@ export function createLogger(config: Partial<LoggerConfig> = {}): pino.Logger {
     // Performance optimizations
     timestamp: pino.stdTimeFunctions.isoTime,
     formatters: {
-      level: (label) => ({ level: label })
+      level: label => ({ level: label }),
     },
     serializers: {
       req: pino.stdSerializers.req,
       res: pino.stdSerializers.res,
-      err: pino.stdSerializers.err
-    }
+      err: pino.stdSerializers.err,
+    },
   };
 
   // Pretty print for development
@@ -59,9 +59,9 @@ export function createLogger(config: Partial<LoggerConfig> = {}): pino.Logger {
         options: {
           colorize: true,
           translateTime: 'HH:MM:ss.l',
-          ignore: 'pid,hostname'
-        }
-      }
+          ignore: 'pid,hostname',
+        },
+      },
     });
   }
 
@@ -78,7 +78,7 @@ export function createLogger(config: Partial<LoggerConfig> = {}): pino.Logger {
  */
 export const logger = createLogger({
   level: (process.env['LOG_LEVEL'] as LogLevel) || LogLevel.INFO,
-  pretty: process.env['NODE_ENV'] !== 'production'
+  pretty: process.env['NODE_ENV'] !== 'production',
 });
 
 /**
@@ -90,26 +90,38 @@ export function createRequestLogger() {
     logRequest(method: string, path: string, requestId: string) {
       logger.info({ method, path, requestId }, 'Incoming request');
     },
-    
-    logResponse(method: string, path: string, statusCode: number, latencyMs: number, requestId: string) {
+
+    logResponse(
+      method: string,
+      path: string,
+      statusCode: number,
+      latencyMs: number,
+      requestId: string
+    ) {
       const level = statusCode >= 500 ? 'error' : statusCode >= 400 ? 'warn' : 'info';
-      logger[level]({
-        method,
-        path,
-        statusCode,
-        latencyMs: latencyMs.toFixed(2),
-        requestId
-      }, 'Request completed');
+      logger[level](
+        {
+          method,
+          path,
+          statusCode,
+          latencyMs: latencyMs.toFixed(2),
+          requestId,
+        },
+        'Request completed'
+      );
     },
-    
+
     logError(error: Error, method: string, path: string, requestId: string) {
-      logger.error({
-        err: error,
-        method,
-        path,
-        requestId
-      }, 'Request error');
-    }
+      logger.error(
+        {
+          err: error,
+          method,
+          path,
+          requestId,
+        },
+        'Request error'
+      );
+    },
   };
 }
 
@@ -123,11 +135,14 @@ export function logSlowRequest(
   threshold: number = 100
 ): void {
   if (latencyMs > threshold) {
-    logger.warn({
-      method,
-      path,
-      latencyMs: latencyMs.toFixed(2),
-      threshold
-    }, 'Slow request detected');
+    logger.warn(
+      {
+        method,
+        path,
+        latencyMs: latencyMs.toFixed(2),
+        threshold,
+      },
+      'Slow request detected'
+    );
   }
 }

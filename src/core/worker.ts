@@ -89,7 +89,11 @@ export class Worker {
     this.server = new Server(config.server, this.router);
 
     logger.info('Worker initialized');
-    this.sendMessage({ type: WorkerMessageType.INIT, payload: { status: 'ready' }, timestamp: Date.now() });
+    this.sendMessage({
+      type: WorkerMessageType.INIT,
+      payload: { status: 'ready' },
+      timestamp: Date.now(),
+    });
   }
 
   /**
@@ -109,7 +113,7 @@ export class Worker {
     this.sendMessage({
       type: WorkerMessageType.METRICS_RESPONSE,
       payload: snapshot,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
@@ -120,7 +124,7 @@ export class Worker {
     this.sendMessage({
       type: WorkerMessageType.HEALTH_CHECK,
       payload: { healthy: true },
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
@@ -161,7 +165,7 @@ export class Worker {
 // Auto-start worker if run as worker thread
 if (parentPort) {
   const worker = new Worker();
-  
+
   // Handle initialization data
   if (workerData && workerData.config) {
     worker.start().catch(error => {

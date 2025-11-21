@@ -28,7 +28,7 @@ export class PluginLoader {
     try {
       // Convert path to file URL for ESM import
       const fileUrl = pathToFileURL(pluginPath).href;
-      
+
       // Dynamic import
       const module = await import(fileUrl);
       const plugin = module.default || module;
@@ -47,7 +47,7 @@ export class PluginLoader {
         description: plugin.description,
         author: plugin.author,
         enabled: true,
-        order
+        order,
       };
       this.metadata.set(plugin.name, metadata);
 
@@ -123,7 +123,7 @@ export class PluginLoader {
    */
   async unloadPlugin(name: string): Promise<void> {
     const plugin = this.plugins.get(name);
-    
+
     if (!plugin) {
       throw new Error(`Plugin not found: ${name}`);
     }
@@ -148,7 +148,7 @@ export class PluginLoader {
    */
   async unloadAll(): Promise<void> {
     const names = Array.from(this.plugins.keys());
-    
+
     for (const name of names) {
       await this.unloadPlugin(name);
     }
@@ -163,7 +163,7 @@ export class PluginLoader {
     }
 
     const p = plugin as Partial<Plugin>;
-    
+
     return (
       typeof p.name === 'string' &&
       typeof p.version === 'string' &&
