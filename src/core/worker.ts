@@ -16,9 +16,8 @@ import { metrics } from '../utils/metrics.js';
 export class Worker {
   private server: Server | null = null;
   private router: Router;
-  // config stored for future hot reload support
-  // @ts-expect-error - config will be used in Phase 2 for hot reload
-  private config: GatewayConfig | null = null;
+  // Stored for Phase 2 hot reload support
+  private _config: GatewayConfig | null = null;
 
   constructor() {
     this.router = new Router();
@@ -76,14 +75,10 @@ export class Worker {
    * Initialize worker with configuration
    */
   private async initialize(config: GatewayConfig): Promise<void> {
-    this.config = config;
+    this._config = config;
 
-    // Register routes
-    if (config.routes) {
-      for (const route of config.routes) {
-        this.router.register(route.method, route.path, route.handler, route.priority);
-      }
-    }
+    // Note: Routes in config are placeholders for Phase 2
+    // Phase 2 will add proxy handlers based on upstream configuration
 
     // Create server
     this.server = new Server(config.server, this.router);
@@ -100,7 +95,7 @@ export class Worker {
    * Update worker configuration
    */
   private async updateConfig(config: GatewayConfig): Promise<void> {
-    this.config = config;
+    this._config = config;
     // TODO: Hot reload routes and configuration
     logger.info('Worker configuration updated');
   }
@@ -148,6 +143,13 @@ export class Worker {
     if (parentPort) {
       parentPort.postMessage(message);
     }
+  }
+
+  /**
+   * Get current configuration
+   */
+  getConfig(): GatewayConfig | null {
+    return this._config;
   }
 
   /**
