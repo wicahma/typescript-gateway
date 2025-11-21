@@ -187,10 +187,9 @@ export class ProxyHandler {
 
           // Update content-length if body was parsed
           if (parsedBody?.buffer) {
-            if (!options.headers || typeof options.headers === 'object') {
-              options.headers = options.headers || {};
-              (options.headers as Record<string, string>)['content-length'] = 
-                parsedBody.buffer.length.toString();
+            if (options.headers && typeof options.headers === 'object' && !Array.isArray(options.headers)) {
+              const headers = options.headers as http.OutgoingHttpHeaders;
+              headers['content-length'] = parsedBody.buffer.length;
             }
           }
 
@@ -248,7 +247,8 @@ export class ProxyHandler {
 
     // Parse body for POST, PUT, PATCH methods with content
     const hasBody = ['POST', 'PUT', 'PATCH'].includes(ctx.method);
-    const hasContentLength = ctx.headers['content-length'] !== '0';
+    const contentLength = ctx.headers['content-length'];
+    const hasContentLength = contentLength !== undefined && contentLength !== '0' && parseInt(contentLength as string, 10) > 0;
 
     return hasBody && hasContentLength;
   }

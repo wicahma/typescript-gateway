@@ -51,7 +51,9 @@ describe('LoadBalancer', () => {
 
     it('should handle single upstream', () => {
       const lb = new LoadBalancer('round-robin');
-      lb.setUpstreams([upstreams[0] as UpstreamTarget]);
+      const singleUpstream = upstreams[0];
+      if (!singleUpstream) throw new Error('Test setup error');
+      lb.setUpstreams([singleUpstream]);
 
       for (let i = 0; i < 5; i++) {
         const upstream = lb.select();

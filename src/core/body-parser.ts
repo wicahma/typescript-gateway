@@ -367,7 +367,12 @@ export class BodyParser {
     const result: Record<string, string | string[]> = {};
 
     for (const pair of str.split('&')) {
-      const [key, value] = pair.split('=').map((s) => decodeURIComponent(s));
+      const equalIndex = pair.indexOf('=');
+      if (equalIndex === -1) continue;
+      
+      const key = decodeURIComponent(pair.substring(0, equalIndex));
+      const value = decodeURIComponent(pair.substring(equalIndex + 1));
+      
       if (!key) continue;
 
       if (key in result) {
