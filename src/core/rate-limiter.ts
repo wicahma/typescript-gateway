@@ -70,7 +70,7 @@ export class TokenBucketRateLimiter {
 
     if (!bucket) {
       bucket = {
-        tokens: this.config.capacity - tokens,
+        tokens: this.config.capacity,
         lastRefill: now,
         lastAccess: now,
       };
@@ -86,14 +86,16 @@ export class TokenBucketRateLimiter {
       }
 
       bucket.lastAccess = now;
-
-      // Try to consume tokens
-      if (bucket.tokens >= tokens) {
-        bucket.tokens -= tokens;
-      }
     }
 
-    const allowed = bucket.tokens >= 0;
+    // Check if we have enough tokens
+    const allowed = bucket.tokens >= tokens;
+    
+    // Consume tokens if allowed
+    if (allowed) {
+      bucket.tokens -= tokens;
+    }
+
     const remaining = Math.max(0, bucket.tokens);
     const resetIn = bucket.tokens < this.config.capacity 
       ? (this.config.capacity - bucket.tokens) / this.config.refillRate 
@@ -290,7 +292,7 @@ export class SlidingWindowRateLimiter {
 
     if (!window) {
       window = {
-        requests: [now],
+        requests: [],
         lastAccess: now,
       };
       this.setWindow(key, window);
@@ -298,14 +300,16 @@ export class SlidingWindowRateLimiter {
       // Remove expired requests
       window.requests = window.requests.filter((time) => time > windowStart);
       window.lastAccess = now;
-
-      // Add current request if allowed
-      if (window.requests.length < this.config.maxRequests) {
-        window.requests.push(now);
-      }
     }
 
-    const allowed = window.requests.length <= this.config.maxRequests;
+    // Check if we can add this request
+    const allowed = window.requests.length < this.config.maxRequests;
+    
+    // Add current request if allowed
+    if (allowed) {
+      window.requests.push(now);
+    }
+
     const remaining = Math.max(0, this.config.maxRequests - window.requests.length);
 
     // Calculate reset time (when oldest request expires)
