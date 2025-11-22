@@ -1,7 +1,7 @@
 /**
  * Unit tests for Performance Dashboard
  */
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { PerformanceDashboard, EventStream } from '../../../src/monitoring/performance-dashboard.js';
 
 describe('PerformanceDashboard', () => {

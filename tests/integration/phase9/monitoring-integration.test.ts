@@ -1,7 +1,7 @@
 /**
  * Integration tests for monitoring system
  */
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { PerformanceDashboard } from '../../../src/monitoring/performance-dashboard.js';
 import { PerformanceAlerter } from '../../../src/monitoring/performance-alerts.js';
 import { AutoTuner } from '../../../src/config/auto-tuner.js';
