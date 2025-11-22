@@ -438,4 +438,83 @@ export class HealthChecker {
     const config = { ...DEFAULT_CONFIG, ...upstream.healthCheck };
     this.processResult(upstream, result, config);
   }
+
+  /**
+   * Get comprehensive health report (Phase 8)
+   */
+  getHealthReport(): {
+    status: 'healthy' | 'degraded' | 'unhealthy';
+    timestamp: string;
+    uptime: number;
+    upstreams: Array<{
+      id: string;
+      status: 'healthy' | 'unhealthy';
+      lastCheck: string;
+      responseTime: number;
+      consecutiveFailures: number;
+      errorRate: number;
+    }>;
+    summary: {
+      total: number;
+      healthy: number;
+      unhealthy: number;
+    };
+  } {
+    const now = Date.now();
+    const upstreamReports = [];
+    let healthyCount = 0;
+    let unhealthyCount = 0;
+
+    for (const [upstreamId, upstream] of this.upstreams) {
+      const stats = this.stats.get(upstreamId);
+      const isHealthy = upstream.healthy;
+      
+      if (isHealthy) {
+        healthyCount++;
+      } else {
+        unhealthyCount++;
+      }
+
+      const errorRate = stats && stats.totalChecks > 0
+        ? (stats.failedChecks / stats.totalChecks) * 100
+        : 0;
+
+      upstreamReports.push({
+        id: upstreamId,
+        status: isHealthy ? 'healthy' as const : 'unhealthy' as const,
+        lastCheck: stats?.lastResult?.timestamp
+          ? new Date(stats.lastResult.timestamp).toISOString()
+          : new Date(now).toISOString(),
+        responseTime: stats?.lastResult?.responseTime || 0,
+        consecutiveFailures: stats?.consecutiveFailures || 0,
+        errorRate,
+      });
+    }
+
+    // Determine overall health status
+    let status: 'healthy' | 'degraded' | 'unhealthy';
+    const totalUpstreams = this.upstreams.size;
+    
+    if (totalUpstreams === 0) {
+      status = 'healthy'; // No upstreams to check
+    } else if (unhealthyCount === 0) {
+      status = 'healthy'; // All upstreams healthy
+    } else if (healthyCount > 0) {
+      status = 'degraded'; // Some upstreams unhealthy
+    } else {
+      status = 'unhealthy'; // All upstreams unhealthy
+    }
+
+    return {
+      status,
+      timestamp: new Date(now).toISOString(),
+      uptime: process.uptime() * 1000, // Convert to milliseconds
+      upstreams: upstreamReports,
+      summary: {
+        total: totalUpstreams,
+        healthy: healthyCount,
+        unhealthy: unhealthyCount,
+      },
+    };
+  }
 }
