@@ -271,6 +271,8 @@ export interface GatewayConfig {
   loadBalancer?: LoadBalancerConfig;
   /** Circuit breaker configuration (Phase 4) */
   circuitBreaker?: CircuitBreakerConfig;
+  /** Monitoring configuration (Phase 8) */
+  monitoring?: MonitoringConfig;
 }
 
 /**
@@ -362,4 +364,71 @@ export interface LoadBalancerConfig {
   healthCheckType: HealthCheckType;
   /** Enable health-aware routing */
   healthAware: boolean;
+}
+
+/**
+ * Monitoring configuration (Phase 8)
+ */
+export interface MonitoringConfig {
+  /** Metrics configuration */
+  metrics: {
+    /** Enable metrics collection */
+    enabled: boolean;
+    /** Collection interval in milliseconds */
+    collectInterval: number;
+    /** Retention period in seconds */
+    retentionPeriod: number;
+    /** Aggregation windows in seconds (e.g., [60, 300, 900] for 1m, 5m, 15m) */
+    aggregationWindows: number[];
+  };
+  /** Health check configuration */
+  health: {
+    /** Enable health checks */
+    enabled: boolean;
+    /** Check interval in milliseconds */
+    checkInterval: number;
+    /** Unhealthy threshold (error rate percentage) */
+    unhealthyThreshold: number;
+    /** Degraded threshold (error rate percentage) */
+    degradedThreshold: number;
+  };
+  /** Export configuration */
+  export: {
+    /** Prometheus export configuration */
+    prometheus: {
+      /** Enable Prometheus export */
+      enabled: boolean;
+      /** Metrics endpoint path */
+      path: string;
+      /** Optional separate port for metrics */
+      port?: number;
+    };
+    /** StatsD export configuration (optional) */
+    statsd?: {
+      /** Enable StatsD export */
+      enabled: boolean;
+      /** StatsD host */
+      host: string;
+      /** StatsD port */
+      port: number;
+      /** Metric prefix */
+      prefix: string;
+    };
+  };
+  /** Tracing configuration */
+  tracing: {
+    /** Enable distributed tracing */
+    enabled: boolean;
+    /** Sampling rate (0.0 to 1.0) */
+    samplingRate: number;
+    /** Export interval in milliseconds */
+    exportInterval: number;
+  };
+  /** Logging configuration */
+  logging: {
+    /** Slow request threshold in milliseconds */
+    slowRequestThreshold: number;
+    /** Error sampling rate (0.0 to 1.0) */
+    errorSampling: number;
+  };
 }
