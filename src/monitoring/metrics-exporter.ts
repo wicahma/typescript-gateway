@@ -67,6 +67,11 @@ interface HistoricalMetrics {
 }
 
 /**
+ * Historical metrics collection interval (1 minute)
+ */
+const HISTORICAL_COLLECTION_INTERVAL = 60000;
+
+/**
  * Metrics Exporter
  */
 export class MetricsExporter {
@@ -402,7 +407,7 @@ export class MetricsExporter {
           this.historicalMetrics.shift();
         }
       }
-    }, 60000); // 1 minute
+    }, HISTORICAL_COLLECTION_INTERVAL);
 
     logger.info('Historical metrics collection started');
   }
