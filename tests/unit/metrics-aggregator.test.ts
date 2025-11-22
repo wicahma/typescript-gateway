@@ -261,7 +261,7 @@ describe('MetricsAggregator', () => {
   describe('Atomic Operations', () => {
     it('should use atomic operations for counters', () => {
       // Test that multiple concurrent updates work correctly
-      const promises = [];
+      const promises: Promise<void>[] = [];
       
       for (let i = 0; i < 10; i++) {
         promises.push(

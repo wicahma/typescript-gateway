@@ -5,6 +5,7 @@
  */
 
 import pino from 'pino';
+import { hostname } from 'os';
 
 /**
  * Log levels
@@ -78,7 +79,7 @@ export function createLogger(config: Partial<LoggerConfig> = {}): pino.Logger {
     // Phase 8: Base context for all logs
     base: {
       pid: process.pid,
-      hostname: require('os').hostname(),
+      hostname: hostname(),
     },
   };
 

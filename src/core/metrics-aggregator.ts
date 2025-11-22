@@ -428,7 +428,8 @@ export class MetricsAggregator {
   private cleanWindow(window: WindowEntry[], cutoff: number): void {
     let firstValidIndex = 0;
     for (let i = 0; i < window.length; i++) {
-      if (window[i]!.timestamp >= cutoff) {
+      const entry = window[i];
+      if (entry && entry.timestamp >= cutoff) {
         firstValidIndex = i;
         break;
       }
