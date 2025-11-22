@@ -1,7 +1,7 @@
 /**
  * Unit tests for Memory Profiler
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { MemoryProfiler, createMemoryProfiler } from '../../../src/profiling/memory-profiler.js';
 
 describe('MemoryProfiler', () => {
