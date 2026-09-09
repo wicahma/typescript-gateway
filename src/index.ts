@@ -1,20 +1,16 @@
-/**
- * Main entry point for the ultra-high-performance API gateway
- * Zero framework dependencies, native Node.js HTTP only
- */
-
 import { Server } from './core/server.js';
 import { Router } from './core/router.js';
+import { ProxyHandler } from './core/proxy-handler.js';
 import { createConfigLoader } from './config/loader.js';
 import { logger } from './utils/logger.js';
 import { metrics } from './utils/metrics.js';
+import { ConfigFile } from './types/config.js';
+import { UpstreamTarget, CircuitBreakerState } from './types/core.js';
 
-/**
- * Gateway application
- */
 export class Gateway {
   private server: Server | null = null;
   private router: Router;
+  private proxyHandler: ProxyHandler | null = null;
   private configLoader;
   private metricsInterval: NodeJS.Timeout | null = null;
 
@@ -28,77 +24,119 @@ export class Gateway {
     });
   }
 
-  /**
-   * Start the gateway
-   */
   async start(): Promise<void> {
-    try {
-      // Load configuration
-      const config = await this.configLoader.load();
-      logger.info({ config: config.version }, 'Configuration loaded');
+    const config = await this.configLoader.load();
+    this.registerSystemRoutes();
+    this.setupProxyRouting(config);
 
-      // Note: Routes in config are placeholders for Phase 2
-      // In Phase 1, routes are registered programmatically
-      // Phase 2 will add proxy handlers based on upstream configuration
+    const serverConfig = {
+      ...config.server,
+      port: Number(process.env['PORT']) || config.server.port,
+      host: process.env['HOST'] || config.server.host,
+    };
 
-      // Register example routes for testing
-      this.registerDefaultRoutes();
+    this.server = new Server(serverConfig, this.router);
+    await this.server.start();
 
-      // Create and start server with env overrides (PORT / HOST fallback)
-      const serverConfig = {
-        ...config.server,
-        port: Number(process.env['PORT']) || config.server.port,
-        host: process.env['HOST'] || config.server.host,
-      };
-      this.server = new Server(serverConfig, this.router);
-      await this.server.start();
-
-      // Setup metrics reporting
-      this.setupMetricsReporting();
-
-      // Setup graceful shutdown
-      this.setupShutdownHandlers();
-
-      logger.info('Gateway started successfully');
-    } catch (error) {
-      logger.error({ err: error }, 'Failed to start gateway');
-      throw error;
-    }
+    this.setupMetricsReporting();
+    this.setupShutdownHandlers();
+    logger.info({ port: serverConfig.port, host: serverConfig.host }, 'Gateway started');
   }
 
-  /**
-   * Stop the gateway
-   */
   async stop(): Promise<void> {
-    logger.info('Stopping gateway');
-
-    // Clear metrics interval
     if (this.metricsInterval) {
       clearInterval(this.metricsInterval);
       this.metricsInterval = null;
     }
 
+    if (this.proxyHandler) {
+      await this.proxyHandler.shutdown();
+      this.proxyHandler = null;
+    }
+
     if (this.server) {
       await this.server.stop();
+      this.server = null;
     }
 
     this.configLoader.destroy();
-
     logger.info('Gateway stopped');
   }
 
-  /**
-   * Setup periodic metrics reporting
-   */
+  getRouter(): Router {
+    return this.router;
+  }
+
+  getServer(): Server | null {
+    return this.server;
+  }
+
+  private registerSystemRoutes(): void {
+    this.router.register('GET', '/health', async ctx => {
+      ctx.res.writeHead(200, { 'Content-Type': 'application/json' });
+      ctx.res.end(JSON.stringify({ status: 'ok', uptime: process.uptime() }));
+      ctx.responded = true;
+    });
+
+    this.router.register('GET', '/metrics', async ctx => {
+      ctx.res.writeHead(200, { 'Content-Type': 'application/json' });
+      ctx.res.end(JSON.stringify(metrics.snapshot(), null, 2));
+      ctx.responded = true;
+    });
+
+    this.router.register('GET', '/', async ctx => {
+      ctx.res.writeHead(200, { 'Content-Type': 'text/plain' });
+      ctx.res.end('TypeScript Service Gateway');
+      ctx.responded = true;
+    });
+  }
+
+  private setupProxyRouting(config: ConfigFile): void {
+    const upstreams: UpstreamTarget[] = (config.upstreams || []).map(u => ({
+      id: u.id,
+      protocol: (u.protocol as 'http' | 'https') || 'http',
+      host: u.host,
+      port: u.port,
+      basePath: u.basePath || '',
+      poolSize: u.poolSize || 10,
+      timeout: u.timeout || 30000,
+      healthCheck: {
+        enabled: u.healthCheck?.enabled ?? false,
+        path: u.healthCheck?.path ?? '/health',
+        interval: u.healthCheck?.interval ?? 30000,
+        timeout: u.healthCheck?.timeout ?? 5000,
+        expectedStatus: u.healthCheck?.expectedStatus ?? 200,
+        type: 'active' as const,
+        gracePeriod: 5000,
+        unhealthyThreshold: 3,
+        healthyThreshold: 2,
+      },
+      healthy: true,
+      circuitBreaker: CircuitBreakerState.CLOSED,
+      weight: 1,
+      activeConnections: 0,
+    }));
+
+    if (upstreams.length > 0) {
+      this.proxyHandler = new ProxyHandler();
+      this.proxyHandler.initialize(upstreams);
+
+      const reserved = new Set(['/', '/health', '/metrics']);
+      for (const route of config.routes || []) {
+        if (reserved.has(route.path)) continue;
+        this.router.register(route.method, route.path, async ctx => {
+          await this.proxyHandler!.handle(ctx);
+        });
+      }
+    }
+  }
+
   private setupMetricsReporting(): void {
     this.metricsInterval = setInterval(() => {
       logger.info({ metrics: metrics.format() }, 'Metrics snapshot');
-    }, 60000); // Every minute
+    }, 60000);
   }
 
-  /**
-   * Setup graceful shutdown handlers
-   */
   private setupShutdownHandlers(): void {
     const shutdown = async (signal: string) => {
       logger.info({ signal }, 'Received shutdown signal');
@@ -114,59 +152,11 @@ export class Gateway {
     process.on('SIGTERM', () => shutdown('SIGTERM'));
     process.on('SIGINT', () => shutdown('SIGINT'));
   }
-
-  /**
-   * Get router instance
-   */
-  getRouter(): Router {
-    return this.router;
-  }
-
-  /**
-   * Get server instance
-   */
-  getServer(): Server | null {
-    return this.server;
-  }
-
-  /**
-   * Register default routes for Phase 1 testing
-   * Phase 2 will register routes from configuration with proxy handlers
-   */
-  private registerDefaultRoutes(): void {
-    // Health check endpoint
-    this.router.register('GET', '/health', async ctx => {
-      ctx.res.writeHead(200, { 'Content-Type': 'application/json' });
-      ctx.res.end(JSON.stringify({ status: 'ok', uptime: process.uptime() }));
-      ctx.responded = true;
-    });
-
-    // Metrics endpoint
-    this.router.register('GET', '/metrics', async ctx => {
-      const snapshot = metrics.snapshot();
-      ctx.res.writeHead(200, { 'Content-Type': 'application/json' });
-      ctx.res.end(JSON.stringify(snapshot, null, 2));
-      ctx.responded = true;
-    });
-
-    // Root endpoint
-    this.router.register('GET', '/', async ctx => {
-      ctx.res.writeHead(200, { 'Content-Type': 'text/plain' });
-      ctx.res.end('TypeScript Gateway - Phase 1');
-      ctx.responded = true;
-    });
-
-    logger.info('Default routes registered');
-  }
 }
 
-/**
- * Start gateway if run directly
- */
 if (import.meta.url === `file://${process.argv[1]}`) {
   const configPath = process.env['CONFIG_PATH'] || './config/gateway.config.json';
   const gateway = new Gateway(configPath);
-
   gateway.start().catch(error => {
     logger.error({ err: error }, 'Fatal error');
     process.exit(1);
