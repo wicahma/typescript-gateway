@@ -1,23 +1,3 @@
-/**
- * Advanced Metrics Collector - Enhanced metrics for Phase 6 & Phase 8
- * Phase 6: Proxy Logic & Request Forwarding
- * Phase 8: Monitoring & Observability
- * 
- * Features:
- * - Request/response size tracking
- * - Transformation metrics
- * - Compression metrics
- * - WebSocket metrics
- * - Per-route detailed metrics
- * - Per-upstream metrics
- * - Error categorization
- * - Error rate tracking (Phase 8)
- * - Retry statistics (Phase 8)
- * - Timeout frequency tracking (Phase 8)
- * - Circuit breaker metrics (Phase 8)
- * - Lock-free collection
- */
-
 import { logger } from '../utils/logger.js';
 import { CircuitBreakerState } from '../types/core.js';
 

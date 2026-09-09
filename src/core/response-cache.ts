@@ -1,9 +1,3 @@
-/**
- * Response Cache System
- * High-performance HTTP response caching with LRU eviction
- * Phase 5: Advanced Features
- */
-
 import { createHash } from 'crypto';
 
 /**

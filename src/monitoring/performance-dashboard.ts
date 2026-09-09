@@ -1,8 +1,3 @@
-/**
- * Performance dashboard with real-time metrics
- * Phase 9: Real-time performance monitoring dashboard
- */
-
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { EventEmitter } from 'events';
 

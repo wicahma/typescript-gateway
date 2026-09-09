@@ -1,11 +1,3 @@
-/**
- * Stream-based request body parser with minimal memory footprint
- * Phase 4: Upstream Integration & Resilience
- * 
- * Performance target: < 0.5ms overhead for small payloads (< 1KB)
- * Memory target: No full buffering, stream directly to upstream
- */
-
 import { IncomingMessage } from 'http';
 import { Readable } from 'stream';
 import { BodyParserConfig } from '../types/core.js';

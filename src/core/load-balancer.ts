@@ -1,10 +1,3 @@
-/**
- * Load balancing algorithms for upstream selection
- * Phase 4: Upstream Integration & Resilience
- * 
- * Performance target: < 0.1ms for load balancing decision
- */
-
 import { UpstreamTarget, LoadBalancerStrategy, HealthStatus } from '../types/core.js';
 import { logger } from '../utils/logger.js';
 import { createHash } from 'crypto';

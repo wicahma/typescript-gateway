@@ -1,9 +1,3 @@
-/**
- * Native HTTP server wrapper
- * Zero-copy request/response handling with proper backpressure
- * Phase 2: Enhanced connection management and graceful shutdown
- */
-
 import { createServer, IncomingMessage, ServerResponse, Server as HttpServer } from 'http';
 import { Socket } from 'net';
 import { ServerConfig, HttpMethod, RequestContext } from '../types/core.js';

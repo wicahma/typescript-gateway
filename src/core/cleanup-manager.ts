@@ -1,10 +1,3 @@
-/**
- * Cleanup Manager for Phase 7: Resilience & Error Handling
- * 
- * Tracks and manages resource cleanup for connections, timers, streams, and event listeners
- * Performance target: < 1ms for cleanup operations
- */
-
 import { logger } from '../utils/logger.js';
 import { EventEmitter } from 'events';
 

@@ -1,8 +1,3 @@
-/**
- * Memory profiling system for leak detection and analysis
- * Phase 9: Comprehensive memory profiling tools
- */
-
 import { writeHeapSnapshot } from 'v8';
 import { join } from 'path';
 

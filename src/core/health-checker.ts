@@ -1,10 +1,3 @@
-/**
- * Health check system for upstream monitoring
- * Phase 4: Upstream Integration & Resilience
- * 
- * Performance: Run in separate worker, minimal impact on request handling
- */
-
 import http from 'http';
 import https from 'https';
 import { Socket } from 'net';

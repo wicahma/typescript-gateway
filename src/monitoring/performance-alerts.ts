@@ -1,9 +1,4 @@
 /**
- * Performance alerting system
- * Phase 9: Intelligent performance monitoring and alerting
- */
-
-/**
  * Alert severity levels
  */
 export type AlertSeverity = 'info' | 'warning' | 'critical';

@@ -1,17 +1,3 @@
-/**
- * Metrics Aggregator - Lock-free metrics aggregation across workers
- * Phase 8: Monitoring & Observability
- * 
- * Features:
- * - SharedArrayBuffer for cross-worker metrics
- * - Atomic operations for counter updates
- * - Lock-free histogram for latency percentiles
- * - Sliding window for time-based metrics
- * - Snapshot API for current state
- * 
- * Performance target: < 0.05ms overhead per metric update
- */
-
 import { logger } from '../utils/logger.js';
 
 /**

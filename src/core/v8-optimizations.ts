@@ -1,8 +1,3 @@
-/**
- * V8 optimization utilities for ultra-high-performance
- * Phase 9: Performance optimization analysis and helpers
- */
-
 import { performance } from 'perf_hooks';
 
 /**

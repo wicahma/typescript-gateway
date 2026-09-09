@@ -1,8 +1,3 @@
-/**
- * Memory optimization utilities for production monitoring
- * Phase 9: Advanced memory management and leak detection
- */
-
 import { writeHeapSnapshot } from 'v8';
 import { memoryUsage } from 'process';
 import { performance } from 'perf_hooks';

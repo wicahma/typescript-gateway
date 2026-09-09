@@ -1,11 +1,4 @@
 /**
- * Error class hierarchy for Phase 7: Resilience & Error Handling
- * 
- * Provides typed error classes with context for better error handling
- * Performance target: < 0.05ms overhead
- */
-
-/**
  * Error context information
  */
 export interface ErrorContext {

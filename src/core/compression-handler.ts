@@ -1,16 +1,3 @@
-/**
- * Compression Handler - Handle compression and decompression
- * Phase 6: Proxy Logic & Request Forwarding
- * 
- * Features:
- * - Gzip, Brotli, Deflate support
- * - Compress responses to clients
- * - Decompress upstream responses
- * - Content negotiation (Accept-Encoding)
- * - Selective compression by content-type and size
- * - Streaming compression
- */
-
 import { createGzip, createGunzip, createDeflate, createInflate, createBrotliCompress, createBrotliDecompress } from 'zlib';
 import { Readable, Transform } from 'stream';
 import { OutgoingHttpHeaders } from 'http';

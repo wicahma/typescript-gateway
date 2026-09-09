@@ -1,11 +1,3 @@
-/**
- * Circuit breaker pattern implementation for upstream resilience
- * Phase 4: Upstream Integration & Resilience
- * 
- * Performance target: < 0.05ms overhead when closed
- * Fast-fail target: < 0.1ms rejection when open
- */
-
 import { CircuitBreakerConfig, CircuitBreakerState } from '../types/core.js';
 import { logger } from '../utils/logger.js';
 

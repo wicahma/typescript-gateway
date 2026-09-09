@@ -1,9 +1,3 @@
-/**
- * Rate Limit Plugin
- * Production-grade rate limiting with multiple strategies
- * Phase 5: Advanced Features
- */
-
 import { Plugin } from '../../types/plugin.js';
 import { RequestContext } from '../../types/core.js';
 import { TokenBucketRateLimiter, SlidingWindowRateLimiter, RateLimitResult } from '../../core/rate-limiter.js';

@@ -1,16 +1,3 @@
-/**
- * Request Transformer - Transform requests before proxying
- * Phase 6: Proxy Logic & Request Forwarding
- * 
- * Features:
- * - Header transformations (add, remove, rename, modify)
- * - Query parameter transformations
- * - Path rewriting with pattern matching
- * - Body transformations (JSON/form-data)
- * - Conditional transformations
- * - Transformation chains
- */
-
 import { IncomingHttpHeaders } from 'http';
 import { URL } from 'url';
 import { logger } from '../utils/logger.js';

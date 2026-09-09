@@ -1,16 +1,3 @@
-/**
- * Response Transformer - Transform responses after proxying
- * Phase 6: Proxy Logic & Request Forwarding
- * 
- * Features:
- * - Header transformations
- * - Status code mapping
- * - Body transformations
- * - Error response templating
- * - CORS handling
- * - Conditional transformations
- */
-
 import { OutgoingHttpHeaders } from 'http';
 import { logger } from '../utils/logger.js';
 

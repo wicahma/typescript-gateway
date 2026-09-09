@@ -1,10 +1,3 @@
-/**
- * Timeout Manager for Phase 7: Resilience & Error Handling
- * 
- * Implements hierarchical timeout management with proper resource cleanup
- * Performance target: < 0.01ms overhead for timeout checks
- */
-
 import { TimeoutError } from './errors.js';
 import { logger } from '../utils/logger.js';
 

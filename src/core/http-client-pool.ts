@@ -1,11 +1,3 @@
-/**
- * HTTP client connection pool for upstream requests
- * Phase 4: Upstream Integration & Resilience
- * 
- * Performance target: < 1ms connection acquisition from pool
- * Pool efficiency target: > 95% connection reuse rate
- */
-
 import http from 'http';
 import https from 'https';
 import { ConnectionPoolConfig, UpstreamTarget } from '../types/core.js';

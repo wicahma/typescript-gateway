@@ -1,10 +1,3 @@
-/**
- * Error Response Handler for Phase 7: Resilience & Error Handling
- * 
- * Builds standardized error responses with proper formatting
- * Performance target: < 0.5ms for error response generation
- */
-
 import { GatewayError, getStatusCode } from './errors.js';
 import { logger } from '../utils/logger.js';
 

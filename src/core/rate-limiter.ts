@@ -1,10 +1,4 @@
 /**
- * Token Bucket Rate Limiter
- * High-performance rate limiting with LRU eviction
- * Phase 5: Advanced Features
- */
-
-/**
  * Token bucket configuration
  */
 export interface TokenBucketConfig {

@@ -1,10 +1,3 @@
-/**
- * Fallback Handler for Phase 7: Resilience & Error Handling
- * 
- * Implements graceful degradation with fallback responses
- * Performance target: < 1ms for fallback response generation
- */
-
 import { GatewayError } from './errors.js';
 import { logger } from '../utils/logger.js';
 

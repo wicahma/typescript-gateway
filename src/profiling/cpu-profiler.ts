@@ -1,8 +1,3 @@
-/**
- * CPU profiling system for production environments
- * Phase 9: Low-overhead CPU profiling and analysis
- */
-
 import { writeFile } from 'fs/promises';
 import { Session } from 'inspector';
 

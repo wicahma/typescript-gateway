@@ -1,9 +1,4 @@
 /**
- * Auto-tuning system for performance optimization
- * Phase 9: Automatic configuration optimization based on load patterns
- */
-
-/**
  * Configuration optimization recommendation
  */
 export interface ConfigOptimization {

@@ -1,12 +1,3 @@
-/**
- * Proxy handler for upstream requests with Phase 6 enhancements
- * Phase 6: Proxy Logic & Request Forwarding
- * 
- * Integrates: Body Parser, HTTP Client Pool, Load Balancer,
- *             Circuit Breaker, Health Checker, Request/Response Transformers,
- *             Compression Handler, Advanced Metrics
- */
-
 import http from 'http';
 import https from 'https';
 import { RequestContext, UpstreamTarget } from '../types/core.js';

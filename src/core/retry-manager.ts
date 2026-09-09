@@ -1,10 +1,3 @@
-/**
- * Retry Manager for Phase 7: Resilience & Error Handling
- * 
- * Implements intelligent retry strategies with exponential backoff and jitter
- * Performance target: < 0.1ms for retry decision
- */
-
 import { CircuitBreaker } from './circuit-breaker.js';
 import { GatewayError, isRetryable } from './errors.js';
 import { logger } from '../utils/logger.js';
