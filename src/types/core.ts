@@ -13,7 +13,7 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 
 /**
  * Pooled request context object
  * This object is reused across requests to minimize allocations
- * Phase 2: Enhanced with route matching and performance timestamps
+ * Enhanced with route matching and performance timestamps
  */
 export interface RequestContext {
   /** Request ID for tracing */
@@ -43,7 +43,7 @@ export interface RequestContext {
   /** Whether the response has been sent */
   responded: boolean;
 
-  // Phase 2: Enhanced fields
+  // Enhanced fields
   /** Matched route information */
   route: RouteMatch | null;
   /** Performance tracking timestamps */
@@ -57,7 +57,7 @@ export interface RequestContext {
 }
 
 /**
- * Route match result (Phase 2)
+ * Route match result
  */
 export interface RouteMatch {
   handler: RouteHandler;
@@ -113,11 +113,11 @@ export interface UpstreamTarget {
   healthy: boolean;
   /** Circuit breaker state */
   circuitBreaker: CircuitBreakerState;
-  /** Connection pool configuration (Phase 4) */
+  /** Connection pool configuration */
   connectionPool?: ConnectionPoolConfig;
-  /** Weight for weighted round robin (Phase 4) */
+  /** Weight for weighted round robin */
   weight?: number;
-  /** Active connections count (Phase 4) */
+  /** Active connections count */
   activeConnections?: number;
 }
 
@@ -135,13 +135,13 @@ export interface HealthCheckConfig {
   path: string;
   /** Expected status code */
   expectedStatus: number;
-  /** Health check type (Phase 4) */
+  /** Health check type */
   type?: HealthCheckType;
-  /** Grace period before marking unhealthy in milliseconds (Phase 4) */
+  /** Grace period before marking unhealthy in milliseconds */
   gracePeriod?: number;
-  /** Number of consecutive failures before unhealthy (Phase 4) */
+  /** Number of consecutive failures before unhealthy */
   unhealthyThreshold?: number;
-  /** Number of consecutive successes before healthy (Phase 4) */
+  /** Number of consecutive successes before healthy */
   healthyThreshold?: number;
 }
 
@@ -265,13 +265,13 @@ export interface GatewayConfig {
   plugins: PluginConfig[];
   /** Performance tuning */
   performance: PerformanceConfig;
-  /** Body parser configuration (Phase 4) */
+  /** Body parser configuration */
   bodyParser?: BodyParserConfig;
-  /** Load balancer configuration (Phase 4) */
+  /** Load balancer configuration */
   loadBalancer?: LoadBalancerConfig;
-  /** Circuit breaker configuration (Phase 4) */
+  /** Circuit breaker configuration */
   circuitBreaker?: CircuitBreakerConfig;
-  /** Monitoring configuration (Phase 8) */
+  /** Monitoring configuration */
   monitoring?: MonitoringConfig;
 }
 
@@ -304,7 +304,7 @@ export interface PerformanceConfig {
 }
 
 /**
- * Body parser configuration (Phase 4)
+ * Body parser configuration
  */
 export interface BodyParserConfig {
   /** Enable body parsing */
@@ -323,7 +323,7 @@ export interface BodyParserConfig {
 }
 
 /**
- * Connection pool configuration (Phase 4)
+ * Connection pool configuration
  */
 export interface ConnectionPoolConfig {
   /** Minimum pool size */
@@ -341,12 +341,12 @@ export interface ConnectionPoolConfig {
 }
 
 /**
- * Health check type (Phase 4)
+ * Health check type
  */
 export type HealthCheckType = 'active' | 'passive' | 'hybrid';
 
 /**
- * Health status (Phase 4)
+ * Health status
  */
 export enum HealthStatus {
   HEALTHY = 'HEALTHY',
@@ -355,7 +355,7 @@ export enum HealthStatus {
 }
 
 /**
- * Load balancer configuration (Phase 4)
+ * Load balancer configuration
  */
 export interface LoadBalancerConfig {
   /** Load balancing strategy */
@@ -367,7 +367,7 @@ export interface LoadBalancerConfig {
 }
 
 /**
- * Monitoring configuration (Phase 8)
+ * Monitoring configuration
  */
 export interface MonitoringConfig {
   /** Metrics configuration */
