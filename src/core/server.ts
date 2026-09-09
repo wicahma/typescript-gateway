@@ -8,7 +8,7 @@ import { logger } from '../utils/logger.js';
 
 /**
  * Native HTTP server implementation
- * Phase 2: Enhanced with proper connection lifecycle and graceful shutdown
+ *
  */
 export class Server {
   private server: HttpServer;
@@ -26,14 +26,14 @@ export class Server {
     // Initialize request context pool with configurable size
     this.contextPool = new ContextPool(1000);
 
-    // Create native HTTP server with Phase 2 performance tuning
+    // Create native HTTP server with
     this.server = createServer({
       keepAlive: config.keepAlive,
       keepAliveTimeout: config.keepAliveTimeout,
       maxHeaderSize: config.maxHeaderSize,
     });
 
-    // Phase 2: Enhanced performance settings
+    //
     this.server.keepAliveTimeout = 65000; // 65 seconds
     this.server.headersTimeout = 66000; // Slightly higher than keepAliveTimeout
     this.server.maxHeadersCount = 100; // Prevent DoS
@@ -45,7 +45,7 @@ export class Server {
     // Setup connection handler for tracking
     this.server.on('connection', this.handleConnection.bind(this));
 
-    // Setup upgrade handler (WebSocket support - Phase 2 future-ready)
+    // Setup upgrade handler (WebSocket support
     this.server.on('upgrade', this.handleUpgrade.bind(this));
 
     // Setup error handler
@@ -53,7 +53,7 @@ export class Server {
   }
 
   /**
-   * Handle new connection - Phase 2 enhanced tracking
+   * Handle new connection
    */
   private handleConnection(socket: Socket): void {
     // Reject new connections during shutdown
@@ -82,14 +82,14 @@ export class Server {
   }
 
   /**
-   * Handle WebSocket upgrade requests - Phase 2 future-ready
+   * Handle WebSocket upgrade requests
    */
   private handleUpgrade(
     _req: IncomingMessage,
     socket: Socket,
     _head: Buffer
   ): void {
-    // Placeholder for Phase 2+ WebSocket support
+    // Placeholder for
     // Currently just destroy the socket
     logger.debug('WebSocket upgrade requested (not yet supported)');
     socket.destroy();
@@ -97,7 +97,7 @@ export class Server {
 
   /**
    * Handle incoming HTTP request
-   * Zero-copy, minimal allocations - Phase 2 optimized
+   * Zero-copy, minimal allocations
    */
   private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
     // Fast-fail during shutdown
@@ -244,7 +244,7 @@ export class Server {
   }
 
   /**
-   * Stop server gracefully - Phase 2 enhanced with connection draining
+   * Stop server gracefully
    */
   async stop(): Promise<void> {
     logger.info('Initiating graceful shutdown');
@@ -293,7 +293,7 @@ export class Server {
   }
 
   /**
-   * Get context pool statistics - Phase 2 enhanced
+   * Get context pool statistics
    */
   getPoolStats() {
     return this.contextPool.metrics();

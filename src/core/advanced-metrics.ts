@@ -124,7 +124,7 @@ export interface ErrorMetrics {
 }
 
 /**
- * Error rate metrics for Phase 8
+ * Error rate metrics for
  */
 export interface ErrorRateMetrics {
   /** Error counts by type over time windows */
@@ -187,7 +187,7 @@ export interface UpstreamErrorRate {
 }
 
 /**
- * Retry statistics for Phase 8
+ * Retry statistics for
  */
 export interface RetryStatistics {
   /** Total retry attempts */
@@ -228,7 +228,7 @@ export interface UpstreamRetryStats {
 }
 
 /**
- * Timeout metrics for Phase 8
+ * Timeout metrics for
  */
 export interface TimeoutMetrics {
   /** Total timeouts */
@@ -284,7 +284,7 @@ export interface UpstreamTimeoutMetrics {
 }
 
 /**
- * Circuit breaker metrics for Phase 8
+ * Circuit breaker metrics for
  */
 export interface CircuitBreakerMetrics {
   /** State transitions */
@@ -344,15 +344,15 @@ export interface AdvancedMetricsConfig {
   collectCompression: boolean;
   /** Collect WebSocket metrics */
   collectWebSocket: boolean;
-  /** Collect error rate metrics (Phase 8) */
+  /** Collect error rate metrics */
   collectErrorRates?: boolean;
-  /** Collect retry statistics (Phase 8) */
+  /** Collect retry statistics */
   collectRetryStats?: boolean;
-  /** Collect timeout metrics (Phase 8) */
+  /** Collect timeout metrics */
   collectTimeouts?: boolean;
-  /** Collect circuit breaker metrics (Phase 8) */
+  /** Collect circuit breaker metrics */
   collectCircuitBreaker?: boolean;
-  /** Time window sizes in seconds (Phase 8) */
+  /** Time window sizes in seconds */
   timeWindows?: number[];
 }
 
@@ -399,18 +399,18 @@ export class AdvancedMetrics {
   // Error metrics
   private errorMetrics: ErrorMetrics = this.createErrorMetrics();
 
-  // Phase 8: Error rate metrics
+  //
   private errorRateMetrics: ErrorRateMetrics = this.createErrorRateMetrics();
   private errorRateHistory: Array<{ timestamp: number; errors: ErrorMetrics; total: number }> = [];
 
-  // Phase 8: Retry statistics
+  //
   private retryStatistics: RetryStatistics = this.createRetryStatistics();
 
-  // Phase 8: Timeout metrics
+  //
   private timeoutMetrics: TimeoutMetrics = this.createTimeoutMetrics();
   private timeoutDurations: number[] = [];
 
-  // Phase 8: Circuit breaker metrics
+  //
   private circuitBreakerMetrics: CircuitBreakerMetrics = this.createCircuitBreakerMetrics();
 
   constructor(config?: Partial<AdvancedMetricsConfig>) {
@@ -649,7 +649,7 @@ export class AdvancedMetrics {
   }
 
   /**
-   * Record error rate for Phase 8
+   * Record error rate for
    */
   recordErrorRate(
     route: string,
@@ -769,7 +769,7 @@ export class AdvancedMetrics {
   }
 
   /**
-   * Record retry attempt for Phase 8
+   * Record retry attempt for
    */
   recordRetryAttempt(
     upstreamId: string | undefined,
@@ -843,7 +843,7 @@ export class AdvancedMetrics {
   }
 
   /**
-   * Record timeout for Phase 8
+   * Record timeout for
    */
   recordTimeout(
     timeoutType: 'connection' | 'request' | 'upstream' | 'plugin',
@@ -926,7 +926,7 @@ export class AdvancedMetrics {
   }
 
   /**
-   * Record circuit breaker state change for Phase 8
+   * Record circuit breaker state change for
    */
   recordCircuitBreakerStateChange(
     upstreamId: string,
@@ -969,7 +969,7 @@ export class AdvancedMetrics {
   }
 
   /**
-   * Record circuit breaker rejection for Phase 8
+   * Record circuit breaker rejection for
    */
   recordCircuitBreakerRejection(upstreamId: string): void {
     if (!this.config.enabled || !this.config.collectCircuitBreaker) return;
@@ -1011,7 +1011,7 @@ export class AdvancedMetrics {
       errors: { ...this.errorMetrics },
     };
 
-    // Add Phase 8 metrics if enabled
+    // Add
     if (this.config.collectErrorRates) {
       metrics.errorRates = {
         windows: { ...this.errorRateMetrics.windows },
@@ -1080,7 +1080,7 @@ export class AdvancedMetrics {
     this.upstreamMetrics.clear();
     this.errorMetrics = this.createErrorMetrics();
     
-    // Phase 8: Reset new metrics
+    //
     this.errorRateMetrics = this.createErrorRateMetrics();
     this.errorRateHistory = [];
     this.retryStatistics = this.createRetryStatistics();
@@ -1178,7 +1178,7 @@ export class AdvancedMetrics {
   }
 
   /**
-   * Create error rate metrics object (Phase 8)
+   * Create error rate metrics object
    */
   private createErrorRateMetrics(): ErrorRateMetrics {
     const emptyWindow = (): TimeWindowMetrics => ({
@@ -1201,7 +1201,7 @@ export class AdvancedMetrics {
   }
 
   /**
-   * Create retry statistics object (Phase 8)
+   * Create retry statistics object
    */
   private createRetryStatistics(): RetryStatistics {
     return {
@@ -1221,7 +1221,7 @@ export class AdvancedMetrics {
   }
 
   /**
-   * Create timeout metrics object (Phase 8)
+   * Create timeout metrics object
    */
   private createTimeoutMetrics(): TimeoutMetrics {
     return {
@@ -1246,7 +1246,7 @@ export class AdvancedMetrics {
   }
 
   /**
-   * Create circuit breaker metrics object (Phase 8)
+   * Create circuit breaker metrics object
    */
   private createCircuitBreakerMetrics(): CircuitBreakerMetrics {
     return {

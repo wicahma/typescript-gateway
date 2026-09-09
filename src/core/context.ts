@@ -35,7 +35,7 @@ export class PoolableRequestContext implements RequestContext {
   state: Record<string, unknown> = {};
   responded = false;
 
-  // Enhanced Phase 2 fields
+  // Enhanced
   route: RouteMatch | null = null;
   timestamps: RequestTimestamps = {};
 

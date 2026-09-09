@@ -433,7 +433,7 @@ export class HealthChecker {
   }
 
   /**
-   * Get comprehensive health report (Phase 8)
+   * Get comprehensive health report
    */
   getHealthReport(): {
     status: 'healthy' | 'degraded' | 'unhealthy';
