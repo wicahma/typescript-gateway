@@ -44,8 +44,13 @@ export class Gateway {
       // Register example routes for testing
       this.registerDefaultRoutes();
 
-      // Create and start server
-      this.server = new Server(config.server, this.router);
+      // Create and start server with env overrides (PORT / HOST fallback)
+      const serverConfig = {
+        ...config.server,
+        port: Number(process.env['PORT']) || config.server.port,
+        host: process.env['HOST'] || config.server.host,
+      };
+      this.server = new Server(serverConfig, this.router);
       await this.server.start();
 
       // Setup metrics reporting

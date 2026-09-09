@@ -1,82 +1,53 @@
-/**
- * Configuration validator using AJV
- * Fast JSON schema validation with caching
- */
-
-import Ajv, { ValidateFunction } from 'ajv';
-import { gatewayConfigSchema } from './schema.js';
 import { ConfigFile, ValidationResult, ValidationError } from '../types/config.js';
 
-/**
- * Configuration validator class
- * Implements high-performance validation with schema caching
- */
 export class ConfigValidator {
-  private ajv: Ajv;
-  private validateFn: ValidateFunction;
+  validate(raw: unknown): ValidationResult {
+    const errors: ValidationError[] = [];
 
-  constructor() {
-    // Initialize AJV with performance optimizations
-    this.ajv = new Ajv({
-      allErrors: true, // Collect all errors
-      coerceTypes: true, // Coerce types for better UX
-      useDefaults: true, // Apply default values
-      removeAdditional: false, // Keep additional properties
-      strict: true, // Strict mode
-      validateFormats: true, // Validate formats
-    });
-
-    // Pre-compile schema for better performance
-    this.validateFn = this.ajv.compile(gatewayConfigSchema);
-  }
-
-  /**
-   * Validate configuration against schema
-   * Returns validation result with detailed errors
-   */
-  validate(config: unknown): ValidationResult {
-    const valid = this.validateFn(config);
-
-    if (valid) {
-      return {
-        valid: true,
-        errors: [],
-      };
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return { valid: false, errors: [{ path: '', message: 'Configuration must be an object', code: 'type' }] };
     }
 
-    const errors: ValidationError[] = (this.validateFn.errors || []).map(err => ({
-      path: err.instancePath || err.schemaPath,
-      message: err.message || 'Validation error',
-      code: err.keyword || 'unknown',
-    }));
+    const cfg = raw as Record<string, unknown>;
+
+    if (typeof cfg['version'] !== 'string' || !/^\d+\.\d+\.\d+$/.test(cfg['version'])) {
+      errors.push({ path: '/version', message: 'must match pattern ^\\d+\\.\\d+\\.\\d+$', code: 'pattern' });
+    }
+
+    const envs = ['development', 'staging', 'production'];
+    if (typeof cfg['environment'] !== 'string' || !envs.includes(cfg['environment'])) {
+      errors.push({ path: '/environment', message: `must be equal to one of the allowed values: ${envs.join(', ')}`, code: 'enum' });
+    }
+
+    if (!cfg['server'] || typeof cfg['server'] !== 'object') {
+      errors.push({ path: '/server', message: 'must be object', code: 'type' });
+    } else {
+      const s = cfg['server'] as Record<string, unknown>;
+      if (typeof s['port'] !== 'number' || !Number.isInteger(s['port']) || s['port'] < 1 || s['port'] > 65535) {
+        errors.push({ path: '/server/port', message: 'must be <= 65535 and >= 1 integer', code: 'maximum' });
+      }
+      if (typeof s['host'] !== 'string') {
+        errors.push({ path: '/server/host', message: 'must be string', code: 'type' });
+      }
+    }
 
     return {
-      valid: false,
+      valid: errors.length === 0,
       errors,
     };
   }
 
-  /**
-   * Validate and throw on error
-   * Convenience method for fail-fast validation
-   */
   validateOrThrow(config: unknown): asserts config is ConfigFile {
-    const result = this.validate(config);
-
-    if (!result.valid) {
-      const errorMessages = result.errors.map(err => `  - ${err.path}: ${err.message}`).join('\n');
-
-      throw new Error(`Configuration validation failed:\n${errorMessages}`);
+    const res = this.validate(config);
+    if (!res.valid) {
+      const msgs = res.errors.map(e => `  - ${e.path}: ${e.message}`).join('\n');
+      throw new Error(`Configuration validation failed:\n${msgs}`);
     }
   }
 
-  /**
-   * Check if configuration is valid (boolean only)
-   */
   isValid(config: unknown): config is ConfigFile {
-    return this.validateFn(config);
+    return this.validate(config).valid;
   }
 }
 
-// Export singleton instance for reuse
 export const configValidator: ConfigValidator = new ConfigValidator();

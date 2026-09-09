@@ -7,7 +7,7 @@ import { watch, FSWatcher } from 'fs';
 import { readFile } from 'fs/promises';
 import { EventEmitter } from 'events';
 import { ConfigFile } from '../types/config.js';
-import { configValidator } from './validator.js';
+import { configValidator, ConfigValidator } from './validator.js';
 import { interpolateConfig } from './interpolation.js';
 import { configVersionManager } from './versioning.js';
 import { logger } from '../utils/logger.js';
@@ -184,7 +184,8 @@ export class HotReloadManager extends EventEmitter {
       
       // Validate new configuration
       if (this.options.validate) {
-        configValidator.validateOrThrow(newConfig);
+        const validator: ConfigValidator = configValidator;
+        validator.validateOrThrow(newConfig);
         this.emitEvent(HotReloadEvent.VALIDATED, { config: newConfig });
       }
       
