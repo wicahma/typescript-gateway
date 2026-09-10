@@ -124,7 +124,7 @@ export class ConfigVersionManager {
     
     try {
       parseVersion(config.version);
-    } catch (error) {
+    } catch {
       errors.push(`Invalid version format: ${config.version}`);
       return { valid: false, errors };
     }

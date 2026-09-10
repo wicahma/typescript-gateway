@@ -3,9 +3,10 @@
     /* Language and Environment */
     "target": "ES2022",
     "lib": ["ES2022"],
-    "module": "ESNext",
-    "moduleResolution": "node",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "types": ["node"],
+    "rootDir": "./src",
 
     /* Emit */
     "declaration": true,
@@ -14,7 +15,6 @@
     "outDir": "./dist",
     "removeComments": true,
     "importHelpers": false,
-    "downlevelIteration": true,
     "incremental": true,
     "tsBuildInfoFile": ".tsbuildinfo",
 
@@ -44,17 +44,7 @@
     "allowUnreachableCode": false,
 
     /* Completeness */
-    "skipLibCheck": true,
-
-    /* Path Aliases */
-    "baseUrl": ".",
-    "paths": {
-      "@core/*": ["src/core/*"],
-      "@plugins/*": ["src/plugins/*"],
-      "@config/*": ["src/config/*"],
-      "@types/*": ["src/types/*"],
-      "@utils/*": ["src/utils/*"]
-    }
+    "skipLibCheck": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "tests", "benchmarks"]
