@@ -1,0 +1,320 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const quickstart = `git clone https://github.com/wicahma/typescript-service-gateway
+cd typescript-service-gateway && npm install
+
+PORT=8088 npm start
+
+curl http://localhost:8088/health`;
+
+const install = `npm install && PORT=8088 npm start`;
+---
+
+<Layout
+  title="TypeScript Service Gateway — A simple gateway, it's all you need"
+  description="Production-grade HTTP API gateway written in pure TypeScript with zero runtime dependencies. Sub-10ms P99 latency, radix router, circuit breaker, and connection pooling on native Node.js."
+  canonical="https://tsgate.diama.dev/"
+>
+  <main>
+    <section class="hero">
+      <p class="eyebrow">Zero runtime dependencies</p>
+
+      <h1>
+        A simple gateway,<br />
+        <em>it's all you need.</em>
+      </h1>
+
+      <p class="lede">
+        Just an ordinary API gateway — written in pure TypeScript, running on native
+        <code>node:http</code>. No framework. No runtime packages. Reverse proxy, radix routing,
+        circuit breaking, and connection pooling in a single process.
+      </p>
+
+      <div class="actions">
+        <a href="/docs/getting-started" class="btn btn-primary">Read the docs</a>
+        <a
+          href="https://github.com/wicahma/typescript-service-gateway"
+          class="btn btn-secondary"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          github.com/wicahma
+        </a>
+      </div>
+    </section>
+
+    <section class="terminal" aria-label="Quick start">
+      <div class="terminal-bar">
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="terminal-title">bash</span>
+      </div>
+      <pre><code>{quickstart}</code></pre>
+    </section>
+
+    <section class="facts">
+      <dl>
+        <div>
+          <dt>dependencies</dt>
+          <dd>0</dd>
+        </div>
+        <div>
+          <dt>p99 latency</dt>
+          <dd>&lt; 10ms</dd>
+        </div>
+        <div>
+          <dt>tests</dt>
+          <dd>732</dd>
+        </div>
+        <div>
+          <dt>runtime</dt>
+          <dd>node:http</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="docs-entry">
+      <h2>Documentation</h2>
+      <nav class="doc-links">
+        <a href="/docs/getting-started">
+          <span class="label">Getting Started</span>
+          <span class="desc">Install, build, run, and health-check the gateway.</span>
+        </a>
+        <a href="/docs/architecture">
+          <span class="label">Architecture &amp; Pipeline</span>
+          <span class="desc">The zero-allocation request lifecycle, end to end.</span>
+        </a>
+        <a href="/docs/configuration">
+          <span class="label">Configuration Reference</span>
+          <span class="desc">Declarative JSON config with env interpolation.</span>
+        </a>
+        <a href="/docs/resilience">
+          <span class="label">Resilience &amp; Reliability</span>
+          <span class="desc">Circuit breaker, load balancing, retries, rate limits.</span>
+        </a>
+      </nav>
+    </section>
+  </main>
+</Layout>
+
+<style>
+  main {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    width: 100%;
+  }
+
+  .hero {
+    padding: 6.5rem 0 4rem;
+    max-width: 720px;
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    margin-bottom: 1.5rem;
+  }
+
+  h1 {
+    font-size: clamp(2.4rem, 6vw, 3.9rem);
+    line-height: 1.08;
+    letter-spacing: -0.035em;
+    font-weight: 600;
+    margin-bottom: 1.75rem;
+  }
+
+  h1 em {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 400;
+    color: var(--text-muted);
+  }
+
+  .lede {
+    font-size: 1.05rem;
+    line-height: 1.75;
+    color: var(--text-muted);
+    max-width: 620px;
+  }
+
+  .lede code {
+    font-size: 0.88em;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.1rem 0.35rem;
+    color: var(--text);
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 2.5rem;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.7rem 1.35rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+  }
+
+  .btn-primary {
+    background: var(--text);
+    color: var(--bg);
+  }
+
+  .btn-primary:hover {
+    background: #fff;
+  }
+
+  .btn-secondary {
+    border-color: var(--border);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--border-hover);
+    color: var(--text);
+  }
+
+  .terminal {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    overflow: hidden;
+    margin-bottom: 4.5rem;
+  }
+
+  .terminal-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.65rem 0.9rem;
+    border-bottom: 1px solid var(--border);
+    background: #10141a;
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--border-hover);
+  }
+
+  .terminal-title {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+  }
+
+  .terminal pre {
+    padding: 1.4rem 1.5rem;
+    overflow-x: auto;
+    font-size: 0.84rem;
+    line-height: 1.85;
+    color: var(--text);
+  }
+
+  .facts {
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 2.5rem 0;
+    margin-bottom: 5rem;
+  }
+
+  .facts dl {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2rem;
+  }
+
+  .facts dt {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin-bottom: 0.6rem;
+  }
+
+  .facts dd {
+    font-size: 1.6rem;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+  }
+
+  .docs-entry {
+    padding-bottom: 5rem;
+  }
+
+  .docs-entry h2 {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-bottom: 1.5rem;
+  }
+
+  .doc-links {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .doc-links a {
+    background: var(--bg);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .doc-links a:hover {
+    background: var(--surface);
+  }
+
+  .doc-links .label {
+    font-size: 1rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  .doc-links .desc {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.55;
+  }
+
+  @media (max-width: 720px) {
+    .hero {
+      padding: 4.5rem 0 3rem;
+    }
+    .facts dl {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.75rem;
+    }
+    .doc-links {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

@@ -1,0 +1,265 @@
+---
+import { getCollection, render } from 'astro:content';
+import Layout from '../../layouts/Layout.astro';
+
+export async function getStaticPaths() {
+  const docs = await getCollection('docs');
+  return docs.map(doc => ({
+    params: { slug: doc.id },
+    props: { doc },
+  }));
+}
+
+const { doc } = Astro.props;
+const { Content } = await render(doc);
+
+const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.data.order);
+---
+
+<Layout
+  title={`${doc.data.title} — TypeScript Gateway Docs`}
+  description={doc.data.description}
+  canonical={`https://tsgate.diama.dev/docs/${doc.id}`}
+>
+  <div class="docs-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <span class="mono-label">Docs Index</span>
+      </div>
+      <nav class="sidebar-nav">
+        {
+          allDocs.map(item => (
+            <a
+              href={`/docs/${item.id}`}
+              class:list={['nav-item', { active: item.id === doc.id }]}
+            >
+              <span class="num">0{item.data.order}</span>
+              <span class="nav-text">{item.data.title}</span>
+            </a>
+          ))
+        }
+      </nav>
+    </aside>
+
+    <article class="content">
+      <div class="content-header">
+        <p class="section-badge">{doc.data.section}</p>
+        <p class="description">{doc.data.description}</p>
+      </div>
+
+      <div class="prose">
+        <Content />
+      </div>
+
+      <div class="doc-footer-nav">
+        <a href="https://github.com/wicahma/typescript-service-gateway" target="_blank" rel="noopener noreferrer" class="edit-link">
+          Suggest an edit on GitHub
+        </a>
+      </div>
+    </article>
+  </div>
+</Layout>
+
+<style>
+  .docs-wrapper {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 6rem;
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 3.5rem;
+    width: 100%;
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 5rem;
+    height: fit-content;
+  }
+
+  .mono-label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+  }
+
+  .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 1rem;
+    border-left: 1px solid var(--border);
+    padding-left: 0.75rem;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.45rem 0.5rem;
+    border-radius: 4px;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+  }
+
+  .nav-item .num {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    opacity: 0.7;
+  }
+
+  .nav-item:hover {
+    color: var(--text);
+    background: var(--surface);
+  }
+
+  .nav-item.active {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .nav-item.active .num {
+    color: var(--accent);
+    opacity: 1;
+  }
+
+  .content {
+    min-width: 0;
+  }
+
+  .content-header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1.5rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .section-badge {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+  }
+
+  .description {
+    font-size: 1.05rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  /* Prose styling */
+  .prose :global(h1) {
+    font-size: 2.1rem;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    margin: 0 0 1.5rem;
+  }
+
+  .prose :global(h2) {
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 2.5rem 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .prose :global(h3) {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 1.75rem 0 0.75rem;
+  }
+
+  .prose :global(p) {
+    margin-bottom: 1.25rem;
+    line-height: 1.75;
+    color: #c9d1d9;
+  }
+
+  .prose :global(ul), .prose :global(ol) {
+    margin: 0 0 1.25rem 1.5rem;
+    color: #c9d1d9;
+    line-height: 1.75;
+  }
+
+  .prose :global(li) {
+    margin-bottom: 0.4rem;
+  }
+
+  .prose :global(pre) {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.15rem 1.3rem;
+    overflow-x: auto;
+    font-size: 0.84rem;
+    line-height: 1.7;
+    margin: 1.25rem 0;
+  }
+
+  .prose :global(code) {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+  }
+
+  .prose :global(:not(pre) > code) {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.1rem 0.35rem;
+    color: var(--accent);
+  }
+
+  .prose :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    font-size: 0.88rem;
+  }
+
+  .prose :global(th), .prose :global(td) {
+    border: 1px solid var(--border);
+    padding: 0.65rem 0.9rem;
+    text-align: left;
+  }
+
+  .prose :global(th) {
+    background: var(--surface);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .doc-footer-nav {
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .edit-link {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+
+  .edit-link:hover {
+    color: var(--text);
+  }
+
+  @media (max-width: 768px) {
+    .docs-wrapper {
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+    .sidebar {
+      position: static;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.5rem;
+    }
+  }
+</style>

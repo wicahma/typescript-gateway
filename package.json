@@ -21,7 +21,9 @@
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "site:build": "npm --prefix site run build",
+    "site:dev": "npm --prefix site run dev"
   },
   "keywords": [
     "api-gateway",

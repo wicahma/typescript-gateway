@@ -1,3 +1,8 @@
+# Astro
+.astro/
+site/dist/
+site/node_modules/
+
 # Logs
 logs
 *.log
