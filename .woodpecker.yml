@@ -1,0 +1,33 @@
+clone:
+  git:
+    image: bash
+    settings:
+      lfs: false
+
+labels:
+  backend: local
+
+steps:
+  - name: test-and-build
+    image: bash
+    commands:
+      - export PATH="/home/diama/.nvm/versions/node/v22.23.2/bin:/home/diama/.local/bin:$PATH"
+      - node -v && npm -v
+      - npm ci || npm install
+      - npm run typecheck
+      - npm test
+      - npm run build
+
+  - name: deploy-landing-and-docs
+    image: bash
+    commands:
+      - export PATH="/home/diama/.nvm/versions/node/v22.23.2/bin:/home/diama/.local/bin:$PATH"
+      - if [ -f /home/diama/.woodpecker-secrets/aeris-cf.env ]; then source /home/diama/.woodpecker-secrets/aeris-cf.env; fi
+      - cd site
+      - npm ci || npm install
+      - npm run build
+      - npx wrangler pages deploy dist --project-name=tsgate --branch=main --commit-dirty=true
+
+when:
+  event: push
+  branch: main
