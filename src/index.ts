@@ -5,6 +5,7 @@ import { createConfigLoader } from './config/loader.js';
 import { logger } from './utils/logger.js';
 import { metrics } from './utils/metrics.js';
 import { ConfigFile } from './types/config.js';
+import { AuthJwtPlugin, AuthJwtConfig } from './plugins/builtin/auth-jwt.js';
 import { UpstreamTarget, CircuitBreakerState } from './types/core.js';
 
 export class Gateway {
@@ -13,6 +14,7 @@ export class Gateway {
   private proxyHandler: ProxyHandler | null = null;
   private configLoader;
   private metricsInterval: NodeJS.Timeout | null = null;
+  private authPlugin: AuthJwtPlugin | null = null;
 
   constructor(configPath: string) {
     this.router = new Router();
@@ -28,6 +30,7 @@ export class Gateway {
     const config = await this.configLoader.load();
     this.registerSystemRoutes();
     this.setupProxyRouting(config);
+    this.configureAuth(config);
 
     const serverConfig = {
       ...config.server,
@@ -36,6 +39,9 @@ export class Gateway {
     };
 
     this.server = new Server(serverConfig, this.router);
+    if (this.authPlugin) {
+      this.server.setPreRouteHook((ctx) => this.authPlugin!.preRoute(ctx));
+    }
     await this.server.start();
 
     this.setupMetricsReporting();
@@ -73,8 +79,19 @@ export class Gateway {
 
   private registerSystemRoutes(): void {
     this.router.register('GET', '/health', async ctx => {
+      let report: Record<string, unknown> = { status: 'ok', uptime: process.uptime() };
+      try {
+        if (this.proxyHandler) {
+          report = {
+            ...this.proxyHandler.getHealthChecker().getHealthReport(),
+            uptime: process.uptime(),
+          };
+        }
+      } catch {
+        // fall back to basic health
+      }
       ctx.res.writeHead(200, { 'Content-Type': 'application/json' });
-      ctx.res.end(JSON.stringify({ status: 'ok', uptime: process.uptime() }));
+      ctx.res.end(JSON.stringify(report));
       ctx.responded = true;
     });
 
@@ -89,6 +106,12 @@ export class Gateway {
       ctx.res.end('TypeScript Service Gateway');
       ctx.responded = true;
     });
+  }
+
+  private configureAuth(config: ConfigFile): void {
+    const authConfig = (config as unknown as Record<string, unknown>)['auth'] as AuthJwtConfig | undefined;
+    if (!authConfig || authConfig.enabled === false) return;
+    this.authPlugin = new AuthJwtPlugin(authConfig);
   }
 
   private setupProxyRouting(config: ConfigFile): void {

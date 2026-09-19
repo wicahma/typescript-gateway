@@ -78,6 +78,7 @@ class LatencyHistogram {
 export class MetricsCollector {
   private totalRequests: number = 0;
   private totalErrors: number = 0;
+  private authFailures: number = 0;
   private activeConnections: number = 0;
   private startTime: number = Date.now();
   private lastResetTime: number = Date.now();
@@ -112,6 +113,13 @@ export class MetricsCollector {
   }
 
   /**
+   * Record auth failure
+   */
+  recordAuthFailure(): void {
+    this.authFailures++;
+  }
+
+  /**
    * Increment active connections
    */
   incrementConnections(): void {
@@ -136,6 +144,7 @@ export class MetricsCollector {
     return {
       totalRequests: this.totalRequests,
       totalErrors: this.totalErrors,
+      authFailures: this.authFailures,
       requestsPerSecond: Math.round(requestsPerSecond),
       avgLatency: this.histogram.average(),
       p50Latency: this.histogram.percentile(50),
@@ -173,6 +182,7 @@ export class MetricsCollector {
     return [
       `Requests: ${metrics.totalRequests}`,
       `Errors: ${metrics.totalErrors}`,
+      `AuthFailures: ${metrics.authFailures}`,
       `RPS: ${metrics.requestsPerSecond}`,
       `Latency: avg=${metrics.avgLatency.toFixed(2)}ms, p50=${metrics.p50Latency.toFixed(2)}ms, p95=${metrics.p95Latency.toFixed(2)}ms, p99=${metrics.p99Latency.toFixed(2)}ms`,
       `Connections: ${metrics.activeConnections}`,

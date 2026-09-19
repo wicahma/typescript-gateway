@@ -18,6 +18,7 @@ export class Server {
   private requestIdCounter = 0;
   private activeSockets = new Set<Socket>();
   private isShuttingDown = false;
+  private preRouteHook?: (ctx: RequestContext) => Promise<void> | void;
 
   constructor(config: ServerConfig, router: Router) {
     this.config = config;
@@ -136,6 +137,17 @@ export class Server {
         ctx.path = ctx.path.slice(0, queryIndex);
       }
 
+      // Check request size limit
+      const contentLength = req.headers['content-length'];
+      if (contentLength) {
+        const size = parseInt(contentLength as string, 10);
+        const maxSize = this.config.maxBodySize || 10485760;
+        if (size > maxSize) {
+          this.sendResponse(ctx, 413, 'Payload Too Large');
+          return;
+        }
+      }
+
       // Match route
       const match = this.router.match(ctx.method, ctx.path);
 
@@ -147,6 +159,14 @@ export class Server {
       // Set route params and match info
       ctx.params = match.params;
       ctx.route = match;
+
+      // Execute preRoute hook (e.g. auth middleware) for matched routes only
+      if (this.preRouteHook) {
+        await this.preRouteHook(ctx);
+        if (ctx.responded || ctx.res.headersSent) {
+          return;
+        }
+      }
 
       // Execute handler
       await match.handler(ctx);
@@ -160,6 +180,18 @@ export class Server {
     } finally {
       // Record latency
       metrics.recordLatency(startTime);
+
+      // Access logging
+      logger.info(
+        {
+          requestId: ctx.requestId,
+          method: ctx.method,
+          path: ctx.path,
+          status: ctx.res.statusCode,
+          durationMs: Number(process.hrtime.bigint() - startTime) / 1_000_000,
+        },
+        'Request completed'
+      );
 
       // Release context back to pool
       this.contextPool.release(ctx);
@@ -187,7 +219,7 @@ export class Server {
    * Send response helper
    */
   private sendResponse(ctx: RequestContext, statusCode: number, body: string | Buffer): void {
-    if (ctx.responded) return;
+    if (ctx.responded || ctx.res.headersSent) return;
 
     ctx.res.writeHead(statusCode, {
       'Content-Type': typeof body === 'string' ? 'text/plain' : 'application/octet-stream',
@@ -211,7 +243,7 @@ export class Server {
     metrics.recordError();
     logger.error({ err: error, requestId: ctx.requestId }, 'Request error');
 
-    if (!ctx.responded) {
+    if (!ctx.responded && !ctx.res.headersSent) {
       this.sendResponse(ctx, 500, 'Internal Server Error');
     }
   }
@@ -288,6 +320,10 @@ export class Server {
   /**
    * Get underlying HTTP server
    */
+  setPreRouteHook(hook: (ctx: RequestContext) => Promise<void> | void): void {
+    this.preRouteHook = hook;
+  }
+
   getServer(): HttpServer {
     return this.server;
   }

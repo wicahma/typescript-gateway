@@ -211,6 +211,8 @@ export interface MetricsSnapshot {
   totalRequests: number;
   /** Total errors */
   totalErrors: number;
+  /** Total auth failures */
+  authFailures: number;
   /** Requests per second */
   requestsPerSecond: number;
   /** Average latency in milliseconds */

@@ -269,6 +269,7 @@ export class ProxyHandler {
         ctx.res.write(finalResponseBody);
       }
       ctx.res.end();
+      ctx.responded = true;
 
       // Update metrics
       const duration = Number(process.hrtime.bigint() - startTime) / 1_000_000;
@@ -329,6 +330,24 @@ export class ProxyHandler {
       }
 
       logger.error(`Proxy request failed: ${error}`);
+
+      // Map error to a gateway-level response if nothing sent yet
+      if (!ctx.responded && !ctx.res.headersSent) {
+        const message = error instanceof Error ? error.message : String(error);
+        let status = 502;
+        let code = 'bad_gateway';
+        if (message.toLowerCase().includes('timeout')) {
+          status = 504;
+          code = 'gateway_timeout';
+        } else if (message.toLowerCase().includes('no healthy upstream')) {
+          status = 503;
+          code = 'service_unavailable';
+        }
+        ctx.res.writeHead(status, { 'Content-Type': 'application/json' });
+        ctx.res.end(JSON.stringify({ error: { code, message: 'Upstream request failed' } }));
+        ctx.responded = true;
+      }
+
       throw error;
     }
   }
