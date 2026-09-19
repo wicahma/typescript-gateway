@@ -9,6 +9,10 @@ import { logger } from './utils/logger.js';
 import { metrics } from './utils/metrics.js';
 import { ConfigFile } from './types/config.js';
 import { AuthJwtPolicy, AuthJwtPolicyConfig } from './plugins/builtin/auth-jwt-policy.js';
+import { ConsumerStore } from './identity/consumer-store.js';
+import { ApiKeyPolicy } from './identity/api-key-policy.js';
+import { ConsumerRateLimitPolicy } from './identity/consumer-rate-limit-policy.js';
+import { WithIdentity } from './types/identity.js';
 import { UpstreamTarget, CircuitBreakerState } from './types/core.js';
 
 export class Gateway {
@@ -109,9 +113,30 @@ export class Gateway {
   }
 
   private configurePipeline(config: ConfigFile): void {
+    const cfg = config as unknown as WithIdentity;
     const authConfig = (config as unknown as Record<string, unknown>)['auth'] as AuthJwtPolicyConfig | undefined;
     if (authConfig && authConfig.enabled !== false) {
       this.pipeline.register(new AuthJwtPolicy(authConfig));
+    }
+    const apiKeyConfig = cfg.apiKeys;
+    if (apiKeyConfig?.enabled && apiKeyConfig.consumers?.length) {
+      const store = new ConsumerStore();
+      for (const consumer of apiKeyConfig.consumers) {
+        store.createConsumer(consumer.consumerId, consumer.plan, consumer.rateLimit);
+        for (const key of consumer.keys ?? []) {
+          store.issueKey(consumer.consumerId, key.key, { expiresAt: key.expiresAt });
+        }
+      }
+      this.pipeline.register(
+        new ApiKeyPolicy(store, {
+          publicRoutes: apiKeyConfig.publicRoutes,
+          headerName: apiKeyConfig.headerName,
+          cacheTtlSeconds: apiKeyConfig.cacheTtlSeconds,
+          cacheMaxEntries: apiKeyConfig.cacheMaxEntries,
+        }),
+      );
+      this.pipeline.register(new ConsumerRateLimitPolicy());
+      logger.info({ consumers: store.stats().consumers, keys: store.stats().keys }, 'API key auth enabled');
     }
     const cacheConfig = (config as unknown as Record<string, unknown>)['responseCache'] as { enabled?: boolean } | undefined;
     if (cacheConfig?.enabled) {

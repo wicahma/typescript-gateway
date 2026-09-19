@@ -11,7 +11,7 @@ export type RateLimitStrategyType = 'token-bucket' | 'sliding-window';
 /**
  * Key extractor type
  */
-export type KeyExtractor = 'ip' | 'header' | 'upstream';
+export type KeyExtractor = 'ip' | 'header' | 'upstream' | 'consumer';
 
 /**
  * Rate limit strategy configuration
@@ -217,6 +217,11 @@ export class RateLimitPlugin implements Plugin {
       case 'upstream': {
         const upstream = strategy.upstream ?? ctx.upstream?.id;
         return upstream ? `upstream:${upstream}` : null;
+      }
+
+      case 'consumer': {
+        const user = ctx.state['user'] as { sub?: string } | undefined;
+        return user?.sub ? `consumer:${user.sub}` : null;
       }
 
       default:
