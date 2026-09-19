@@ -1,8 +1,8 @@
 import http from 'http';
-import https from 'https';
 import { RequestContext, UpstreamTarget } from '../types/core.js';
 import { BodyParser, ParsedBody } from './body-parser.js';
 import { HttpClientPool } from './http-client-pool.js';
+import { UrlForwarder } from './url-forward.js';
 import { LoadBalancer, LoadBalancerContext } from './load-balancer.js';
 import { CircuitBreaker } from './circuit-breaker.js';
 import { HealthChecker } from './health-checker.js';
@@ -63,6 +63,7 @@ const DEFAULT_CONFIG: ProxyHandlerConfig = {
 export class ProxyHandler {
   private bodyParser: BodyParser;
   private clientPool: HttpClientPool;
+  private urlForwarder: UrlForwarder;
   private loadBalancer: LoadBalancer;
   private circuitBreakers: Map<string, CircuitBreaker> = new Map();
   private healthChecker: HealthChecker;
@@ -79,6 +80,7 @@ export class ProxyHandler {
     // Initialize components
     this.bodyParser = new BodyParser();
     this.clientPool = new HttpClientPool();
+    this.urlForwarder = new UrlForwarder(this.clientPool);
     this.loadBalancer = new LoadBalancer();
     this.healthChecker = new HealthChecker();
     this.requestTransformer = new RequestTransformer();
@@ -362,90 +364,17 @@ export class ProxyHandler {
     path: string,
     body?: Buffer | null
   ): Promise<{ statusCode: number; headers: http.IncomingHttpHeaders; body?: Buffer }> {
-    return new Promise((resolve, reject) => {
-      ctx.timestamps.upstreamStart = Date.now();
-
-      // Get connection from pool
-      this.clientPool
-        .acquire(upstream)
-        .then((agent) => {
-          const isHttps = upstream.protocol === 'https';
-          const client = isHttps ? https : http;
-
-          // Build request path
-          const requestPath = upstream.basePath + path;
-
-          // Build request options
-          const options: http.RequestOptions = {
-            hostname: upstream.host,
-            port: upstream.port,
-            path: requestPath,
-            method: ctx.method,
-            headers: { ...headers },
-            agent,
-            timeout: this.config.requestTimeout,
-          };
-
-          // Update content-length if body exists
-          if (body) {
-            if (options.headers && typeof options.headers === 'object' && !Array.isArray(options.headers)) {
-              const hdrs = options.headers as http.OutgoingHttpHeaders;
-              hdrs['content-length'] = body.length;
-            }
-          }
-
-          // Create request
-          const proxyReq = client.request(options, (proxyRes) => {
-            ctx.timestamps.upstreamEnd = Date.now();
-
-            const chunks: Buffer[] = [];
-            
-            proxyRes.on('data', (chunk: Buffer) => {
-              chunks.push(chunk);
-            });
-
-            proxyRes.on('end', () => {
-              // Release connection back to pool
-              this.clientPool.release(upstream, agent);
-              
-              const responseBody = chunks.length > 0 ? Buffer.concat(chunks) : undefined;
-              
-              resolve({
-                statusCode: proxyRes.statusCode || 500,
-                headers: proxyRes.headers,
-                body: responseBody,
-              });
-            });
-
-            proxyRes.on('error', (error) => {
-              this.clientPool.remove(upstream, agent);
-              reject(error);
-            });
-          });
-
-          // Handle request errors
-          proxyReq.on('error', (error) => {
-            this.clientPool.remove(upstream, agent);
-            reject(error);
-          });
-
-          proxyReq.on('timeout', () => {
-            proxyReq.destroy();
-            this.clientPool.remove(upstream, agent);
-            reject(new Error('Upstream request timeout'));
-          });
-
-          // Send body if present
-          if (body) {
-            proxyReq.write(body);
-          } else if (ctx.body) {
-            proxyReq.write(ctx.body);
-          }
-
-          proxyReq.end();
-        })
-        .catch(reject);
+    ctx.timestamps.upstreamStart = Date.now();
+    const result = await this.urlForwarder.forward({
+      method: ctx.method,
+      path,
+      headers,
+      body: body ?? ctx.body ?? null,
+      upstream,
+      timeout: this.config.requestTimeout,
     });
+    ctx.timestamps.upstreamEnd = Date.now();
+    return result;
   }
 
   /**

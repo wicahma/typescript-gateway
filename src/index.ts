@@ -1,11 +1,14 @@
 import { Server } from './core/server.js';
 import { Router } from './core/router.js';
 import { ProxyHandler } from './core/proxy-handler.js';
+import { ResponseCache } from './core/response-cache.js';
+import { ResponseCachePolicy } from './core/response-cache-policy.js';
 import { createConfigLoader } from './config/loader.js';
+import { RequestPipeline } from './pipeline/request-pipeline.js';
 import { logger } from './utils/logger.js';
 import { metrics } from './utils/metrics.js';
 import { ConfigFile } from './types/config.js';
-import { AuthJwtPlugin, AuthJwtConfig } from './plugins/builtin/auth-jwt.js';
+import { AuthJwtPolicy, AuthJwtPolicyConfig } from './plugins/builtin/auth-jwt-policy.js';
 import { UpstreamTarget, CircuitBreakerState } from './types/core.js';
 
 export class Gateway {
@@ -14,7 +17,7 @@ export class Gateway {
   private proxyHandler: ProxyHandler | null = null;
   private configLoader;
   private metricsInterval: NodeJS.Timeout | null = null;
-  private authPlugin: AuthJwtPlugin | null = null;
+  private pipeline = new RequestPipeline();
 
   constructor(configPath: string) {
     this.router = new Router();
@@ -30,7 +33,7 @@ export class Gateway {
     const config = await this.configLoader.load();
     this.registerSystemRoutes();
     this.setupProxyRouting(config);
-    this.configureAuth(config);
+    this.configurePipeline(config);
 
     const serverConfig = {
       ...config.server,
@@ -39,16 +42,13 @@ export class Gateway {
     };
 
     this.server = new Server(serverConfig, this.router);
-    if (this.authPlugin) {
-      this.server.setPreRouteHook((ctx) => this.authPlugin!.preRoute(ctx));
-    }
+    this.server.setPipeline(this.pipeline);
     await this.server.start();
 
     this.setupMetricsReporting();
     this.setupShutdownHandlers();
     logger.info({ port: serverConfig.port, host: serverConfig.host }, 'Gateway started');
   }
-
   async stop(): Promise<void> {
     if (this.metricsInterval) {
       clearInterval(this.metricsInterval);
@@ -108,10 +108,15 @@ export class Gateway {
     });
   }
 
-  private configureAuth(config: ConfigFile): void {
-    const authConfig = (config as unknown as Record<string, unknown>)['auth'] as AuthJwtConfig | undefined;
-    if (!authConfig || authConfig.enabled === false) return;
-    this.authPlugin = new AuthJwtPlugin(authConfig);
+  private configurePipeline(config: ConfigFile): void {
+    const authConfig = (config as unknown as Record<string, unknown>)['auth'] as AuthJwtPolicyConfig | undefined;
+    if (authConfig && authConfig.enabled !== false) {
+      this.pipeline.register(new AuthJwtPolicy(authConfig));
+    }
+    const cacheConfig = (config as unknown as Record<string, unknown>)['responseCache'] as { enabled?: boolean } | undefined;
+    if (cacheConfig?.enabled) {
+      this.pipeline.register(new ResponseCachePolicy(new ResponseCache()));
+    }
   }
 
   private setupProxyRouting(config: ConfigFile): void {

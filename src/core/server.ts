@@ -3,6 +3,7 @@ import { Socket } from 'net';
 import { ServerConfig, HttpMethod, RequestContext } from '../types/core.js';
 import { Router } from './router.js';
 import { ContextPool } from './context.js';
+import { RequestPipeline } from '../pipeline/request-pipeline.js';
 import { metrics } from '../utils/metrics.js';
 import { logger } from '../utils/logger.js';
 
@@ -18,7 +19,7 @@ export class Server {
   private requestIdCounter = 0;
   private activeSockets = new Set<Socket>();
   private isShuttingDown = false;
-  private preRouteHook?: (ctx: RequestContext) => Promise<void> | void;
+  private pipeline?: RequestPipeline;
 
   constructor(config: ServerConfig, router: Router) {
     this.config = config;
@@ -160,10 +161,12 @@ export class Server {
       ctx.params = match.params;
       ctx.route = match;
 
-      // Execute preRoute hook (e.g. auth middleware) for matched routes only
-      if (this.preRouteHook) {
-        await this.preRouteHook(ctx);
-        if (ctx.responded || ctx.res.headersSent) {
+      // Run inbound policy pipeline (short-circuits with a Response if a policy returns one)
+      if (this.pipeline) {
+        const problem = await this.pipeline.runInbound(ctx);
+        if (problem) {
+          await RequestPipeline.writeResponse(ctx.res, problem);
+          ctx.responded = true;
           return;
         }
       }
@@ -320,8 +323,8 @@ export class Server {
   /**
    * Get underlying HTTP server
    */
-  setPreRouteHook(hook: (ctx: RequestContext) => Promise<void> | void): void {
-    this.preRouteHook = hook;
+  setPipeline(pipeline: RequestPipeline): void {
+    this.pipeline = pipeline;
   }
 
   getServer(): HttpServer {
