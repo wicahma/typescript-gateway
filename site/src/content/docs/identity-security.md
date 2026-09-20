@@ -5,49 +5,45 @@ order: 10
 section: "Features"
 ---
 
-# Identity & Security
-
-JWT auth, API-key engine, upstream credential injection, RFC 7807 errors.
-
 All 4 features in this group are **implemented and verified** — each has a full FSD + ERD spec pair and unit/integration coverage in the repo test suite.
 
 ## API Key Engine
 
-- **Spesifikasi:** Engine API key bawaan bergaya Zuplo tapi 0-dependency, dibangun di atas `node:crypto`: generator key dengan format `tsgk_<bucket>_<random32>_<checksum4>`, validasi berjenjang (format → checksum → cache), dan injeksi consumer state ke konteks request.
-- **Urgensi:** Menutup gap "Authentication & Identity" terhadap Zuplo — tanpa ini gateway tidak punya model identitas konsumen, dan rate limiter tidak bisa dynamic per tier/plan. Menjadi dasar rate limiting per-customer (M3, done) dan upstream injection (M4).
+- **Spec:** A built-in API-key engine in the Zuplo style but with 0 dependencies, built on `node:crypto`: a key generator with the format `tsgk_<bucket>_<random32>_<checksum4>`, tiered validation (format → checksum → cache), and consumer-state injection into the request context.
+- **Why it matters:** Closes the "Authentication & Identity" gap vs Zuplo — without it the gateway has no consumer identity model, and the rate limiter can't be dynamic per tier/plan. It is the basis for per-customer rate limiting (M3, done) and upstream injection (M4).
 
 ### How it works
 
-1. **Generate** (`generateApiKey`): engine membuat key `tsgk_<bucket>_<random32>_<checksum4>` — bucket adalah lingkup/environment key (mis. `live`, `test`, regex `^[a-z0-9-]{1,16}$`), random32 = 24 byte dari `crypto.randomBytes` yang di-encode **base62 32-karakter**, checksum4 = 4 hex char terakhir hasil **CRC32 (tabel 256 entri)** atas bagian sebelumnya (deteksi typo). Plaintext ditampilkan sekali; yang disimpan hanya sha256 hash (`hashKey`).
-2. **Validasi berjenjang** (murah dulu, mahal belakangan) — alur di `ApiKeyPolicy`:
+1. **Generate** (`generateApiKey`): the engine creates `tsgk_<bucket>_<random32>_<checksum4>` — bucket is the key scope/environment (e.g. `live`, `test`, regex `^[a-z0-9-]{1,16}$`), random32 = 24 bytes from `crypto.randomBytes` encoded as **32-character base62**, checksum4 = last 4 hex chars of a **CRC32 (256-entry table)** over the preceding part (typo detection). The plaintext is displayed once; only the sha256 hash is stored (`hashKey`).
+2. **Tiered validation** (cheap first, expensive last) — the flow in `ApiKeyPolicy`:
    ```
-   request masuk
+   incoming request
         │
-        ├─ path di publicRoutes? ── ya ─▶ lewat (tanpa auth)
-        │                    tidak
+        ├─ path in publicRoutes? ── yes ─▶ pass through (no auth)
+        │                    no
         ▼
-   header x-api-key ada? ── tidak ─▶ Authorization: Bearer? ── tidak ─▶ 401 Missing API key
-        │ ya
+   header x-api-key present? ── no ─▶ Authorization: *** ── no ─▶ 401 Missing API key
+        │ yes
         ▼
-   format regex O(1)? ── tidak ─▶ 401 Invalid API key format
-        │ ya
+   regex format check O(1)? ── no ─▶ 401 Invalid API key format
+        │ yes
         ▼
-   checksum CRC32 timing-safe? ── tidak ─▶ 401 API key checksum mismatch
-        │ ya
+   CRC32 checksum timing-safe? ── no ─▶ 401 API key checksum mismatch
+        │ yes
         ▼
-   cache LRU+TTL (key = sha256) hit? ── ya ─▶ consumer dari cache
+   LRU+TTL cache (key = sha256) hit? ── yes ─▶ consumer from cache
         │ miss
         ▼
    ConsumerStore.resolveKey (lookup by keyHash)
-        ├─ REVOKED / tidak ada ─▶ 401 API key not found
-        ├─ expiresAt lewat ─▶ 401 API key has expired
-        └─ ACTIVE ─▶ masukkan cache (TTL 5s default)
+        ├─ REVOKED / absent ─▶ 401 API key not found
+        ├─ expiresAt passed ─▶ 401 API key has expired
+        └─ ACTIVE ─▶ insert into cache (TTL 5s default)
         │
         ▼
    ctx.state['user'] = { sub: consumerId, data: { plan, rateLimit } }
    ```
-3. **Consumer state injection**: key valid → isi `ctx.state['user'] = { sub: consumerId, data: { plan, rateLimit } }` — struktur identik dengan `request.user` Zuplo (`sub`, `data`).
-4. **Rate limiting per consumer**: `ConsumerRateLimitPolicy` membaca `ctx.state['user'].data.rateLimit`, membangun token bucket per `sub` (refill `rateLimit/60` per detik), mengembalikan 429 problem+json + header `Retry-After` dan `X-RateLimit-Limit`/`X-RateLimit-Remaining` saat habis. `RateLimitPlugin` juga punya keyExtractor `'consumer'` yang membaca `ctx.state['user'].sub`.
+3. **Consumer state injection**: valid key → set `ctx.state['user'] = { sub: consumerId, data: { plan, rateLimit } }` — structurally identical to Zuplo's `request.user` (`sub`, `data`).
+4. **Per-consumer rate limiting**: `ConsumerRateLimitPolicy` reads `ctx.state['user'].data.rateLimit`, builds a token bucket per `sub` (refill `rateLimit/60` per second), and returns a 429 problem+json + `Retry-After` and `X-RateLimit-Limit`/`X-RateLimit-Remaining` headers when exhausted. `RateLimitPlugin` also has a `'consumer'` keyExtractor that reads `ctx.state['user'].sub`.
 
 ### Configuration
 
@@ -74,152 +70,152 @@ All 4 features in this group are **implemented and verified** — each has a ful
 }
 ```
 
-| Field | Tipe | Keterangan |
+| Field | Type | Notes |
 |---|---|---|
-| `enabled` | boolean | wajib `true` + minimal 1 consumer agar policy diregistrasi |
-| `publicRoutes` | string[] | route tanpa auth (default `["/", "/health", "/metrics"]`) |
-| `headerName` | string | header key (default `x-api-key`; fallback `Authorization: Bearer`) |
-| `cacheTtlSeconds` | number | TTL validation cache (default 5) — batas atas delay efektif revoke |
-| `cacheMaxEntries` | number | kapasitas LRU cache (default 10000) |
-| `consumers[].consumerId` | string | ID unik consumer |
-| `consumers[].plan` | string | tier plan (default `free`) |
-| `consumers[].rateLimit` | number | req/menit untuk token bucket per consumer |
-| `consumers[].keys[].key` | string | plaintext key (hanya di config boot, tidak pernah di-cache/log) |
-| `consumers[].keys[].expiresAt` | number? | epoch ms; lewat → 401 expired |
+| `enabled` | boolean | must be `true` + at least 1 consumer for the policy to be registered |
+| `publicRoutes` | string[] | routes without auth (default `["/", "/health", "/metrics"]`) |
+| `headerName` | string | key header (default `x-api-key`; fallback `Authorization: ***`) |
+| `cacheTtlSeconds` | number | validation-cache TTL (default 5) — upper bound on effective revoke delay |
+| `cacheMaxEntries` | number | LRU cache capacity (default 10000) |
+| `consumers[].consumerId` | string | unique consumer ID |
+| `consumers[].plan` | string | plan tier (default `free`) |
+| `consumers[].rateLimit` | number | req/min for the per-consumer token bucket |
+| `consumers[].keys[].key` | string | plaintext key (config/boot only, never cached or logged) |
+| `consumers[].keys[].expiresAt` | number? | epoch ms; once passed → 401 expired |
 
 ### Edge cases
 
-- Key salah prefix/format → ditolak O(1) tanpa akses store.
-- Checksum beda → ditolak timing-safe (typo/transmisi rusak) tanpa cache lookup.
-- Key valid tapi dicabut → cache TTL membuat revoke efektif maksimal setelah TTL habis (default 5 detik).
-- Key `expiresAt` lewat → 401 `'API key has expired'` (dari `ERR_KEY_EXPIRED`).
-- Consumer melebihi `rateLimit` → 429 problem+json dari `ConsumerRateLimitPolicy` dengan `Retry-After` + `X-RateLimit-*`.
-- Restart gateway → semua consumer/key dibangun ulang dari `apiKeys` config (TRANSIENT, tidak ada persistensi).
+- Wrong prefix/format key → rejected O(1) without store access.
+- Checksum mismatch → rejected timing-safe (typos/corrupted transmission) without a cache lookup.
+- Valid but revoked key → the cache TTL makes revocation effective at most after the TTL expires (default 5 seconds).
+- Key past `expiresAt` → 401 `'API key has expired'` (from `ERR_KEY_EXPIRED`).
+- Consumer exceeding `rateLimit` → 429 problem+json from `ConsumerRateLimitPolicy` with `Retry-After` + `X-RateLimit-*`.
+- Gateway restart → all consumers/keys are rebuilt from the `apiKeys` config (TRANSIENT, no persistence).
 
 
 ## JWT Auth Plugin
 
-- **Spesifikasi:** Plugin inbound bawaan `auth-jwt` yang berperan sebagai OAuth2/JWT Resource Server: memverifikasi Bearer token terhadap JWKS lokal (inline di `gateway.config.json`) tanpa dependency eksternal — hanya `node:crypto` (`createPublicKey`, `verify`).
-- **Urgensi:** Gateway saat ini tidak punya auth policy bawaan. Plugin ini menjadi lapisan pertama identity & security (F7) sebelum API-Key-Engine (M3) dan Upstream-Credential-Injection (M4) menyusul.
-- **Status kode:** Implemented. Plugin hook-based `auth-jwt.ts` (8 test) + policy pipeline `auth-jwt-policy.ts` (5 test), keduanya committed dan terverifikasi di suite 790/790.
+- **Spec:** The built-in inbound plugin `auth-jwt` acting as an OAuth2/JWT Resource Server: verifies Bearer tokens against a local JWKS (inline in `gateway.config.json`) without external dependencies — only `node:crypto` (`createPublicKey`, `verify`).
+- **Why it matters:** The gateway currently has no built-in auth policy. This plugin is the first identity & security layer (F7) before the API-Key-Engine (M3) and Upstream-Credential-Injection (M4) follow.
+- **Status:** Implemented. The hook-based plugin `auth-jwt.ts` (8 tests) + the policy pipeline `auth-jwt-policy.ts` (5 tests), both committed and verified in the 790/790 suite.
 
 ### How it works
 
-`preRoute(ctx)` dijalankan di Plugin Execution Chain sebelum routing ke upstream:
-1. **Bypass**: `enabled === false` → return; path di `publicRoutes` (Set, default `/`, `/health`, `/metrics`) → return.
-2. **Header spoofing guard**: strip SEMUA header inbound yang cocok `/^(x-auth-|x-user-|x-roles|x-scopes|x-email)/i` — client tidak bisa memalsukan identitas yang nanti di-inject.
-3. **Ekstraksi token**: wajib header `Authorization` dengan format `Bearer <token>` (case-insensitive); token harus 3 segmen base64url (header.payload.signature).
-4. **Pemilihan kunci**: `header.alg` harus `RS256` (menolak `alg=none` dan serangan HS256-confusion); `header.kid` wajib; kunci publik di-resolve dari `keyMap: Map<kid, KeyObject>` yang di-build saat konstruktor/`init()` dari `config.jwks.keys[]` (hanya `kty: RSA`, via `createPublicKey({ key: {kty,n,e}, format: 'jwk' })`).
-5. **Verifikasi signature**: `verify('RSA-SHA256', Buffer.from(`${headerB64}.${payloadB64}`), publicKey, sig)` — signature base64url.
-6. **Claims checks** (urutan): `exp + leeway < nowSec` → expired; `iss` === `config.issuer` (jika diset); `aud` === `config.audience` (jika diset). Leeway default 30 detik.
-7. **Identity injection upstream**: setelah sukses, set `x-auth-user-id` (dari `sub`), `x-auth-scopes` (dari `scopes`/`scope`), `x-auth-aud`, `x-auth-jti`, `x-auth-exp`, `x-auth-method: bearer_jwt`.
-8. **Logging aman**: sukses hanya mencatat `requestId`, `jti`, `sub`, `exp` — tidak pernah mencatat materi token.
+`preRoute(ctx)` runs in the Plugin Execution Chain before routing to the upstream:
+1. **Bypass**: `enabled === false` → return; path in `publicRoutes` (a Set, default `/`, `/health`, `/metrics`) → return.
+2. **Header spoofing guard**: strips ALL inbound headers matching `/^(x-auth-|x-user-|x-roles|x-scopes|x-email)/i` — clients cannot forge the identity that will be injected later.
+3. **Token extraction**: requires an `Authorization` header with format `Bearer <token>` (case-insensitive); the token must be 3 base64url segments (header.payload.signature).
+4. **Key selection**: `header.alg` must be `RS256` (rejecting `alg=none` and HS256-confusion attacks); `header.kid` required; the public key is resolved from the `keyMap: Map<kid, KeyObject>` built in the constructor/`init()` from `config.jwks.keys[]` (only `kty: RSA`, via `createPublicKey({ key: {kty,n,e}, format: 'jwk' })`).
+5. **Signature verification**: `verify('RSA-SHA256', Buffer.from(`${headerB64}.${payloadB64}`), publicKey, sig)` — base64url signature.
+6. **Claims checks** (in order): `exp + leeway < nowSec` → expired; `iss` === `config.issuer` (if set); `aud` === `config.audience` (if set). Default leeway is 30 seconds.
+7. **Upstream identity injection**: after success, set `x-auth-user-id` (from `sub`), `x-auth-scopes` (from `scopes`/`scope`), `x-auth-aud`, `x-auth-jti`, `x-auth-exp`, `x-auth-method: bearer_jwt`.
+8. **Safe logging**: success only logs `requestId`, `jti`, `sub`, `exp` — never token material.
 
 ### Configuration
 
-Objek `AuthJwtConfig` (via `plugins[]` di `gateway.config.json`):
+The `AuthJwtConfig` object (via `plugins[]` in `gateway.config.json`):
 
-| Field | Tipe | Default | Keterangan |
+| Field | Type | Default | Notes |
 |---|---|---|---|
-| `enabled` | boolean | `true` | `false` = plugin no-op |
-| `issuer` | string | `https://auth.geopulser.local` | claim `iss` yang diharapkan; kosongkan check dengan unset |
-| `audience` | string | `geopulser-api` | claim `aud` yang diharapkan |
-| `jwks` | `{ keys: JWK[] }` | - | JWK RSA (`kty`, `n`, `e`, `kid` wajib untuk lookup); di-parse saat boot + `init()` |
-| `leewaySeconds` | number | `30` | toleransi clock skew untuk `exp` |
-| `publicRoutes` | string[] | `['/', '/health', '/metrics']` | path tanpa auth (exact-match, bukan glob) |
+| `enabled` | boolean | `true` | `false` = no-op plugin |
+| `issuer` | string | `https://auth.geopulser.local` | expected `iss` claim; unset skips the check |
+| `audience` | string | `geopulser-api` | expected `aud` claim |
+| `jwks` | `{ keys: JWK[] }` | - | RSA JWK (`kty`, `n`, `e`, `kid` required for lookup); parsed at boot + `init()` |
+| `leewaySeconds` | number | `30` | clock-skew tolerance for `exp` |
+| `publicRoutes` | string[] | `['/', '/health', '/metrics']` | paths without auth (exact-match, not glob) |
 
 ### Edge cases
 
-Semua gagal direspon 401 JSON `{ error: { code, message } }` + counter `metrics.recordError()`/`recordAuthFailure()` + log warn; `ctx.responded = true` (short-circuit, request tidak lanjut).
+All failures respond 401 JSON `{ error: { code, message } }` + `metrics.recordError()`/`recordAuthFailure()` counters + a warn log; `ctx.responded = true` (short-circuit, the request doesn't continue).
 
 | Trigger | Code |
 |---|---|
-| Header `Authorization` hilang | `unauthorized` |
-| Bukan format `Bearer` | `invalid_token` |
-| Token bukan 3 segmen / JSON rusak | `invalid_token` |
-| `alg` ≠ RS256 (termasuk `none`, HS256) | `invalid_algorithm` |
-| `kid` tidak ada di header | `missing_kid` |
-| `kid` tidak ada di JWKS | `unknown_kid` |
-| Signature tidak valid | `invalid_signature` |
-| `exp` lewat + leeway | `token_expired` |
+| `Authorization` header missing | `unauthorized` |
+| Not `Bearer` format | `invalid_token` |
+| Token not 3 segments / broken JSON | `invalid_token` |
+| `alg` ≠ RS256 (including `none`, HS256) | `invalid_algorithm` |
+| `kid` missing from the header | `missing_kid` |
+| `kid` not in the JWKS | `unknown_kid` |
+| Invalid signature | `invalid_signature` |
+| `exp` past + leeway | `token_expired` |
 | `iss` / `aud` mismatch | `invalid_issuer` / `invalid_audience` |
 
-Lainnya: JWK dengan `kty` non-RSA atau tanpa `kid` dilewati `loadKeys()` (log error, tidak crash boot); path publicRoutes exact-match — `/healthz` TIDAK otomatis publik.
+Others: a JWK with non-RSA `kty` or without `kid` is skipped in `loadKeys()` (error log, boot doesn't crash); publicRoutes paths are exact-match — `/healthz` is NOT automatically public.
 
 
 ## RFC7807 Problem Details
 
-Standardisasi payload error gateway ke **RFC 7807 (Problem Details for HTTP APIs)**
-via helper `HttpProblems` + `createProblem`. Menggantikan hierarki `GatewayError`
-+ serialisasi JSON ad-hoc dengan struktur standar: `type`, `title`, `status`,
+Standardizes the gateway's error payloads to **RFC 7807 (Problem Details for HTTP APIs)**
+via the `HttpProblems` helper + `createProblem`. It replaces the `GatewayError`
+hierarchy + ad-hoc JSON serialization with a standard structure: `type`, `title`, `status`,
 `detail`, `instance`, `requestId`.
 
-Implementasi: `src/pipeline/http-problems.ts` (111 baris) — nol dependensi
-(`JSON.stringify` + `Response` global, `Content-Type: application/problem+json`).
+Implementation: `src/pipeline/http-problems.ts` (111 lines) — zero dependencies
+(`JSON.stringify` + the global `Response`, `Content-Type: application/problem+json`).
 
-(dan `npm test` 790/790 lulus, commit `99fd7d5`, M2).
+(and `npm test` 790/790 passing, commit `99fd7d5`, M2).
 
 ### How it works
 
-1. `CATALOG` internal: 10 error class — pasangan konstan
+1. Internal `CATALOG`: 10 error classes — constant tuples
    `(slug, status, title)`: `bad-request` (400), `unauthorized` (401),
    `forbidden` (403), `not-found` (404), `payload-too-large` (413),
    `rate-limit-exceeded` (429), `internal-error` (500), `bad-gateway` (502),
    `service-unavailable` (503), `gateway-timeout` (504).
-2. `createProblem(code, fields)` → lookup katalog, rangkai
-   `{ type, title, status, detail?, instance?, requestId? }` — field opsional
-   dihilangkan, bukan `null` — dan balikkan `Response` siap kirim.
+2. `createProblem(code, fields)` → catalog lookup, assembles
+   `{ type, title, status, detail?, instance?, requestId? }` — optional fields
+   are omitted, not `null` — and returns a sendable `Response`.
    `type` = `https://gateway.internal/errors/<slug>`.
-3. Helper `HttpProblems` (as-built): `badRequest`, `unauthorized`, `forbidden`,
+3. The `HttpProblems` helpers (as-built): `badRequest`, `unauthorized`, `forbidden`,
    `notFound`, `payloadTooLarge`, `rateLimited`, `internal`, `badGateway`,
-   `serviceUnavailable`, `gatewayTimeout` — masing-masing satu call.
-4. `rateLimited({ detail, limit, window, retryAfterSeconds })`: `detail` default
-   `"Rate limit of N requests per <window> exceeded. Try again in S seconds."`,
-   header `Retry-After: <seconds>` diset bila `retryAfterSeconds` diberikan.
-5. `problemToJson(problem)` — serialisasi eksplisit (field opsional di-skip).
-6. Short-circuit pipeline: policy inbound mengembalikan `Response` problem →
-   `RequestPipeline.runInbound` berhenti, `RequestPipeline.writeResponse`
-   mengirim ke client tanpa menyentuh handler backend.
+   `serviceUnavailable`, `gatewayTimeout` — each a single call.
+4. `rateLimited({ detail, limit, window, retryAfterSeconds })`: the default `detail`
+   is `"Rate limit of N requests per <window> exceeded. Try again in S seconds."`,
+   the `Retry-After: <seconds>` header is set when `retryAfterSeconds` is given.
+5. `problemToJson(problem)` — explicit serialization (optional fields skipped).
+6. Pipeline short-circuit: an inbound policy returning a problem `Response` →
+   `RequestPipeline.runInbound` stops, `RequestPipeline.writeResponse`
+   sends it to the client without touching the backend handler.
 
 ### Configuration
 
-Tidak ada field konfigurasi. `TYPE_BASE` (`https://gateway.internal/errors`)
-adalah konstanta modul — bukan config.
+No configuration fields. `TYPE_BASE` (`https://gateway.internal/errors`)
+is a module constant — not config.
 
 ### Edge cases
 
-- Slug tidak ada di katalog → `ERR_UNKNOWN_PROBLEM_SLUG` (developer-facing).
-- Status di luar 400–599 → `ERR_PROBLEM_STATUS`.
-- 429 tanpa info kuota: `detail` boleh kosong — payload tetap valid RFC 7807;
-  `Retry-After` hanya hadir bila `retryAfterSeconds` eksplisit.
-- `detail` tidak pernah menerima objek error mentah — string teks saja;
-  stack trace/path internal hanya di server log.
+- Slug not in the catalog → `ERR_UNKNOWN_PROBLEM_SLUG` (developer-facing).
+- Status outside 400–599 → `ERR_PROBLEM_STATUS`.
+- 429 without quota info: `detail` may be empty — the payload remains valid RFC 7807;
+  `Retry-After` is only present when `retryAfterSeconds` is explicit.
+- `detail` never receives a raw error object — text strings only;
+  stack traces/internal paths go to server logs only.
 
 
 ## Upstream Credential Injection
 
-- **Spesifikasi:** Inbound policy yang menjalankan injeksi kredensial upstream SETELAH caller terautentikasi dan SEBELUM request diteruskan ke origin. Dua policy 0-dep: `set-upstream-header` (menempel static token internal, mis. `Authorization: Bearer ***`) dan `upstream-hmac-signature` (menandatangani body request dengan shared secret sebelum dikirim ke microservice internal).
-- **Urgensi:** Menutup gap "Caller Auth vs Upstream Auth" terhadap Zuplo — kredensial upstream (static token, HMAC secret) tidak boleh dipegang caller; gateway adalah satu-satunya pemegangnya. Krusial untuk BFF / enterprise microservice.
+- **Spec:** An inbound policy that performs upstream credential injection AFTER the caller is authenticated and BEFORE the request is forwarded to the origin. Two 0-dep policies: `set-upstream-header` (attaches a static internal token, e.g. `Authorization: Bearer ***`) and `upstream-hmac-signature` (signs the request body with a shared secret before it is sent to internal microservices).
+- **Why it matters:** Closes the "Caller Auth vs Upstream Auth" gap vs Zuplo — upstream credentials (static tokens, HMAC secrets) must never be held by the caller; the gateway is the sole holder. Crucial for BFF / enterprise microservices.
 
 ### How it works
 
-1. **Urutan pipeline**: policy ini berjalan setelah policy autentikasi caller (JWT-Auth-Plugin / API-Key-Engine) lolos — caller tervalidasi dulu, baru gateway mempersenjatai request menuju origin.
-2. **`set-upstream-header`**: konfigurasi statis `header → value` (mis. `Authorization: Bearer <internal-token>`, `x-internal-service: payments`). Header sensitif caller di-overwrite, bukan dilewati.
-3. **`upstream-hmac-signature`**: hitung HMAC-SHA256 atas body request menggunakan shared secret per-upstream (`node:crypto` `createHmac`), tempelkan signature + timestamp ke header upstream (mis. `x-signature`, `x-timestamp`) — microservice internal memverifikasi bahwa request benar-benar dari gateway dan body tidak diubah.
-4. **Pemisahan tegas**: caller auth (apa yang membuktikan client) ≠ upstream auth (apa yang membuktikan gateway ke origin). Gagal signature/secret hilang = fail-closed (request tidak diteruskan).
+1. **Pipeline order**: these policies run after caller-authentication policies (JWT-Auth-Plugin / API-Key-Engine) pass — the caller is validated first, then the gateway arms the request toward the origin.
+2. **`set-upstream-header`**: static `header → value` configuration (e.g. `Authorization: Bearer <inter...n>`, `x-internal-service: payments`). Sensitive caller headers are overwritten, not skipped.
+3. **`upstream-hmac-signature`**: computes HMAC-SHA256 over the request body using a per-upstream shared secret (`node:crypto` `createHmac`), attaches the signature + timestamp to upstream headers (e.g. `x-signature`, `x-timestamp`) — internal microservices verify that the request genuinely came from the gateway and the body wasn't altered.
+4. **Strict separation**: caller auth (what proves the client) ≠ upstream auth (what proves the gateway to the origin). Signature failure / missing secret = fail-closed (the request is not forwarded).
 
 ### Configuration
 
-| Field | Tipe | Keterangan |
+| Field | Type | Notes |
 |---|---|---|
-| `policy` | `set-upstream-header` \| `upstream-hmac-signature` | jenis injeksi |
-| `headers` | Record<string,string> | static headers untuk `set-upstream-header` |
-| `secretRef` | string | nama shared secret HMAC (nilai tidak inline) |
-| `headerNamespace` | string | prefix header signature (mis. `x-signature`) |
+| `policy` | `set-upstream-header` \| `upstream-hmac-signature` | injection type |
+| `headers` | Record<string,string> | static headers for `set-upstream-header` |
+| `secretRef` | string | name of the shared HMAC secret (value never inline) |
+| `headerNamespace` | string | signature header prefix (e.g. `x-signature`) |
 
 ### Edge cases
 
-- Request tanpa body (GET) → HMAC dihitung atas signing input tanpa body (canonical string: method+path+timestamp).
-- Header upstream sudah diisi caller → di-overwrite, tidak digandakan.
-- Shared secret salah/rotate → verifikasi di microservice gagal; gateway log + metrik, tidak retry otomatis.
-- Body besar → HMAC stream/hash incremental agar tidak buffer ganda.
+- Request without a body (GET) → the HMAC is computed over a signing input without the body (canonical string: method+path+timestamp).
+- Upstream header already set by the caller → overwritten, never duplicated.
+- Wrong/rotated shared secret → verification fails at the microservice; the gateway logs + records metrics, no automatic retry.
+- Large body → incremental HMAC stream/hash to avoid double buffering.

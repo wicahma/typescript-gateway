@@ -23,30 +23,25 @@ const siteUrl = "https://tsgate.diama.dev";
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
 
-    <!-- Open Graph / SEO -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonical} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:site_name" content="TypeScript Gateway" />
 
-    <!-- Twitter -->
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
 
-    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
 
-    <!-- Favicon -->
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23ff5c7a'/%3E%3Cpath d='M10 22V12l6-3 6 3v10' stroke='%23fff' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232952ff'/%3E%3Cpath d='M10 22V12l6-3 6 3v10' stroke='%23fff' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
 
-    <!-- Structured Data (JSON-LD) -->
     <script type="application/ld+json" set:html={JSON.stringify({
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
@@ -64,26 +59,12 @@ const siteUrl = "https://tsgate.diama.dev";
 
     <style is:global>
       :root {
-        --bg: #fffdf7;
-        --surface: #fff3e4;
-        --surface-2: #ffe8d6;
-        --ink: #2b2140;
-        --ink-muted: #6f6685;
-        --border: #f0d9c0;
-        --border-strong: #e3c3a0;
-
-        --coral: #ff5c7a;
-        --coral-soft: #ffe4e9;
-        --violet: #7c5cff;
-        --violet-soft: #ede7ff;
-        --teal: #00b8a9;
-        --teal-soft: #d8f7f3;
-        --amber: #ffb020;
-        --amber-soft: #fff1d6;
-        --pink: #f649a7;
-        --pink-soft: #ffe0f0;
-        --blue: #3e8bff;
-        --blue-soft: #e0edff;
+        --bg: #ffffff;
+        --ink: #141414;
+        --muted: #71717a;
+        --line: #e7e7e8;
+        --panel: #f6f6f7;
+        --accent: #2952ff;
 
         --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
@@ -96,7 +77,7 @@ const siteUrl = "https://tsgate.diama.dev";
       }
 
       html {
-        background-color: var(--bg);
+        background: var(--bg);
         color: var(--ink);
         font-family: var(--font-sans);
         font-size: 15px;
@@ -115,7 +96,6 @@ const siteUrl = "https://tsgate.diama.dev";
       a {
         color: inherit;
         text-decoration: none;
-        transition: color 0.2s ease;
       }
 
       code, pre {
@@ -123,7 +103,7 @@ const siteUrl = "https://tsgate.diama.dev";
       }
 
       ::selection {
-        background: var(--violet);
+        background: var(--accent);
         color: #fff;
       }
 
@@ -135,20 +115,11 @@ const siteUrl = "https://tsgate.diama.dev";
         background: var(--bg);
       }
       ::-webkit-scrollbar-thumb {
-        background: var(--border-strong);
-        border-radius: 8px;
-        border: 2px solid var(--bg);
+        background: var(--line);
+        border-radius: 5px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: var(--coral);
-      }
-
-      /* ---- playful top rainbow bar ---- */
-      .rainbow-bar {
-        height: 5px;
-        background: linear-gradient(90deg,
-          var(--coral) 0%, var(--amber) 25%,
-          var(--teal) 50%, var(--blue) 75%, var(--violet) 100%);
+        background: var(--muted);
       }
 
       /* ---- nav ---- */
@@ -156,20 +127,19 @@ const siteUrl = "https://tsgate.diama.dev";
         position: sticky;
         top: 0;
         z-index: 100;
-        background: rgba(255, 253, 247, 0.88);
-        backdrop-filter: blur(12px);
-        border-bottom: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--line);
       }
 
       .nav-container {
-        max-width: 1080px;
+        max-width: 1120px;
         margin: 0 auto;
-        padding: 0.85rem 1.5rem;
+        padding: 1rem 1.5rem;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 0.75rem;
-        flex-wrap: wrap;
+        gap: 1rem;
       }
 
       .brand {
@@ -177,131 +147,118 @@ const siteUrl = "https://tsgate.diama.dev";
         align-items: center;
         gap: 0.55rem;
         font-weight: 700;
-        font-size: 1rem;
+        font-size: 0.98rem;
         letter-spacing: -0.01em;
       }
 
       .brand-mark {
-        width: 26px;
-        height: 26px;
-        border-radius: 8px;
-        background: linear-gradient(135deg, var(--coral), var(--violet));
+        width: 24px;
+        height: 24px;
+        border-radius: 7px;
+        background: var(--accent);
         display: inline-flex;
         align-items: center;
         justify-content: center;
         color: #fff;
-        font-size: 0.72rem;
-        font-weight: 800;
+        font-size: 0.66rem;
+        font-weight: 700;
         font-family: var(--font-mono);
       }
 
       .links {
         display: flex;
         align-items: center;
-        gap: 1.35rem;
-        font-size: 0.92rem;
+        gap: 1.6rem;
+        font-size: 0.9rem;
         font-weight: 500;
         flex-wrap: wrap;
+        justify-content: flex-end;
       }
 
       .nav-link {
-        color: var(--ink-muted);
-        transition: color 0.2s ease;
+        color: var(--muted);
+        transition: color 0.15s ease;
       }
 
       .nav-link:hover {
-        color: var(--coral);
+        color: var(--ink);
       }
 
       .github-link {
-        padding: 0.4rem 0.85rem;
-        background: var(--ink);
-        border-radius: 999px;
-        color: var(--bg);
+        color: var(--ink);
         font-family: var(--font-mono);
-        font-size: 0.78rem;
-        font-weight: 600;
-        transition: transform 0.2s ease, background 0.2s ease;
+        font-size: 0.8rem;
       }
 
       .github-link:hover {
-        background: var(--coral);
-        transform: translateY(-1px);
+        color: var(--accent);
       }
 
       /* ---- footer ---- */
       .site-footer {
-        border-top: 1px solid var(--border);
+        border-top: 1px solid var(--line);
         margin-top: auto;
-        padding: 2.75rem 1.5rem 2.5rem;
-        background: var(--surface);
+        padding: 2.5rem 1.5rem;
       }
 
       .footer-container {
-        max-width: 1080px;
+        max-width: 1120px;
         margin: 0 auto;
         display: flex;
         flex-wrap: wrap;
         justify-content: space-between;
-        align-items: flex-start;
-        gap: 1.5rem;
+        align-items: baseline;
+        gap: 1.25rem;
       }
 
       .footer-copy .tag {
-        font-size: 0.92rem;
-        font-weight: 600;
-        color: var(--ink);
-        margin-bottom: 0.3rem;
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        color: var(--muted);
       }
 
-      .footer-copy .sub {
-        font-size: 0.82rem;
-        color: var(--ink-muted);
+      .footer-copy a,
+      .footer-links a {
+        color: var(--muted);
+        font-size: 0.86rem;
       }
 
-      .footer-copy a {
-        color: var(--coral);
-        font-weight: 600;
-        text-decoration: underline;
-        text-underline-offset: 3px;
+      .footer-copy a:hover,
+      .footer-links a:hover {
+        color: var(--accent);
       }
 
       .footer-links {
         display: flex;
-        gap: 1.25rem;
-        font-size: 0.86rem;
-        font-weight: 500;
-      }
-
-      .footer-links a {
-        color: var(--ink-muted);
-      }
-
-      .footer-links a:hover {
-        color: var(--violet);
-      }
-
-      @media (max-width: 640px) {
-        .links {
-          gap: 0.9rem;
-          font-size: 0.85rem;
-        }
-        .nav-container {
-          padding: 0.75rem 1rem;
-        }
-        .footer-container {
-          flex-direction: column;
-        }
+        gap: 1.4rem;
       }
 
       html, body {
         overflow-x: hidden;
       }
+
+      @media (max-width: 640px) {
+        .nav-container {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0.5rem;
+        }
+        .links {
+          gap: 0.8rem;
+          font-size: 0.8rem;
+          flex-wrap: wrap;
+          justify-content: flex-start;
+        }
+        .github-link {
+          font-size: 0.72rem;
+        }
+        .footer-container {
+          flex-direction: column;
+        }
+      }
     </style>
   </head>
   <body>
-    <div class="rainbow-bar" aria-hidden="true"></div>
-
     <header class="site-nav">
       <div class="nav-container">
         <a href="/" class="brand">
@@ -331,14 +288,13 @@ const siteUrl = "https://tsgate.diama.dev";
     <footer class="site-footer">
       <div class="footer-container">
         <div class="footer-copy">
-          <p class="tag">Zero runtime dependencies. Pure Node.js & TypeScript.</p>
-          <p class="sub">MIT License · built by <a href="https://github.com/wicahma" target="_blank" rel="noopener noreferrer">@wicahma</a></p>
+          <p class="tag">Zero runtime dependencies · MIT License</p>
         </div>
         <div class="footer-links">
           <a href="/docs/getting-started">Docs</a>
           <a href="/docs/features">Features</a>
           <a href="https://github.com/wicahma/typescript-gateway" target="_blank" rel="noopener noreferrer">Repository</a>
-          <a href="https://github.com/wicahma/typescript-gateway/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">License</a>
+          <a href="https://github.com/wicahma" target="_blank" rel="noopener noreferrer">@wicahma</a>
         </div>
       </div>
     </footer>

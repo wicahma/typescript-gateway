@@ -5,139 +5,135 @@ order: 7
 section: "Features"
 ---
 
-# Payload Handling
-
-Body parsing, request/response transformation, and native compression.
-
 All 4 features in this group are **implemented and verified** — each has a full FSD + ERD spec pair and unit/integration coverage in the repo test suite.
 
 ## Body Parser
 
-- **Spesifikasi:** Parser body request berbasis stream untuk gateway zero-dependency. Menerima `IncomingMessage` Node.js dan mengembalikan `ParsedBody` terstruktur sesuai Content-Type: JSON, URL-encoded, multipart, text, dan binary raw (fallback `application/octet-stream`).
-- **Tujuan:** Menjadi trust boundary pertama untuk payload masuk — membatasi ukuran per content-type, membatasi waktu baca stream, dan menormalkan body sebelum diteruskan ke request transformer, plugin, dan upstream.
+- **Spec:** A stream-based request body parser for a zero-dependency gateway. Accepts a Node.js `IncomingMessage` and returns a structured `ParsedBody` per Content-Type: JSON, URL-encoded, multipart, text, and raw binary (fallback `application/octet-stream`).
+- **Purpose:** Act as the first trust boundary for inbound payloads — enforcing per-content-type size limits, bounding stream read time, and normalizing the body before it is passed to the request transformer, plugins, and upstream.
 
 ### How it works
 
-1. Deteksi Content-Type dari header (parameter seperti `charset` diabaikan; keyword matching `json`/`urlencoded`/`multipart`/`text`; tanpa header → `application/octet-stream`).
-2. Pre-check `Content-Length` terhadap limit per type (`limits.json`, `limits.urlencoded`, `limits.multipart`, `limits.text`); pelanggaran langsung ditolak tanpa membaca stream (`BODY_TOO_LARGE`, HTTP 413).
-3. Baca stream via `readBody()`: akumulasi chunk ke array `Buffer[]`, verifikasi total byte terhadap `Content-Length` yang diklaim (`SIZE_EXCEEDED`, HTTP 413 — melindungi dari klaim header palsu), timer `timeout` (default 30000 ms) memusnahkan koneksi (`TIMEOUT`, HTTP 408), event `error` → `STREAM_ERROR`.
-4. Transformasi per type: JSON → `JSON.parse` (`INVALID_JSON`, 400); URL-encoded → parser query string sendiri dengan dukungan multi-value jadi array (`INVALID_URLENCODED`, 400); multipart → buffer mentah (parsing part penuh sengaja tidak dibangun, lihat Out of Scope di FSD); text → UTF-8 string; raw → buffer apa adanya.
-5. Hasil `ParsedBody { data?, buffer?, stream?, contentType, size }` dipakai `ProxyHandler` (Step 3 pipeline) sebagai `BODY_BUFFER` transien — dilepas bersama akhir request, tidak pernah dipersistenkan.
+1. Detect Content-Type from the header (parameters like `charset` ignored; keyword matching `json`/`urlencoded`/`multipart`/`text`; no header → `application/octet-stream`).
+2. Pre-check `Content-Length` against the per-type limit (`limits.json`, `limits.urlencoded`, `limits.multipart`, `limits.text`); violations are rejected immediately without reading the stream (`BODY_TOO_LARGE`, HTTP 413).
+3. Read the stream via `readBody()`: accumulate chunks into a `Buffer[]` array, verify the total byte count against the claimed `Content-Length` (`SIZE_EXCEEDED`, HTTP 413 — protects against forged headers), a `timeout` timer (default 30000 ms) destroys the connection (`TIMEOUT`, HTTP 408), the `error` event → `STREAM_ERROR`.
+4. Per-type transformation: JSON → `JSON.parse` (`INVALID_JSON`, 400); URL-encoded → own query-string parser with multi-value support as arrays (`INVALID_URLENCODED`, 400); multipart → raw buffer (full part parsing deliberately not built, see Out of Scope in the FSD); text → UTF-8 string; raw → buffer as-is.
+5. The resulting `ParsedBody { data?, buffer?, stream?, contentType, size }` is used by `ProxyHandler` (pipeline Step 3) as a transient `BODY_BUFFER` — released with the end of the request, never persisted.
 
 ### Configuration
 
-- `gateway.config.json → bodyParser` (`BodyParserConfig` di `src/types/core.ts`):
+- `gateway.config.json → bodyParser` (`BodyParserConfig` in `src/types/core.ts`):
   - `enabled` (boolean, default `true`)
   - `limits` (bytes): `json` 1 MB, `urlencoded` 1 MB, `multipart` 10 MB, `text` 1 MB
   - `timeout` (ms, default 30000)
-  - `enablePooling` (boolean, default `true`) — pool `ParsedBody` per type (maks 100 entri per pool)
-- Level pipeline: `enableBodyParsing` pada `ProxyHandlerConfig` (default `true`) memutuskan apakah parse dipanggil sama sekali.
-- Batas global request: `maxRequestSize` (default 10 MB) diverifikasi lebih dulu oleh `ProxyHandler`.
+  - `enablePooling` (boolean, default `true`) — pools `ParsedBody` per type (max 100 entries per pool)
+- Pipeline level: `enableBodyParsing` on `ProxyHandlerConfig` (default `true`) decides whether parsing is called at all.
+- Global request limit: `maxRequestSize` (default 10 MB) is verified first by `ProxyHandler`.
 
 ### Edge cases
 
-- **`Content-Length` palsu (lebih kecil dari body nyata):** akumulasi `readBody` mendeteksi `totalLength > expectedLength`, stream di-destroy, HTTP 413.
-- **Tanpa `Content-Length` (chunked):** `getContentLength` mengembalikan 0, pre-check dilewati; limit tetap ditegakkan lewat `SIZE_EXCEEDED` hanya jika header ada — body chunked mengikuti limit per-type saat dibaca.
-- **Timeout streaming lambat (slowloris):** timer 30 s memusnahkan socket, HTTP 408.
-- **JSON besar valid secara sintaks tapi > limit:** ditolak sebelum `JSON.parse` — tidak ada CPU yang dibuang untuk payload yang sudah pasti ditolak.
-- **Content-Type tidak dikenal:** fallback raw buffer; gateway tetap bisa mem-proxy tanpa memahami isinya.
+- **Forged `Content-Length` (smaller than the real body):** `readBody` accumulation detects `totalLength > expectedLength`, the stream is destroyed, HTTP 413.
+- **No `Content-Length` (chunked):** `getContentLength` returns 0, the pre-check is skipped; limits are still enforced via `SIZE_EXCEEDED` only when the header is present — chunked bodies are checked against per-type limits while being read.
+- **Slow streaming (slowloris):** the 30 s timer destroys the socket, HTTP 408.
+- **Large syntactically valid JSON above the limit:** rejected before `JSON.parse` — no CPU wasted on a payload that would be rejected anyway.
+- **Unknown Content-Type:** falls back to the raw buffer; the gateway can still proxy it without understanding the contents.
 
 
 ## Compression Handler
 
-- **Spesifikasi:** Kompresor response HTTP berbasis `node:zlib` — gzip, Brotli (`br`), dan deflate — dengan negosiasi `Accept-Encoding` (dukungan q-values dan wildcard `*`), filter content-type, threshold ukuran minimum, dan penulisan header `Content-Encoding` / `Content-Length` / `Vary: Accept-Encoding`.
-- **Tujuan:** Menghemat bandwidth tanpa dependency eksternal (stdlib `node:zlib`), dengan urutan preferensi yang bisa dikonfigurasi (default Brotli dulu karena rasio terbaik untuk JSON/text).
+- **Spec:** A response HTTP compressor based on `node:zlib` — gzip, Brotli (`br`), and deflate — with `Accept-Encoding` negotiation (q-value and wildcard `*` support), content-type filtering, a minimum size threshold, and writing the `Content-Encoding` / `Content-Length` / `Vary: Accept-Encoding` headers.
+- **Purpose:** Save bandwidth without an external dependency (stdlib `node:zlib`), with a configurable preference order (Brotli first by default because of its best ratio for JSON/text).
 
 ### How it works
 
-1. **Negosiasi** (`negotiateAlgorithm(acceptEncoding)`): parse header menjadi daftar `{ encoding, quality }` (q default 1.0, q ≤ 0 dibuang), urutkan quality menurun, lalu pilih algoritma pertama dari `config.algorithms` (urutan preferensi server) yang diterima klien atau yang dicakup `*`. Tidak ada header / `enabled=false` → `null` (identity).
-2. **Filter** (`shouldCompress(contentType, contentLength, acceptEncoding)`): kompres hanya jika enabled, klien mengirim `Accept-Encoding`, ukuran ≥ `threshold` (default 1024 byte), dan content-type cocok dengan `contentTypes` (default: `application/json`, `text/*`, `application/javascript`, `application/xml`; wildcard `*` → regex; parameter seperti `; charset` di-strip).
-3. **Kompresi** (`compress(data, algorithm)`): pipakan `Readable.from([data])` ke stream `createGzip`/`createBrotliCompress`/`createDeflate` dengan `level` (default 6; Brotli memakai quality param), kumpulkan chunk → `CompressionResult { data, algorithm, originalSize, compressedSize, ratio, duration }`.
-4. **Header** (`addCompressionHeaders`): set `content-encoding` = algoritma, `content-length` = ukuran terkompres, timpa `vary` dengan `Accept-Encoding` (Vary existing dihapus agar konsisten).
-5. **Deteksi & dekompresi**: `detectAlgorithm(contentEncoding)` mengenali `gzip`/`x-gzip`/`br`/`deflate` — dipakai untuk body upstream terkompresi; `decompress()` + `createDecompressionStream()` menyediakan jalur balik. Stream versi (`createCompressionStream`) tersedia untuk pipa streaming langsung.
-6. Di pipeline: `ProxyHandler` Step 7 memanggil `shouldCompress` → `negotiateAlgorithm` → `compress` → `addCompressionHeaders` (selalu **setelah** Response-Transformer, sehingga body yang dikompres sudah final). Metrik `originalSize`/`compressedSize`/`duration` dicatat ke `advancedMetrics.recordCompression()`.
+1. **Negotiation** (`negotiateAlgorithm(acceptEncoding)`): parse the header into a list of `{ encoding, quality }` (q defaults to 1.0, q ≤ 0 dropped), sort by descending quality, then pick the first algorithm from `config.algorithms` (server preference order) that the client accepts or that `*` covers. No header / `enabled=false` → `null` (identity).
+2. **Filter** (`shouldCompress(contentType, contentLength, acceptEncoding)`): compress only when enabled, the client sent `Accept-Encoding`, size ≥ `threshold` (default 1024 bytes), and the content-type matches `contentTypes` (default: `application/json`, `text/*`, `application/javascript`, `application/xml`; wildcard `*` → regex; parameters like `; charset` are stripped).
+3. **Compression** (`compress(data, algorithm)`): pipe `Readable.from([data])` into a `createGzip`/`createBrotliCompress`/`createDeflate` stream with `level` (default 6; Brotli uses the quality param), collect chunks → `CompressionResult { data, algorithm, originalSize, compressedSize, ratio, duration }`.
+4. **Headers** (`addCompressionHeaders`): set `content-encoding` = algorithm, `content-length` = compressed size, overwrite `vary` with `Accept-Encoding` (existing Vary removed for consistency).
+5. **Detection & decompression**: `detectAlgorithm(contentEncoding)` recognizes `gzip`/`x-gzip`/`br`/`deflate` — used for compressed upstream bodies; `decompress()` + `createDecompressionStream()` provide the reverse path. A stream variant (`createCompressionStream`) is available for direct streaming pipelines.
+6. In the pipeline: `ProxyHandler` Step 7 calls `shouldCompress` → `negotiateAlgorithm` → `compress` → `addCompressionHeaders` (always **after** the Response-Transformer, so the compressed body is final). Metrics `originalSize`/`compressedSize`/`duration` are recorded into `advancedMetrics.recordCompression()`.
 
 ### Configuration
 
-- `CompressionConfig` (bisa diubah runtime via `updateConfig()`):
-  - `enabled` (default `true`); `algorithms: ['br', 'gzip', 'deflate']` (urutan = preferensi)
+- `CompressionConfig` (changeable at runtime via `updateConfig()`):
+  - `enabled` (default `true`); `algorithms: ['br', 'gzip', 'deflate']` (order = preference)
   - `level`: 6 (0–9 gzip/deflate, 0–11 Brotli quality)
-  - `threshold`: 1024 byte
+  - `threshold`: 1024 bytes
   - `contentTypes`: `['application/json', 'text/*', 'application/javascript', 'application/xml']`
-- Saklar pipeline: `enableCompression` pada `ProxyHandlerConfig` (default `true`).
-- `getStats()` / `getConfig()` untuk introspeksi.
+- Pipeline switch: `enableCompression` on `ProxyHandlerConfig` (default `true`).
+- `getStats()` / `getConfig()` for introspection.
 
 ### Edge cases
 
-- **Klien tanpa `Accept-Encoding`:** tidak dikompres (identity), sesuai RFC 7231.
-- **`Accept-Encoding: *`:** dipetakan ke algoritma pertama yang dikonfigurasi.
-- **q=0:** encoding dianggap tidak diterima, dibuang sebelum matching.
-- **Payload di bawah threshold:** dikirim apa adanya — kompresi payload kecil kerap memperbesar ukuran + boros CPU.
-- **Content-type tidak terdaftar (mis. gambar):** dikirim mentah; kompresi media terkompresi tidak efektif.
-- **`x-gzip`:** dikenali sebagai gzip (kompatibilitas legacy).
-- **Buffer kosong / payload kecil:** round-trip kompres-dekompres tetap benar (tercakup test Edge Cases).
+- **Client without `Accept-Encoding`:** not compressed (identity), per RFC 7231.
+- **`Accept-Encoding: *`:** mapped to the first configured algorithm.
+- **q=0:** encoding considered not accepted, dropped before matching.
+- **Payload below the threshold:** sent as-is — compressing small payloads often enlarges them + wastes CPU.
+- **Unlisted content-type (e.g. images):** sent raw; compressing already-compressed media is ineffective.
+- **`x-gzip`:** recognized as gzip (legacy compatibility).
+- **Empty buffer / small payload:** the compress-decompress round-trip stays correct (covered by Edge Cases tests).
 
 
 ## Request Transformer
 
-- **Spesifikasi:** Mesin transformasi request deklaratif yang berjalan di pipeline gateway (Step 2, sebelum body parsing dan pemilihan upstream). Mampu menulis ulang header, query parameter, path, dan body (JSON/form) berdasarkan aturan per-route dengan kondisi (header, path, method, query param) dan prioritas.
-- **Tujuan:** Menghapus kebutuhan upstream menangani variasi klien — normalisasi header, strip parameter internal, rewrite path legacy, injeksi field body — semuanya di edge, tanpa dependency eksternal.
+- **Spec:** A declarative request transformation engine running in the gateway pipeline (Step 2, before body parsing and upstream selection). It can rewrite headers, query parameters, path, and body (JSON/form) based on per-route rules with conditions (header, path, method, query param) and priority.
+- **Purpose:** Remove the need for upstreams to handle client variation — header normalization, stripping internal parameters, legacy path rewrites, body field injection — all at the edge, without external dependencies.
 
 ### How it works
 
-1. Aturan `RequestTransformation` didaftarkan via `addTransformation()` / `setTransformations()`; otomatis diurutkan `priority` menurun (tertinggi dieksekusi dulu).
-2. `transform(method, path, headers, body)` meng-clone header (tidak pernah memutasi input), lalu untuk tiap aturan yang lolos `shouldApply()`:
-   - **headers**: `add` (dinormalisasi lowercase), `remove` (exact atau wildcard `*` → regex case-insensitive), `rename`, `modify` (string replacement dengan regex).
-   - **query**: `add`/`remove`/`modify` via `URLSearchParams` — `add` memakai `set` sehingga menimpa nilai duplikat.
-   - **pathRewrite**: daftar aturan `{ pattern, replacement }`; path dipisah dari query string dulu, regex di-`test` lalu `replace`.
+1. `RequestTransformation` rules are registered via `addTransformation()` / `setTransformations()`; automatically sorted by descending `priority` (highest executes first).
+2. `transform(method, path, headers, body)` clones the headers (never mutates the input), then for each rule passing `shouldApply()`:
+   - **headers**: `add` (normalized to lowercase), `remove` (exact or wildcard `*` → case-insensitive regex), `rename`, `modify` (string replacement with regex).
+   - **query**: `add`/`remove`/`modify` via `URLSearchParams` — `add` uses `set` so it overwrites duplicate values.
+   - **pathRewrite**: a list of `{ pattern, replacement }` rules; the path is split from the query string first, then regex `test` followed by `replace`.
    - **body**: JSON (`application/json`, `application/vnd.api+json`) → `set`/`remove` by dot-path; form (`x-www-form-urlencoded`) → `set`/`remove` via `URLSearchParams`.
-3. Kondisi `shouldApply()`: `routes` (wildcard pattern), `conditions.header` (exact/RegExp), `conditions.path`, `conditions.method` (string/array), `conditions.queryParam` (keberadaan).
-4. Hasil `TransformationResult { headers, path, queryString, body?, duration }` — path final direkonstruksi `pathWithoutQuery?queryString`. Durasi dicatat ke `advancedMetrics.recordRequestTransformation()` jika aktif.
-5. Body transform gagal (JSON rusak) **tidak** melempar error: body asli diteruskan apa adanya dan kegagalan dicatat log `error` — prinsip fail-open agar request user tidak di-drop oleh transformasi kosmetik.
+3. Conditions `shouldApply()`: `routes` (wildcard pattern), `conditions.header` (exact/RegExp), `conditions.path`, `conditions.method` (string/array), `conditions.queryParam` (presence).
+4. The resulting `TransformationResult { headers, path, queryString, body?, duration }` — the final path is reconstructed as `pathWithoutQuery?queryString`. Duration is recorded into `advancedMetrics.recordRequestTransformation()` when enabled.
+5. A failed body transform (broken JSON) **does not** throw: the original body is forwarded as-is and the failure is logged at `error` level — fail-open so user requests are never dropped by cosmetic transformations.
 
 ### Configuration
 
-- `enableRequestTransformations` pada `ProxyHandlerConfig` (default `true`) — saklar pipeline.
-- Aturan didaftarkan programatik lewat `ProxyHandler.getRequestTransformer()`; tidak ada section `requestTransformations` di `gateway.config.json` (declarative config menyusul, lihat FSD Out of Scope).
-- `getStats()` mengekspos `totalTransformations`; `clear()` mengosongkan aturan.
+- `enableRequestTransformations` on `ProxyHandlerConfig` (default `true`) — the pipeline switch.
+- Rules are registered programmatically via `ProxyHandler.getRequestTransformer()`; there is no `requestTransformations` section in `gateway.config.json` (declarative config to follow, see FSD Out of Scope).
+- `getStats()` exposes `totalTransformations`; `clear()` removes all rules.
 
 ### Edge cases
 
-- **Prototype pollution:** `setJsonPath`/`deleteJsonPath` memblokir segmen `__proto__`, `constructor`, `prototype` — dicatat `warn` dan path diabaikan.
-- **JSON body rusak pada aturan body:** body asli diteruskan tanpa error ke klien.
-- **Header array-valued:** nilai pertama yang dipakai untuk kondisi dan `modify`.
-- **Aturan pathRewrite dengan regex invalid:** regex dikompilasi saat eksekusi; error menaik ke pemanggil pipeline.
-- **Prioritas sama:** urutan insertion yang stabil setelah sort.
+- **Prototype pollution:** `setJsonPath`/`deleteJsonPath` block the `__proto__`, `constructor`, `prototype` segments — logged at `warn` and the path ignored.
+- **Broken JSON body under a body rule:** the original body is forwarded without an error to the client.
+- **Array-valued headers:** the first value is used for conditions and `modify`.
+- **pathRewrite rule with an invalid regex:** the regex is compiled at execution time; the error propagates to the pipeline caller.
+- **Equal priorities:** stable insertion order after sorting.
 
 
 ## Response Transformer
 
-- **Spesifikasi:** Mesin transformasi response deklaratif di pipeline gateway (Step 6, setelah proxy upstream selesai, sebelum kompresi). Mengubah status code (mapping), header, body JSON (wrap/set/remove), CORS, dan mengganti body error dengan template per status code — berdasarkan aturan per-route dengan kondisi dan prioritas.
-- **Tujuan:** Menyembunyikan keanehan upstream dari klien: menormalkan status code, menyuntik header keamanan/CORS, membungkus response dalam envelope konsisten, dan mengganti halaman error mentah upstream dengan template gateway.
+- **Spec:** A declarative response transformation engine in the gateway pipeline (Step 6, after upstream proxying completes, before compression). It changes the status code (mapping), headers, JSON body (wrap/set/remove), CORS, and replaces error bodies with per-status-code templates — based on per-route rules with conditions and priority.
+- **Purpose:** Hide upstream quirks from clients: normalize status codes, inject security/CORS headers, wrap responses in a consistent envelope, and replace raw upstream error pages with gateway templates.
 
 ### How it works
 
-1. Aturan `ResponseTransformation` didaftarkan via `addTransformation()` / `setTransformations()`; diurutkan `priority` menurun.
-2. `transform(requestPath, statusCode, headers, body)` meng-clone header, lalu untuk tiap aturan yang lolos `shouldApply()`:
-   - **statusCodeMap**: `upstream code → gateway code` (lookup pada code yang sudah ter-transformasi oleh aturan sebelumnya — chaining antar aturan).
+1. `ResponseTransformation` rules are registered via `addTransformation()` / `setTransformations()`; sorted by descending `priority`.
+2. `transform(requestPath, statusCode, headers, body)` clones the headers, then for each rule passing `shouldApply()`:
+   - **statusCodeMap**: `upstream code → gateway code` (looks up the code already transformed by previous rules — cross-rule chaining).
    - **headers**: `add` (lowercase), `remove` (exact/wildcard `*`), `rename`.
-   - **cors** (`enabled: true`): set `access-control-allow-origin` (`*` atau origin pertama dari allow-list), `-allow-methods`, `-allow-headers`, `-expose-headers`, `-allow-credentials`, `-max-age`.
-   - **errorTemplates** (hanya jika status ≥ 400): template pertama yang `statusCodes`-nya cocok menggantikan body (string atau object → JSON) + header tambahan template.
-   - **body**: JSON (`application/json`, `application/vnd.api+json`) → `wrap` (bungkus seluruh payload dalam satu field), `set`, `remove` by dot-path.
-3. Kondisi `shouldApply()`: `routes` (wildcard), `conditions.statusCode` (number/array), `conditions.header`, `conditions.contentType` (string includes / RegExp).
-4. Hasil `ResponseTransformationResult { statusCode, headers, body?, duration }`; durasi dicatat `advancedMetrics.recordResponseTransformation()`.
-5. Body transform gagal (JSON rusak) → body asli diteruskan, log `error` — fail-open, sama dengan Request-Transformer.
+   - **cors** (`enabled: true`): set `access-control-allow-origin` (`*` or the first origin from the allow-list), `-allow-methods`, `-allow-headers`, `-expose-headers`, `-allow-credentials`, `-max-age`.
+   - **errorTemplates** (only when status ≥ 400): the first template whose `statusCodes` match replaces the body (string or object → JSON) + the template's extra headers.
+   - **body**: JSON (`application/json`, `application/vnd.api+json`) → `wrap` (wraps the whole payload in a single field), `set`, `remove` by dot-path.
+3. Conditions `shouldApply()`: `routes` (wildcard), `conditions.statusCode` (number/array), `conditions.header`, `conditions.contentType` (string includes / RegExp).
+4. The resulting `ResponseTransformationResult { statusCode, headers, body?, duration }`; duration is recorded into `advancedMetrics.recordResponseTransformation()`.
+5. A failed body transform (broken JSON) → the original body is forwarded, logged at `error` — fail-open, same as the Request-Transformer.
 
 ### Configuration
 
-- `enableResponseTransformations` pada `ProxyHandlerConfig` (default `true`) — saklar pipeline.
-- Aturan programatik via `ProxyHandler.getResponseTransformer()`; tidak ada section declarative di `gateway.config.json` (lihat FSD Out of Scope).
-- `getStats()` → `totalTransformations`; `clear()` reset.
+- `enableResponseTransformations` on `ProxyHandlerConfig` (default `true`) — the pipeline switch.
+- Rules programmatically via `ProxyHandler.getResponseTransformer()`; no declarative section in `gateway.config.json` (see FSD Out of Scope).
+- `getStats()` → `totalTransformations`; `clear()` resets.
 
 ### Edge cases
 
-- **Upstream sudah mengirim CORS:** aturan `add` menimpa header upstream — operator yang memutuskan kebijakan CORS final di gateway.
-- **Error template dipicu pada body binary:** template menggantikan body apa adanya (template hanya untuk status ≥ 400, kasus ini disengaja).
-- **Chaining statusCodeMap antar aturan:** aturan prioritas lebih rendah membaca hasil mapping aturan lebih tinggi; kondisi `statusCode` dicek terhadap code awal (pre-mapping).
-- **JSON body rusak pada aturan body:** body asli diteruskan, klien tidak melihat 500 dari transformer.
-- **Prototype pollution:** blokir `__proto__`/`constructor`/`prototype` di `setJsonPath`/`deleteJsonPath`.
+- **Upstream already sent CORS:** the `add` rule overwrites the upstream header — the operator decides the final CORS policy at the gateway.
+- **Error template triggered on a binary body:** the template replaces the body as-is (templates only apply to status ≥ 400, this case is intentional).
+- **Cross-rule statusCodeMap chaining:** lower-priority rules read the result of higher-priority mappings; the `statusCode` condition is checked against the original code (pre-mapping).
+- **Broken JSON body under a body rule:** the original body is forwarded, the client never sees a 500 from the transformer.
+- **Prototype pollution:** `__proto__`/`constructor`/`prototype` blocked in `setJsonPath`/`deleteJsonPath`.

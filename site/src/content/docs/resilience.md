@@ -5,183 +5,179 @@ order: 5
 section: "Features"
 ---
 
-# Resilience
-
-Circuit breaker, retries, health checks, fallbacks, and timeout budgets.
-
 All 5 features in this group are **implemented and verified** — each has a full FSD + ERD spec pair and unit/integration coverage in the repo test suite.
 
 ## Circuit Breaker
 
-Circuit breaker melindungi gateway dan upstream dari *cascading failure*: saat sebuah upstream
-gagal terus-menerus, breaker membuka (*OPEN*) sehingga request berikutnya ditolak instan di
-gateway tanpa menyentuh upstream yang sekarat. Setelah cooldown, breaker masuk *HALF_OPEN*
-untuk menguji kembali koneksi dengan traffic terbatas, lalu kembali *CLOSED* bila pulih.
+The circuit breaker protects the gateway and its upstreams from *cascading failure*: when an upstream
+keeps failing, the breaker opens (*OPEN*) so subsequent requests are rejected instantly at the
+gateway without touching the dying upstream. After a cooldown, the breaker moves to *HALF_OPEN*
+to re-probe the connection with limited traffic, then returns to *CLOSED* once recovered.
 
-Implementasi mengikuti mesin state tiga-keadaan ala Martin Fowler, per-instance per-upstream,
-murni in-memory, tanpa dependensi eksternal (`node:process.hrtime.bigint()` untuk pengukuran
-waktu, `setTimeout` bukan library).
+The implementation follows Martin Fowler's three-state machine, per-upstream instance,
+purely in-memory, no external dependencies (`node:process.hrtime.bigint()` for time
+measurement, `setTimeout` rather than a library).
 
-**Tujuan:**
-- Menghentikan failure cascade sebelum menghabiskan socket pool gateway.
-- Memberi upstream waktu pemulihan (default 60 detik cooldown).
-- Memberikan observabilitas: success rate, failure rate, jumlah state change, waktu di state.
+**Goals:**
+- Stop failure cascades before they exhaust the gateway's socket pool.
+- Give upstreams time to recover (default 60-second cooldown).
+- Provide observability: success rate, failure rate, state-change count, time spent per state.
 
 ### How it works
 
-1. `execute(fn)` dipanggil proxy handler per request upstream.
-2. State `CLOSED` (fast-path): request langsung dieksekusi; sukses/gagal tetap dicatat
-   ke sliding-window counter agar threshold tetap akurat tanpa biaya hrtime/logging.
-3. Failure rate window melewati `failureThreshold` → state `OPEN` (breaker terbuka,
-   cooldown timer `resetTimeout` dimulai).
-4. Request saat `OPEN` langsung gagal cepat (`CircuitOpenError`) tanpa menyentuh
-   upstream — proxy handler merutekannya ke fallback handler.
-5. Cooldown habis → `HALF_OPEN`: satu canary request diizinkan. Sukses → kembali
-   `CLOSED` (window reset); gagal → kembali `OPEN` dengan cooldown baru.
+1. `execute(fn)` is called by the proxy handler per upstream request.
+2. State `CLOSED` (fast-path): the request executes immediately; success/failure is still
+   recorded into the sliding-window counter so thresholds stay accurate without hrtime/logging cost.
+3. Failure rate window exceeds `failureThreshold` → state `OPEN` (breaker open,
+   the `resetTimeout` cooldown timer starts).
+4. Requests during `OPEN` fail fast (`CircuitOpenError`) without touching the
+   upstream — the proxy handler routes them to the fallback handler.
+5. Cooldown expires → `HALF_OPEN`: one canary request is allowed. Success → back to
+   `CLOSED` (window reset); failure → back to `OPEN` with a new cooldown.
 
 
 ## Retry Manager
 
-Retry-Manager mengeksekusi request upstream dengan mekanisme retry otomatis: kegagalan yang
-sifatnya transien (502/503/504/408/429, `ECONNREFUSED`, timeout) dicoba ulang dengan
-*exponential backoff + jitter* sampai batas attempt atau budget waktu habis. Tujuannya
-menaikkan success rate tanpa membebani upstream yang bermasalah (*thundering herd*
-dicegah oleh jitter) dan tanpa menambah latency tak terbatas (*retry budget*).
+The Retry-Manager executes upstream requests with automatic retry: transient failures
+(502/503/504/408/429, `ECONNREFUSED`, timeouts) are retried with
+*exponential backoff + jitter* until the attempt limit or the time budget is exhausted. Its goal
+is to raise the success rate without overloading a struggling upstream (*thundering herd*
+prevented by jitter) and without unbounded latency (*retry budget*).
 
 ### How it works
 
-1. `RetryManager.execute(fn, context, config?)` dipanggil oleh proxy pipeline untuk request
-   yang layak di-retry.
-2. **Filter metode** — hanya metode idempoten yang di-retry (default `GET, PUT, DELETE,
-   HEAD, OPTIONS`). `POST` langsung dieksekusi sekali tanpa retry (bisa menduplikasi efek).
-3. **Loop attempt** (`1..maxAttempts`, default 3):
-   - Cek *retry budget*: `elapsedTime >= timeout` (default 30000 ms) → berhenti.
-   - Cek circuit breaker (jika diisi di `context.circuitBreaker`): state `OPEN` → berhenti,
-     tidak membuang attempt ke upstream yang sudah diputus.
-   - Attempt > 1: hitung `delay = initialDelay * backoffMultiplier^(attempt-1)`, cap di
-     `maxDelay` (5000 ms), bila `jitter: true` delay = `random() * delay` (*full jitter*),
-     lalu `delay` dipotong agar tidak melebihi sisa budget, dan di-`sleep`.
-4. **Keputusan retryable** — `shouldRetry()`: error yang ditandai retryable, `GatewayError`
-   dengan status di `retryableStatuses`, atau pesan mengandung `timeout / econnrefused /
+1. `RetryManager.execute(fn, context, config?)` is called by the proxy pipeline for requests
+   eligible for retry.
+2. **Method filter** — only idempotent methods are retried (default `GET, PUT, DELETE,
+   HEAD, OPTIONS`). `POST` executes exactly once without retry (retries could duplicate effects).
+3. **Attempt loop** (`1..maxAttempts`, default 3):
+   - Check the *retry budget*: `elapsedTime >= timeout` (default 30000 ms) → stop.
+   - Check the circuit breaker (if provided in `context.circuitBreaker`): state `OPEN` → stop,
+     no attempts wasted on an upstream already declared down.
+   - Attempt > 1: compute `delay = initialDelay * backoffMultiplier^(attempt-1)`, cap at
+     `maxDelay` (5000 ms); when `jitter: true`, delay = `random() * delay` (*full jitter*);
+     the delay is then clamped so it never exceeds the remaining budget, then `sleep`.
+4. **Retryable decision** — `shouldRetry()`: errors flagged retryable, `GatewayError`
+   with a status in `retryableStatuses`, or messages containing `timeout / econnrefused /
    econnreset / ehostunreach / enetunreach / unavailable`.
-5. **Hasil** — `RetryResult<T>`: `value` atau `error` final, plus `attempts`, `totalTime`,
-   `retried` (boolean) — tidak melempar exception ke pemanggil.
-6. Statistik: `getStats()` → `activeRetries, totalRetries, successfulRetries, failedRetries,
-   successRate`; `resetStats()` untuk reset counter.
+5. **Result** — `RetryResult<T>`: final `value` or `error`, plus `attempts`, `totalTime`,
+   `retried` (boolean) — no exception is thrown to the caller.
+6. Statistics: `getStats()` → `activeRetries, totalRetries, successfulRetries, failedRetries,
+   successRate`; `resetStats()` resets the counters.
 
 
 ## Health Checker
 
-Health-Checker menjaga status kesehatan per-upstream (`healthy: boolean`) yang jadi input
-keputusan routing, load balancer, dan circuit breaker. Tiga mode probe:
+The Health-Checker maintains per-upstream health status (`healthy: boolean`) that feeds
+routing, load balancer, and circuit breaker decisions. Three probe modes:
 
-- **Active** — gateway secara periodik (default tiap 10 s) mengirim `GET {host}:{port}/health`
-  dan menilai status code; tanpa traffic pun status tetap mutakhir.
-- **Passive** — kesehatan disimpulkan dari trafik nyata: `recordPassiveCheck()` dipanggil
-  proxy-handler setelah tiap request upstream (sukses/gagal + response time). Tanpa probing
-  ekstra — cocok untuk upstream yang mahal di-probe.
-- **Hybrid** — active dicoba lebih dulu; bila gagal, fallback ke passive (menghindari
-  false-negative saat endpoint health sibuk).
+- **Active** — the gateway periodically (default every 10 s) sends `GET {host}:{port}/health`
+  and evaluates the status code; status stays current even without traffic.
+- **Passive** — health is inferred from real traffic: `recordPassiveCheck()` is called
+  by the proxy handler after every upstream request (success/failure + response time). No
+  extra probing — a good fit for upstreams that are expensive to probe.
+- **Hybrid** — active is tried first; on failure, falls back to passive (avoids
+  false negatives when the health endpoint is busy).
 
-Tujuan: upstream yang mati dikeluarkan dari rotasi dalam hitungan detik-detik interval,
-bukan hanya saat request client gagal.
+Goal: a dead upstream is pulled from rotation within a few probe intervals,
+not only when a client request fails.
 
 ### How it works
 
-1. `start(upstreams)` dijalankan ProxyHandler saat boot; tiap upstream dengan
-   `healthCheck.enabled` didaftarkan + satu `setInterval` per upstream (interval default
-   10 s), plus satu pemeriksaan awal segera.
-2. Tiap probe menghasilkan `HealthCheckResult { upstreamId, status, responseTime, timestamp,
+1. `start(upstreams)` is run by the ProxyHandler at boot; every upstream with
+   `healthCheck.enabled` is registered + one `setInterval` per upstream (default
+   10 s interval), plus one immediate initial check.
+2. Every probe produces `HealthCheckResult { upstreamId, status, responseTime, timestamp,
    error?, checkType }`; active check: `statusCode === expectedStatus` (default 200) →
-   HEALTHY; timeout (default 5 s) atau error jaringan → UNHEALTHY. Response body
-   di-*drain* agar socket tidak menggantung.
-3. `performTCPCheck()` tersedia sebagai probe level-TCP (koneksi socket saja, tanpa HTTP).
-4. `processResult()` memperbarui `HealthCheckStats`: counter total/sukses/gagal,
-   rata-rata response time bergerak, `consecutiveFailures` / `consecutiveSuccesses`.
-5. **Threshold hysteresis**: UNHEALTHY setelah `unhealthyThreshold` (3) kegagalan
-   berturut-turut; HEALTHY kembali setelah `healthyThreshold` (2) sukses berturut-turut —
-   mencegah flapping akibat satu kegagalan sesaat.
-6. **Grace period** (default 5 s): upstream yang baru ditambahkan dianggap HEALTHY selama
-   grace period, memberi waktu warm-up.
-7. Perubahan status ditulis ke `upstream.healthy` dan dilog
+   HEALTHY; timeout (default 5 s) or network error → UNHEALTHY. The response body
+   is *drained* so the socket doesn't hang.
+3. `performTCPCheck()` is available as a TCP-level probe (socket connection only, no HTTP).
+4. `processResult()` updates `HealthCheckStats`: total/success/failure counters,
+   moving-average response time, `consecutiveFailures` / `consecutiveSuccesses`.
+5. **Threshold hysteresis**: UNHEALTHY after `unhealthyThreshold` (3) consecutive
+   failures; HEALTHY again after `healthyThreshold` (2) consecutive successes —
+   prevents flapping from a single momentary failure.
+6. **Grace period** (default 5 s): newly added upstreams are considered HEALTHY during
+   the grace period, giving them warm-up time.
+7. State changes are written to `upstream.healthy` and logged as
    `Upstream <id> health status changed to <STATUS>`.
-8. `getHealthReport()` menyusun laporan gateway-level: `healthy | degraded | unhealthy`
-   (degraded = sebagian upstream sakit), plus per-upstream `lastCheck, responseTime,
+8. `getHealthReport()` builds a gateway-level report: `healthy | degraded | unhealthy`
+   (degraded = some upstreams sick), plus per-upstream `lastCheck, responseTime,
    consecutiveFailures, errorRate`.
-9. `stop()` membersihkan semua interval; `addUpstream()`/`removeUpstream()` untuk update
-   dinamis tanpa restart.
+9. `stop()` clears all intervals; `addUpstream()`/`removeUpstream()` for dynamic
+   updates without restart.
 
 
 ## Fallback Handler
 
-Fallback-Handler menyajikan response yang berguna ke client saat upstream tidak dapat
-melayani (breaker OPEN, upstream UNHEALTHY, semua retry habis). Alih-alih connection error
-mentah, client menerima response JSON terstruktur — atau lebih baik lagi, response cache
-yang masih layak pakai (*stale serving*).
+The Fallback-Handler serves a useful response to the client when the upstream cannot
+serve (breaker OPEN, upstream UNHEALTHY, all retries exhausted). Instead of a raw connection
+error, the client receives a structured JSON response — or better yet, a cached response
+that is still serviceable (*stale serving*).
 
-Tiga tingkat fallback, dicoba berurutan:
+Three fallback tiers, tried in order:
 
-1. **Static fallback** — response yang didaftarkan eksplisit per route atau per upstream
-   (`setStaticFallback(key, response)`), mis. halaman maintenance atau data default.
-2. **Stale cached response** — response sukses sebelumnya yang di-cache via
-   `cacheResponse()` disajikan ulang dengan `Warning: 110 - "Response is Stale"` +
-   `x-served-from-cache: true`, selama umurnya ≤ `ttl + maxStaleAge` (default 5 menit stale).
-3. **Default template** — JSON error sesuai status code (503 `SERVICE_UNAVAILABLE`,
-   502 `BAD_GATEWAY`, 504 `GATEWAY_TIMEOUT`) dengan header `x-fallback-response: true`.
+1. **Static fallback** — a response registered explicitly per route or per upstream
+   (`setStaticFallback(key, response)`), e.g. a maintenance page or default data.
+2. **Stale cached response** — a previously successful response cached via
+   `cacheResponse()` is re-served with `Warning: 110 - "Response is Stale"` +
+   `x-served-from-cache: true`, as long as its age is ≤ `ttl + maxStaleAge` (default 5 minutes stale).
+3. **Default template** — a JSON error matching the status code (503 `SERVICE_UNAVAILABLE`,
+   502 `BAD_GATEWAY`, 504 `GATEWAY_TIMEOUT`) with the `x-fallback-response: true` header.
 
-Tujuan: degradasi yang anggun (*graceful degradation*) — client selalu menerima response
-yang bisa di-parse, bukan reset koneksi.
+Goal: graceful degradation — the client always receives a parseable response,
+never a connection reset.
 
 ### How it works
 
-1. `getFallback(context)` dipanggil proxy pipeline saat request upstream gagal; context
-   berisi `route`, `upstreamId`, `error`, `requestId`.
-2. **Tingkat 1**: bila `enableStaticFallback` dan ada static fallback terdaftar untuk
-   `context.route`, lalu untuk `context.upstreamId` → kembalikan apa adanya.
-3. **Tingkat 2**: bila `enableStaleFallback` — lookup cache key `route:upstreamId`
-   (atau `route` saja); bila ada dan `age <= ttl + maxStaleAge` → kembalikan response
-   cache + header stale warning; counter `staleFallbackCount++`.
-4. **Tingkat 3**: `getDefaultFallback(context)` menentukan status code dari error:
-   `GatewayError` → `error.statusCode`; pesan mengandung `timeout` → 504, `circuit`/
-   `breaker`/`unavailable` → 503; sisanya default 503. Body dari template status terkait,
-   atau template generik `SERVICE_ERROR` berisi `requestId`.
-5. Body selalu `Buffer` UTF-8 dengan `content-type: application/json`.
-6. `cleanup()` menghapus cache entry yang melewati `ttl + maxStaleAge`; `destroy()`
-   mengosongkan semua map; `getStats()` melaporkan `totalFallbacks, staleFallbacks,
+1. `getFallback(context)` is called by the proxy pipeline when an upstream request fails; the context
+   contains `route`, `upstreamId`, `error`, `requestId`.
+2. **Tier 1**: when `enableStaticFallback` and a static fallback is registered for
+   `context.route`, then for `context.upstreamId` → return as-is.
+3. **Tier 2**: when `enableStaleFallback` — look up the cache key `route:upstreamId`
+   (or `route` alone); when present and `age <= ttl + maxStaleAge` → return the cached
+   response + stale warning headers; `staleFallbackCount++`.
+4. **Tier 3**: `getDefaultFallback(context)` derives the status code from the error:
+   `GatewayError` → `error.statusCode`; message containing `timeout` → 504, `circuit`/
+   `breaker`/`unavailable` → 503; otherwise defaults to 503. Body comes from the matching status template,
+   or the generic `SERVICE_ERROR` template containing `requestId`.
+5. Body is always a UTF-8 `Buffer` with `content-type: application/json`.
+6. `cleanup()` removes cache entries past `ttl + maxStaleAge`; `destroy()`
+   clears all maps; `getStats()` reports `totalFallbacks, staleFallbacks,
    staticFallbackCount, cachedResponseCount`.
 
 
 ## Timeout Manager
 
-Timeout-Manager membatasi durasi setiap jenis operasi di gateway agar tidak ada request
-atau plugin yang menggantung tanpa batas. Satu komponen, lima budget:
+The Timeout-Manager bounds the duration of every kind of operation in the gateway so no request
+or plugin can hang indefinitely. One component, five budgets:
 
-- `connection` (5 s) — membuka koneksi ke upstream.
-- `request` (30 s) — total waktu request end-to-end termasuk retry.
-- `upstream` (20 s) — menunggu response upstream.
-- `plugin` (1 s) — eksekusi satu plugin di chain.
-- `idle` (60 s) — koneksi idle di pool.
+- `connection` (5 s) — opening a connection to the upstream.
+- `request` (30 s) — total end-to-end request time including retries.
+- `upstream` (20 s) — waiting for the upstream response.
+- `plugin` (1 s) — executing a single plugin in the chain.
+- `idle` (60 s) — an idle pooled connection.
 
-Tujuan: latency p99 gateway terikat (request gagal cepat, bukan menggantung), resource
-(socket, handle timer) dibebaskan tepat waktu, dan error yang dihasilkan selalu
-`TimeoutError` terstruktur dengan tipe + status HTTP 504 — siap dipetakan ke fallback.
+Goal: the gateway's p99 latency stays bounded (requests fail fast instead of hanging), resources
+(sockets, timer handles) are freed on time, and the errors produced are always a structured
+`TimeoutError` with type + HTTP status 504 — ready to map to fallbacks.
 
 ### How it works
 
-1. **`execute(fn, type, context?, customTimeout?)`** — bungkus promise `fn` dengan
-   `setTimeout(timeout)`. Sebelum timeout: timer di-clear, handle dihapus dari
-   `activeTimeouts`, hasil dikembalikan. Saat timeout: `handle.triggered = true`,
-   `AbortController.abort()` membatalkan operasi, counter naik, reject dengan
+1. **`execute(fn, type, context?, customTimeout?)`** — wraps the `fn` promise with
+   `setTimeout(timeout)`. Before the timeout: the timer is cleared, the handle removed from
+   `activeTimeouts`, the result returned. On timeout: `handle.triggered = true`,
+   `AbortController.abort()` cancels the operation, counters increment, reject with
    `TimeoutError` (`timeoutType`, `timeout`, code `CONNECTION_TIMEOUT` / `REQUEST_TIMEOUT`
-   / `UPSTREAM_TIMEOUT` / `PLUGIN_TIMEOUT`, status 504, flag retryable — plugin timeout
-   tidak retryable).
-2. **`createHandle(type, context?, customTimeout?)`** — untuk operasi yang tidak berbasis
-   promise: mengembalikan `{ handleId, signal, cancel() }`; pemanggil meng-attach
-   `signal` ke operasi (mis. `http.request({ signal })`) dan menerima abort saat timeout.
-3. **`cancel(handleId)` / `cancelAll()`** — clear timer yang belum triggered (pembebasan
-   manual/shutdown); timer yang sudah triggered dibiarkan (sudah dihitung).
-4. **Statistik** — `getStats()` → `totalTimeouts`, `activeTimeouts`, `timeoutsByType`
-   (per lima tipe); `hasTimedOut(handleId)`, `getElapsed(handleId)` untuk introspeksi.
-5. **`destroy()`** — `cancelAll()` + clear map; dipanggil saat shutdown.
-6. Handle ID unik: `timeout-<epoch>-<random>`; setiap handle tersimpan di
-   `Map<handleId, TimeoutHandle>` selama aktif.
+   / `UPSTREAM_TIMEOUT` / `PLUGIN_TIMEOUT`, status 504, retryable flag — plugin timeouts
+   are not retryable).
+2. **`createHandle(type, context?, customTimeout?)`** — for non-promise-based
+   operations: returns `{ handleId, signal, cancel() }`; the caller attaches
+   `signal` to the operation (e.g. `http.request({ signal })`) and receives the abort on timeout.
+3. **`cancel(handleId)` / `cancelAll()`** — clears timers that haven't triggered (manual/shutdown
+   release); already-triggered timers are left alone (already accounted).
+4. **Statistics** — `getStats()` → `totalTimeouts`, `activeTimeouts`, `timeoutsByType`
+   (per the five types); `hasTimedOut(handleId)`, `getElapsed(handleId)` for introspection.
+5. **`destroy()`** — `cancelAll()` + clear maps; called at shutdown.
+6. Handle IDs are unique: `timeout-<epoch>-<random>`; every handle is stored in
+   `Map<handleId, TimeoutHandle>` while active.

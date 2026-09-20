@@ -5,95 +5,91 @@ order: 6
 section: "Features"
 ---
 
-# Traffic Control
-
-Rate limiting, response caching, and load balancing across upstreams.
-
 All 3 features in this group are **implemented and verified** — each has a full FSD + ERD spec pair and unit/integration coverage in the repo test suite.
 
 ## Load Balancer
 
-Load Balancer memilih satu upstream sehat untuk setiap request yang lolos routing
-dan rate limiting. Lima algoritma dapat dipilih konfigurasi, dan upstream yang
-ditandai tidak sehat otomatis dikeluarkan dari rotasi.
+The Load Balancer picks one healthy upstream for every request that passes routing
+and rate limiting. Five algorithms are selectable via configuration, and upstreams
+flagged unhealthy are automatically pulled from rotation.
 
-Implementasi: `src/core/load-balancer.ts`, kelas `LoadBalancer` (313 baris), dipakai
-`ProxyHandler` (`src/core/proxy-handler.ts` baris 82, 97, 182). Murni stdlib
-(`crypto` untuk IP hash, `process.hrtime.bigint` untuk durasi) — zero-dep.
+Implementation: `src/core/load-balancer.ts`, the `LoadBalancer` class (313 lines), used by
+`ProxyHandler` (`src/core/proxy-handler.ts` lines 82, 97, 182). Pure stdlib
+(`crypto` for IP hashing, `process.hrtime.bigint` for durations) — zero-dep.
 
 ### How it works
 
-Setiap `select(context)`:
+Each `select(context)`:
 
-1. **Filter kesehatan** — `healthAware` (default true) membuang upstream dengan
-   `healthy === false`. Jika kosong total: log `warn` + return `null`
-   (→ proxy handler melempar `No healthy upstream available`).
-2. **Pilih algoritma** sesuai `strategy`:
-   - **`round-robin`** (default) — siklik `index % n`, satu pointer berjalan.
-   - **`least-connections`** — pilih `activeConnections` terkecil (tie → pertama).
-   - **`weighted-round-robin`** — bangun list virtual per bobot (`weight || 1`),
-     lalu round-robin di atasnya; bobot 3 = slot 3× lebih sering.
-   - **`ip-hash`** — `md5(clientIp)` → 8 hex char pertama → modulo; klien yang
-     sama selalu ke upstream yang sama (sticky). Tanpa clientIp → fallback
+1. **Health filter** — `healthAware` (default true) drops upstreams with
+   `healthy === false`. If nothing remains: log `warn` + return `null`
+   (→ the proxy handler throws `No healthy upstream available`).
+2. **Pick algorithm** per `strategy`:
+   - **`round-robin`** (default) — cyclic `index % n`, one moving pointer.
+   - **`least-connections`** — pick the smallest `activeConnections` (tie → first).
+   - **`weighted-round-robin`** — build a virtual list per weight (`weight || 1`),
+     then round-robin over it; weight 3 = 3× more slots.
+   - **`ip-hash`** — `md5(clientIp)` → first 8 hex chars → modulo; the same client
+     always lands on the same upstream (sticky). Without clientIp → fallback
      round-robin + log `warn`.
-   - **`random`** — `Math.random()` pilih seragam.
-3. **Update metrics** — `totalRequests++` dan `requestsPerUpstream[id]++`.
-4. **Log debug** — durasi selection (`process.hrtime.bigint()`).
+   - **`random`** — `Math.random()` picks uniformly.
+3. **Update metrics** — `totalRequests++` and `requestsPerUpstream[id]++`.
+4. **Debug log** — selection duration (`process.hrtime.bigint()`).
 
-Metrik pendukung: `recordError`, `recordLatency` (moving average per upstream),
-`updateHealth` (mengubah flag `healthy` upstream + `healthPerUpstream`),
-`getDistribution()` (persen per upstream), `getMetrics()`, `resetMetrics()`.
+Supporting metrics: `recordError`, `recordLatency` (moving average per upstream),
+`updateHealth` (flips the upstream `healthy` flag + `healthPerUpstream`),
+`getDistribution()` (percent per upstream), `getMetrics()`, `resetMetrics()`.
 
 ### Configuration
 
-| Opsi | Default | Lokasi | Efek |
+| Option | Default | Location | Effect |
 |---|---|---|---|
 | `strategy` | `round-robin` | `LoadBalancer(strategy)` | enum: `round-robin` / `least-connections` / `weighted-round-robin` / `ip-hash` / `random` |
-| `healthAware` | `true` | `LoadBalancer(strategy, healthAware)` | buang upstream `healthy=false` dari rotasi |
-| `weight` | `1` | `upstreams[].weight` di config | hanya berlaku untuk weighted-round-robin |
-| `activeConnections` | `0` | runtime, di-mutasi proxy handler | input least-connections |
-| `strategy` (config) | — | `performance{}` / upstream config | field `LoadBalancerStrategy` tersedia di `UpstreamConfig`; ProxyHandler saat ini instantiate default dan filter via routing |
+| `healthAware` | `true` | `LoadBalancer(strategy, healthAware)` | drop `healthy=false` upstreams from rotation |
+| `weight` | `1` | `upstreams[].weight` in config | only applies to weighted-round-robin |
+| `activeConnections` | `0` | runtime, mutated by the proxy handler | input to least-connections |
+| `strategy` (config) | — | `performance{}` / upstream config | `LoadBalancerStrategy` field exists on `UpstreamConfig`; ProxyHandler currently instantiates the default and filters via routing |
 
-`setStrategy(strategy)` memungkinkan ganti algoritma tanpa restart (reset
-`currentIndex`); `setHealthAware(bool)` toggle filter kesehatan saat runtime.
+`setStrategy(strategy)` allows changing algorithms without restart (resets
+`currentIndex`); `setHealthAware(bool)` toggles the health filter at runtime.
 
 ### Edge cases
 
-| Trigger | Perilaku | Hasil user-visible |
+| Trigger | Behavior | User-visible result |
 |---|---|---|
-| Semua upstream tidak sehat | `select` return `null` | Proxy error `No healthy upstream available` |
-| Upstream tersisa 1 | `n=1`: modulo selalu 0 | Semua request ke upstream itu |
-| `ip-hash` tanpa client IP | Fallback round-robin + log `warn` | Distribusi tidak sticky lagi |
-| `ip-hash` saat jumlah upstream berubah | Modulo berubah → remap total | Sesi tidak sticky untuk client yang remap |
-| `weight: 0` atau hilang | `weight || 1` → slot 1× | Aman, tidak pernah 0 slot |
-| Semua bobot sama pada weighted | Setara round-robin murni | Tidak ada kemudaratan |
-| `activeConnections` tidak dilacak (undefined) | `|| 0` → semua tie | least-connections degenerasi ke upstream pertama |
-| `setUpstreams` diganti saat berjalan | `currentIndex` reset ke 0 | Rotasi dimulai dari upstream pertama |
-| `Math.random()` untuk random | Distribusi ≈ uniform | Tidak ada jaminan deterministik (tidak cocok untuk test eksak) |
+| All upstreams unhealthy | `select` returns `null` | Proxy error `No healthy upstream available` |
+| One upstream left | `n=1`: modulo is always 0 | All requests go to that upstream |
+| `ip-hash` without client IP | Falls back to round-robin + log `warn` | Distribution no longer sticky |
+| `ip-hash` when the upstream count changes | Modulo changes → total remap | Sessions not sticky for remapped clients |
+| `weight: 0` or missing | `weight || 1` → 1× slot | Safe, never 0 slots |
+| Equal weights on weighted | Equivalent to pure round-robin | No bias |
+| `activeConnections` not tracked (undefined) | `|| 0` → all tie | least-connections degenerates to the first upstream |
+| `setUpstreams` replaced while running | `currentIndex` resets to 0 | Rotation restarts at the first upstream |
+| `Math.random()` for random | ≈ uniform distribution | No deterministic guarantee (unsuitable for exact tests) |
 
 
 ## Rate Limiter
 
-Rate Limiter membatasi jumlah request yang diterima gateway per satuan waktu,
-dengan kunci per client IP, per header (mis. API key), atau per upstream. Tujuannya
-melindungi upstream dari lonjakan trafik dan abuse tanpa menambah dependensi eksternal.
+The Rate Limiter caps the number of requests the gateway accepts per unit of time,
+keyed per client IP, per header (e.g. API key), or per upstream. Its goal is to protect
+upstreams from traffic spikes and abuse without adding external dependencies.
 
-Dua algoritma, keduanya in-memory dan zero-dep:
+Two algorithms, both in-memory and zero-dep:
 
-1. **Token Bucket** (`src/core/rate-limiter.ts`, kelas `TokenBucketRateLimiter`) —
-   kapasitas burst `capacity` token, isi ulang `refillRate` token/detik. Cocok untuk
-   membatasi burst pendek sambil mengizinkan rata-rata konstan.
-2. **Sliding Window Counter** (kelas `SlidingWindowRateLimiter`) — maksimum
-   `maxRequests` request dalam jendela geser `windowMs`. Cocok untuk kuota hard
-   "N per menit" tanpa burst.
+1. **Token Bucket** (`src/core/rate-limiter.ts`, the `TokenBucketRateLimiter` class) —
+   burst capacity of `capacity` tokens, refilled at `refillRate` tokens/second. A good fit for
+   limiting short bursts while allowing a constant average.
+2. **Sliding Window Counter** (the `SlidingWindowRateLimiter` class) — maximum
+   `maxRequests` requests within a `windowMs` sliding window. A good fit for hard quotas of
+   "N per minute" without bursts.
 
-Keduanya dibungkus plugin `rate-limit` (`src/plugins/builtin/rate-limit-plugin.ts`)
-yang berjalan pada hook `preRoute` dan short-circuit request dengan HTTP 429.
+Both are wrapped by the `rate-limit` plugin (`src/plugins/builtin/rate-limit-plugin.ts`)
+which runs on the `preRoute` hook and short-circuits requests with HTTP 429.
 
 ### Configuration
 
-Dikonfigurasi via `plugins[]` di `config/gateway.config.json` (entitas `PLUGIN_CONFIG`,
-PERSISTED). Contoh:
+Configured via `plugins[]` in `config/gateway.config.json` (`PLUGIN_CONFIG` entity,
+PERSISTED). Example:
 
 ```json
 {
@@ -125,87 +121,87 @@ PERSISTED). Contoh:
 }
 ```
 
-| Opsi | Default | Keterangan |
+| Option | Default | Notes |
 |---|---|---|
 
 *(trimmed — full detail lives in the project vault)*
 
 ### Edge cases
 
-| Trigger | Perilaku | Hasil user-visible |
+| Trigger | Behavior | User-visible result |
 |---|---|---|
-| Klien baru (kunci belum ada) | Bucket/window dibuat penuh | Request diteruskan normal |
-| Burst melebihi `capacity` | Token habis, `allowed = false` | HTTP 429 + `Retry-After` + `X-RateLimit-*` |
-| `keyExtractor: "header"` tanpa `headerName` | `extractKey` return `null` | Strategi di-skip (fail-open), request diteruskan |
-| Header kunci tidak ada di request | Value kosong → `null` | Strategi di-skip |
-| `remoteAddress` tidak tersedia | Kunci `null` | Strategi di-skip (tidak crash) |
-| Lebih dari `maxBuckets` IP unik | Eviction LRU bucket tertua | Kunci ter-evict mulai fresh (kuota reset) — trade-off anti memory exhaustion |
-| Beberapa strategi match, satu menolak | Loop berhenti pada penolakan pertama | Response 429 dari strategi pertama yang gagal |
-| `routes` tidak cocok path | Strategi di-skip | Tidak ada konsumsi token |
-| Gateway restart | Semua state in-memory hilang | Kuota reset penuh (TRANSIENT, by design) |
+| New client (key not seen yet) | Bucket/window created full | Request forwarded normally |
+| Burst exceeding `capacity` | Tokens exhausted, `allowed = false` | HTTP 429 + `Retry-After` + `X-RateLimit-*` |
+| `keyExtractor: "header"` without `headerName` | `extractKey` returns `null` | Strategy skipped (fail-open), request forwarded |
+| Key header absent from the request | Empty value → `null` | Strategy skipped |
+| `remoteAddress` unavailable | Key `null` | Strategy skipped (no crash) |
+| More unique IPs than `maxBuckets` | LRU eviction of the oldest bucket | Evicted keys start fresh (quota reset) — trade-off against memory exhaustion |
+| Multiple strategies match, one rejects | Loop stops at the first rejection | 429 response from the first failing strategy |
+| `routes` doesn't match the path | Strategy skipped | No token consumption |
+| Gateway restart | All in-memory state lost | Quota fully reset (TRANSIENT, by design) |
 
 
 ## Response Cache
 
-Response Cache menyimpan respons HTTP upstream yang dapat di-cache di memori dan
-menyajikannya kembali tanpa menyentuh upstream. Tujuannya memotong latensi dan beban
-upstream untuk GET yang berulang, dengan semantik HTTP caching yang benar
-(`Cache-Control`, ETag, conditional request) — tanpa satu pun dependensi eksternal.
+The Response Cache stores cacheable upstream HTTP responses in memory and
+serves them back without touching the upstream. Its goal is to cut latency and upstream
+load for repeated GETs, with correct HTTP caching semantics
+(`Cache-Control`, ETag, conditional requests) — without a single external dependency.
 
-Implementasi: `src/core/response-cache.ts`, kelas `ResponseCache` (514 baris).
-Murni `Map` + `node:crypto` untuk hashing kunci/ETag. Zero-dep.
+Implementation: `src/core/response-cache.ts`, the `ResponseCache` class (514 lines).
+Pure `Map` + `node:crypto` for key/ETag hashing. Zero-dep.
 
 ### How it works
 
-1. **Kunci cache** (`generateKey`): `sha256(method | url | varyHeaders terurut)`.
-   Header `Vary` disertakan dalam kunci sehingga representasi per-header berbeda
-   tersimpan terpisah.
-2. **Menyimpan** (`set`): tolak respons yang lebih besar dari `maxSize`
-   (fail-safe, bukan evict); evict LRU sampai muat (batas `maxEntries` dan
-   `maxSize` byte); entry lama dengan kunci sama ditimpa (ukuran didebit dulu).
-3. **Membaca** (`get`): cek usia `(now - cachedAt)/1000` terhadap `ttl`:
-   - Segar → hit, `hits++`, update LRU.
-   - Kedaluwarsa tapi dalam `staleWhileRevalidate` → tetap disajikan (stale),
-     penelepon yang me-revalidate di background.
-   - Lebih tua dari itu → entry dihapus, miss.
-4. **Cacheability** (`isCacheable`, static): hanya `GET`/`HEAD`, hanya status
-   2xx, dan tolak `no-store`, `private`, `no-cache`.
-5. **TTL** (`getTTL`): prioritas `s-maxage` → `max-age` → `defaultTTL` (300 detik).
-6. **Conditional request** (`checkConditional`): cocokkan `If-None-Match` (ETag,
-   termasuk `*` dan daftar) atau `If-Modified-Since` terhadap entry — pembandingan
-   sukses berarti 304, bukan body penuh.
-7. **Purge** (`purge(pattern)`): hapus semua kunci yang cocok regex, return jumlah.
-8. **Statistik** (`getStats`): `hits`, `misses`, `hitRate`, `entries`, `size`,
+1. **Cache key** (`generateKey`): `sha256(method | url | sorted varyHeaders)`.
+   The `Vary` header is included in the key so different per-header representations
+   are stored separately.
+2. **Storing** (`set`): reject responses larger than `maxSize`
+   (fail-safe, never evict to fit); evict LRU until it fits (bounded by `maxEntries` and
+   `maxSize` bytes); old entries with the same key are overwritten (size debited first).
+3. **Reading** (`get`): check age `(now - cachedAt)/1000` against `ttl`:
+   - Fresh → hit, `hits++`, update LRU.
+   - Expired but within `staleWhileRevalidate` → still served (stale),
+     the caller revalidates in the background.
+   - Older than that → entry deleted, miss.
+4. **Cacheability** (`isCacheable`, static): only `GET`/`HEAD`, only 2xx
+   statuses, and rejects `no-store`, `private`, `no-cache`.
+5. **TTL** (`getTTL`): priority `s-maxage` → `max-age` → `defaultTTL` (300 seconds).
+6. **Conditional request** (`checkConditional`): match `If-None-Match` (ETag,
+   including `*` and lists) or `If-Modified-Since` against the entry — a successful
+   comparison means 304, not a full body.
+7. **Purge** (`purge(pattern)`): remove all keys matching the regex, returns the count.
+8. **Statistics** (`getStats`): `hits`, `misses`, `hitRate`, `entries`, `size`,
    `evictions`.
 
 ### Configuration
 
-Tidak ada binding ke `gateway.config.json` saat ini — kelas di-instantiate dengan
-default zero-config (pola sama dengan fitur observability):
+No binding to `gateway.config.json` yet — the class is instantiated with
+zero-config defaults (the same pattern as the observability features):
 
-| Opsi | Default | Arti |
+| Option | Default | Meaning |
 |---|---|---|
-| `maxSize` | `100 MB` | batas total byte body ter-cache |
-| `maxEntries` | `10000` | batas jumlah entry |
-| `defaultTTL` | `300` detik | TTL saat upstream tidak mengirim `Cache-Control` |
-| `enableStats` | `true` | kumpulkan hits/misses/evictions |
+| `maxSize` | `100 MB` | total cached body byte limit |
+| `maxEntries` | `10000` | entry count limit |
+| `defaultTTL` | `300` seconds | TTL when the upstream sends no `Cache-Control` |
+| `enableStats` | `true` | collect hits/misses/evictions |
 
-Direncanakan sebagai `cache-control` plugin via `plugins[]`
-(PLUGIN_CONFIG) — wiring ke plugin chain
-belum ada di kode (lihat Status).
+Planned as a `cache-control` plugin via `plugins[]`
+(PLUGIN_CONFIG) — wiring into the plugin chain
+doesn't exist in the code yet (see Status).
 
 ### Edge cases
 
-| Trigger | Perilaku | Hasil user-visible |
+| Trigger | Behavior | User-visible result |
 |---|---|---|
-| Respons > `maxSize` | `set` return `false`, tidak menyimpan apa pun | Selalu miss untuk URL tersebut |
-| `maxEntries` tercapai | Evict LRU sampai muat | Entry lama yang jarang diakses hilang (hit rate turun, tidak ada error) |
-| Entry kedaluwarsa + `stale-while-revalidate` | Disajikan stale dalam jendela SWR | Respons cepat tapi mungkin basi |
-| Entry kedaluwarsa melewati SWR | Dihapus saat `get` | Miss; upstream diminta ulang |
-| `Cache-Control: no-store` / `private` / `no-cache` | `isCacheable` → false | Tidak pernah tersimpan |
-| Status non-2xx (termasuk 301/302) | Tidak cacheable | Error/redirect selalu ke upstream |
-| POST/PUT/DELETE | Tidak cacheable (method check) | Selalu ke upstream |
-| `If-None-Match` cocok ETag ter-cache | `checkConditional` → true | Penelepon mengirim 304, body tidak ditransfer |
-| Nilai `Vary` berbeda antar request | Bagian dari hash kunci | Dua representasi hidup berdampingan |
-| `purge(pattern)` tanpa cocok | Return 0, tidak ada efek | Operasi no-op aman |
-| Restart proses | Cache hilang total | Cold cache; semua request ke upstream (TRANSIENT by design) |
+| Response > `maxSize` | `set` returns `false`, nothing stored | Always a miss for that URL |
+| `maxEntries` reached | Evict LRU until it fits | Old rarely-accessed entries disappear (hit rate drops, no error) |
+| Expired entry + `stale-while-revalidate` | Served stale within the SWR window | Fast response but possibly stale |
+| Expired entry past SWR | Deleted on `get` | Miss; upstream is re-requested |
+| `Cache-Control: no-store` / `private` / `no-cache` | `isCacheable` → false | Never stored |
+| Non-2xx status (including 301/302) | Not cacheable | Errors/redirects always go upstream |
+| POST/PUT/DELETE | Not cacheable (method check) | Always goes upstream |
+| `If-None-Match` matches a cached ETag | `checkConditional` → true | Caller gets 304, body not transferred |
+| `Vary` value differs between requests | Part of the key hash | Two representations coexist |
+| `purge(pattern)` with no match | Returns 0, no effect | Safe no-op |
+| Process restart | Cache gone entirely | Cold cache; all requests go upstream (TRANSIENT by design) |

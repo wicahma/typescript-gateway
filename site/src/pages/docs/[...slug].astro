@@ -14,14 +14,6 @@ const { doc } = Astro.props;
 const { Content } = await render(doc);
 
 const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.data.order);
-
-const sectionColors: Record<string, string> = {
-  'Guide': 'var(--coral)',
-  'Architecture': 'var(--violet)',
-  'Configuration': 'var(--teal)',
-  'Features': 'var(--amber)',
-};
-const accent = sectionColors[doc.data.section] ?? 'var(--violet)';
 ---
 
 <Layout
@@ -32,7 +24,7 @@ const accent = sectionColors[doc.data.section] ?? 'var(--violet)';
   <div class="docs-wrapper">
     <aside class="sidebar">
       <div class="sidebar-head">
-        <span class="mono-label">Docs index</span>
+        <span class="mono-label">Documentation</span>
       </div>
       <nav class="sidebar-nav">
         {
@@ -50,15 +42,16 @@ const accent = sectionColors[doc.data.section] ?? 'var(--violet)';
     </aside>
 
     <article class="content">
-      <div class="content-header">
-        <p class="section-badge" style={`--badge: ${accent};`}>{doc.data.section}</p>
+      <header class="content-header">
+        <p class="section-badge">{doc.data.section}</p>
         <h1 class="doc-title">{doc.data.title}</h1>
         <p class="description">{doc.data.description}</p>
-      </div>
+      </header>
 
       <div class="prose">
         <Content />
       </div>
+
       <div class="doc-footer-nav">
         <a href="https://github.com/wicahma/typescript-gateway" target="_blank" rel="noopener noreferrer" class="edit-link">
           Suggest an edit on GitHub ↗
@@ -70,73 +63,66 @@ const accent = sectionColors[doc.data.section] ?? 'var(--violet)';
 
 <style>
   .docs-wrapper {
-    max-width: 1080px;
+    max-width: 1120px;
     margin: 0 auto;
     padding: 2.5rem 1.5rem 6rem;
     display: grid;
-    grid-template-columns: 250px 1fr;
-    gap: 3.5rem;
+    grid-template-columns: 240px 1fr;
+    gap: 4rem;
     width: 100%;
   }
 
   .sidebar {
     position: sticky;
-    top: 5rem;
+    top: 5.5rem;
     height: fit-content;
   }
 
   .mono-label {
     font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--ink-muted);
-    font-weight: 600;
+    color: var(--muted);
   }
 
   .sidebar-nav {
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
     margin-top: 1rem;
-    border-left: 2px solid var(--border);
-    padding-left: 0.85rem;
   }
 
   .nav-item {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    padding: 0.4rem 0.55rem;
-    border-radius: 9px;
-    color: var(--ink-muted);
-    font-size: 0.87rem;
+    gap: 0.65rem;
+    padding: 0.42rem 0;
+    color: var(--muted);
+    font-size: 0.86rem;
     font-weight: 500;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition: color 0.15s ease;
   }
 
   .nav-item .num {
     font-family: var(--font-mono);
-    font-size: 0.7rem;
-    color: var(--ink-muted);
-    opacity: 0.7;
+    font-size: 0.68rem;
+    color: var(--muted);
+    opacity: 0.6;
+    font-variant-numeric: tabular-nums;
   }
 
   .nav-item:hover {
     color: var(--ink);
-    background: var(--surface-2);
   }
 
   .nav-item.active {
-    color: var(--ink);
-    font-weight: 700;
-    background: var(--surface-2);
+    color: var(--accent);
+    font-weight: 600;
   }
 
   .nav-item.active .num {
-    color: var(--coral);
+    color: var(--accent);
     opacity: 1;
-    font-weight: 700;
   }
 
   .content {
@@ -144,73 +130,68 @@ const accent = sectionColors[doc.data.section] ?? 'var(--violet)';
   }
 
   .content-header {
-    border-bottom: 2px solid var(--border);
     padding-bottom: 1.75rem;
     margin-bottom: 2.25rem;
+    border-bottom: 1px solid var(--line);
   }
 
   .section-badge {
-    display: inline-block;
     font-family: var(--font-mono);
     font-size: 0.7rem;
-    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--badge);
-    background: color-mix(in srgb, var(--badge) 14%, transparent);
-    border: 1.5px solid var(--badge);
-    border-radius: 999px;
-    padding: 0.2rem 0.8rem;
-    margin-bottom: 1rem;
+    color: var(--accent);
+    margin-bottom: 0.9rem;
   }
 
   .doc-title {
-    font-size: 2rem;
-    font-weight: 800;
+    font-size: 2.1rem;
+    font-weight: 700;
     letter-spacing: -0.03em;
-    margin-bottom: 0.6rem;
+    margin-bottom: 0.5rem;
   }
 
   .description {
-    font-size: 1.02rem;
-    color: var(--ink-muted);
+    font-size: 1rem;
+    color: var(--muted);
     line-height: 1.6;
   }
 
-  /* Prose styling */
+  /* Prose */
   .prose :global(h1) {
-    font-size: 1.7rem;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    margin: 0 0 1.25rem;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    margin: 2.5rem 0 1.1rem;
+  }
+
+  .prose :global(h1:first-child) {
+    margin-top: 0;
   }
 
   .prose :global(h2) {
-    font-size: 1.32rem;
+    font-size: 1.28rem;
     font-weight: 700;
     letter-spacing: -0.02em;
-    margin: 2.4rem 0 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid var(--surface-2);
+    margin: 2.5rem 0 1rem;
     text-wrap: balance;
   }
 
   .prose :global(h3) {
-    font-size: 1.05rem;
-    font-weight: 700;
+    font-size: 1.02rem;
+    font-weight: 600;
     margin: 1.7rem 0 0.7rem;
-    color: var(--ink);
   }
 
   .prose :global(p) {
-    margin-bottom: 1.2rem;
+    margin-bottom: 1.15rem;
     line-height: 1.75;
-    color: #463a5e;
+    color: #3f3f46;
   }
 
   .prose :global(ul), .prose :global(ol) {
-    margin: 0 0 1.2rem 1.5rem;
-    color: #463a5e;
+    margin: 0 0 1.15rem 1.5rem;
+    color: #3f3f46;
     line-height: 1.75;
   }
 
@@ -219,108 +200,98 @@ const accent = sectionColors[doc.data.section] ?? 'var(--violet)';
   }
 
   .prose :global(li::marker) {
-    color: var(--coral);
-    font-weight: 700;
+    color: var(--muted);
   }
 
   .prose :global(strong) {
     color: var(--ink);
+    font-weight: 600;
   }
 
   .prose :global(pre) {
-    background: #2b2140;
-    color: #f5efe6;
-    border-radius: 12px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
     padding: 1.15rem 1.3rem;
     overflow-x: auto;
-    font-size: 0.83rem;
+    font-size: 0.82rem;
     line-height: 1.7;
     margin: 1.25rem 0;
-    border: 1.5px solid var(--ink);
+  }
+
+  .prose :global(pre code) {
+    background: none;
+    padding: 0;
+    color: var(--ink);
   }
 
   .prose :global(code) {
     font-family: var(--font-mono);
-    font-size: 0.87em;
+    font-size: 0.86em;
   }
 
   .prose :global(:not(pre) > code) {
-    background: var(--surface-2);
+    background: var(--panel);
     border-radius: 5px;
     padding: 0.12rem 0.4rem;
-    color: var(--coral);
-    font-weight: 600;
+    color: var(--accent);
   }
 
   .prose :global(blockquote) {
-    border-left: 4px solid var(--amber);
-    background: var(--amber-soft);
-    border-radius: 0 10px 10px 0;
-    padding: 0.75rem 1.1rem;
+    border-left: 2px solid var(--accent);
+    padding: 0.25rem 0 0.25rem 1.1rem;
     margin: 1.25rem 0;
-    color: var(--ink);
+    color: var(--muted);
   }
 
   .prose :global(table) {
     width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
+    border-collapse: collapse;
     margin: 1.5rem 0;
     font-size: 0.86rem;
-    border: 1.5px solid var(--ink);
-    border-radius: 12px;
-    overflow: hidden;
   }
 
   .prose :global(th), .prose :global(td) {
     padding: 0.6rem 0.9rem;
     text-align: left;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .prose :global(tr:last-child td) {
-    border-bottom: none;
+    border-bottom: 1px solid var(--line);
   }
 
   .prose :global(th) {
-    background: var(--violet-soft);
     font-family: var(--font-mono);
-    font-size: 0.74rem;
+    font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    font-weight: 700;
-  }
-
-  .prose :global(tr:nth-child(even) td) {
-    background: var(--surface);
+    font-weight: 500;
+    color: var(--muted);
   }
 
   .prose :global(a) {
-    color: var(--violet);
-    font-weight: 600;
+    color: var(--accent);
+    font-weight: 500;
     text-decoration: underline;
     text-underline-offset: 3px;
+    text-decoration-color: color-mix(in srgb, var(--accent) 35%, transparent);
   }
 
   .prose :global(a:hover) {
-    color: var(--coral);
+    text-decoration-color: var(--accent);
   }
 
   .doc-footer-nav {
     margin-top: 4rem;
     padding-top: 1.5rem;
-    border-top: 2px solid var(--border);
+    border-top: 1px solid var(--line);
   }
 
   .edit-link {
     font-family: var(--font-mono);
     font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--ink-muted);
+    color: var(--muted);
   }
 
   .edit-link:hover {
-    color: var(--coral);
+    color: var(--accent);
   }
 
   @media (max-width: 768px) {
@@ -330,23 +301,16 @@ const accent = sectionColors[doc.data.section] ?? 'var(--violet)';
     }
     .sidebar {
       position: static;
-      border-bottom: 2px solid var(--border);
-      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 1.25rem;
     }
     .sidebar-nav {
       display: flex;
       flex-wrap: wrap;
-      border-left: none;
-      padding-left: 0;
-      gap: 0.4rem;
+      gap: 0.15rem 1.1rem;
     }
     .nav-item {
-      background: var(--surface);
-      border: 1px solid var(--border);
-    }
-    .nav-item.active {
-      background: var(--coral-soft);
-      border-color: var(--coral);
+      padding: 0.2rem 0;
     }
   }
 </style>

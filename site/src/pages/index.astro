@@ -9,14 +9,14 @@ PORT=8088 npm start
 curl http://localhost:8088/health`;
 
 const groups = [
-  { href: '/docs/core-routing', label: 'Core Routing & Proxy', desc: 'Radix router, proxy pipeline, context pooling.', color: 'var(--coral)', soft: 'var(--coral-soft)' },
-  { href: '/docs/resilience', label: 'Resilience', desc: 'Circuit breaker, retries, health checks, fallbacks.', color: 'var(--violet)', soft: 'var(--violet-soft)' },
-  { href: '/docs/traffic-control', label: 'Traffic Control', desc: 'Rate limiting, response cache, load balancing.', color: 'var(--teal)', soft: 'var(--teal-soft)' },
-  { href: '/docs/payload', label: 'Payload Handling', desc: 'Body parsing, transformation, compression.', color: 'var(--amber)', soft: 'var(--amber-soft)' },
-  { href: '/docs/observability', label: 'Observability', desc: 'Lock-free metrics, logging, live dashboard.', color: 'var(--blue)', soft: 'var(--blue-soft)' },
-  { href: '/docs/operations', label: 'Operations', desc: 'Config validation, plugin chain, auto-tuner.', color: 'var(--pink)', soft: 'var(--pink-soft)' },
-  { href: '/docs/identity-security', label: 'Identity & Security', desc: 'JWT, API keys, upstream credentials, RFC 7807.', color: 'var(--coral)', soft: 'var(--coral-soft)' },
-  { href: '/docs/features', label: 'Feature Matrix', desc: 'All 24 features, specs, and benchmarks.', color: 'var(--violet)', soft: 'var(--violet-soft)' },
+  { href: '/docs/core-routing', label: 'Core Routing & Proxy', desc: 'Radix router, proxy pipeline, context pooling.' },
+  { href: '/docs/resilience', label: 'Resilience', desc: 'Circuit breaker, retries, health checks, fallbacks.' },
+  { href: '/docs/traffic-control', label: 'Traffic Control', desc: 'Rate limiting, response cache, load balancing.' },
+  { href: '/docs/payload', label: 'Payload Handling', desc: 'Body parsing, transformation, compression.' },
+  { href: '/docs/observability', label: 'Observability', desc: 'Lock-free metrics, logging, live dashboard.' },
+  { href: '/docs/operations', label: 'Operations', desc: 'Config validation, plugin chain, auto-tuner.' },
+  { href: '/docs/identity-security', label: 'Identity & Security', desc: 'JWT, API keys, upstream credentials, RFC 7807.' },
+  { href: '/docs/features', label: 'Feature Matrix', desc: 'All 24 features, specs, and benchmarks.' },
 ];
 ---
 
@@ -27,8 +27,6 @@ const groups = [
 >
   <main>
     <section class="hero">
-      <p class="eyebrow"><span class="pill">zero runtime dependencies</span></p>
-
       <h1>
         A simple gateway,<br />
         <em>it's all you need.</em>
@@ -41,56 +39,49 @@ const groups = [
       </p>
 
       <div class="actions">
-        <a href="/docs/getting-started" class="btn btn-primary">Read the docs</a>
+        <a href="/docs/getting-started" class="btn-primary">Read the docs →</a>
         <a
           href="https://github.com/wicahma/typescript-gateway"
-          class="btn btn-secondary"
+          class="btn-ghost"
           target="_blank"
           rel="noopener noreferrer"
         >
-          github.com/wicahma ↗
+          GitHub ↗
         </a>
       </div>
     </section>
 
     <section class="terminal" aria-label="Quick start">
-      <div class="terminal-bar">
-        <span class="dot dot-r"></span>
-        <span class="dot dot-y"></span>
-        <span class="dot dot-g"></span>
-        <span class="terminal-title">bash</span>
-      </div>
       <pre><code>{quickstart}</code></pre>
     </section>
 
     <section class="facts">
-      <dl>
-        <div class="fact fact-coral">
-          <dt>dependencies</dt>
-          <dd>0</dd>
-        </div>
-        <div class="fact fact-violet">
-          <dt>hot path p99</dt>
-          <dd>5ms</dd>
-        </div>
-        <div class="fact fact-teal">
-          <dt>features</dt>
-          <dd>24</dd>
-        </div>
-        <div class="fact fact-amber">
-          <dt>tests</dt>
-          <dd>898 ✓</dd>
-        </div>
-      </dl>
+      <div class="fact">
+        <dt>dependencies</dt>
+        <dd>0</dd>
+      </div>
+      <div class="fact">
+        <dt>hot path p99</dt>
+        <dd>5ms</dd>
+      </div>
+      <div class="fact">
+        <dt>features</dt>
+        <dd>24</dd>
+      </div>
+      <div class="fact">
+        <dt>tests</dt>
+        <dd>898 ✓</dd>
+      </div>
     </section>
 
     <section class="docs-entry">
-      <h2>Explore the docs</h2>
+      <h2>Documentation</h2>
       <nav class="doc-links">
         {groups.map(g => (
-          <a href={g.href} style={`--c: ${g.color}; --cs: ${g.soft};`}>
+          <a href={g.href}>
             <span class="label">{g.label}</span>
             <span class="desc">{g.desc}</span>
+            <span class="arrow">→</span>
           </a>
         ))}
       </nav>
@@ -100,63 +91,41 @@ const groups = [
 
 <style>
   main {
-    max-width: 1080px;
+    max-width: 1120px;
     margin: 0 auto;
     padding: 0 1.5rem;
     width: 100%;
   }
 
   .hero {
-    padding: 5.5rem 0 3.5rem;
-    max-width: 720px;
-  }
-
-  .eyebrow {
-    margin-bottom: 1.5rem;
-  }
-
-  .pill {
-    display: inline-block;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--coral);
-    background: var(--coral-soft);
-    border: 1px solid var(--coral);
-    border-radius: 999px;
-    padding: 0.3rem 0.9rem;
+    padding: 6.5rem 0 3.5rem;
+    max-width: 760px;
   }
 
   h1 {
-    font-size: clamp(2.5rem, 6.5vw, 4.1rem);
-    line-height: 1.05;
+    font-size: clamp(2.6rem, 6.5vw, 4.4rem);
+    line-height: 1.04;
     letter-spacing: -0.035em;
-    font-weight: 800;
+    font-weight: 700;
     margin-bottom: 1.5rem;
     text-wrap: balance;
   }
 
   h1 em {
-    font-style: italic;
-    font-weight: 500;
-    background: linear-gradient(120deg, var(--coral), var(--violet) 55%, var(--teal));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    font-style: normal;
+    color: var(--accent);
   }
 
   .lede {
-    font-size: 1.08rem;
-    line-height: 1.75;
-    color: var(--ink-muted);
+    font-size: 1.1rem;
+    line-height: 1.7;
+    color: var(--muted);
     max-width: 620px;
   }
 
   .lede code {
     font-size: 0.88em;
-    background: var(--surface-2);
+    background: var(--panel);
     border-radius: 5px;
     padding: 0.1rem 0.4rem;
     color: var(--ink);
@@ -165,201 +134,165 @@ const groups = [
   .actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem;
-    margin-top: 2.25rem;
-  }
-
-  .btn {
-    display: inline-flex;
     align-items: center;
-    padding: 0.75rem 1.5rem;
-    border-radius: 999px;
-    font-size: 0.92rem;
-    font-weight: 600;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-  }
-
-  .btn:hover {
-    transform: translateY(-2px);
-  }
-
-  .btn:active {
-    transform: translateY(0);
+    gap: 1.5rem;
+    margin-top: 2.5rem;
   }
 
   .btn-primary {
-    background: var(--coral);
+    display: inline-flex;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    background: var(--accent);
     color: #fff;
-    box-shadow: 0 4px 14px rgba(255, 92, 122, 0.35);
+    transition: background 0.15s ease;
   }
 
   .btn-primary:hover {
-    background: var(--violet);
-    box-shadow: 0 6px 18px rgba(124, 92, 255, 0.35);
+    background: #1e3fd1;
   }
 
-  .btn-secondary {
-    border: 1.5px solid var(--border-strong);
+  .btn-ghost {
+    font-size: 0.95rem;
+    font-weight: 600;
     color: var(--ink);
-    background: var(--bg);
   }
 
-  .btn-secondary:hover {
-    border-color: var(--teal);
-    color: var(--teal);
+  .btn-ghost:hover {
+    color: var(--accent);
   }
 
   .terminal {
-    border: 1.5px solid var(--ink);
-    border-radius: 14px;
-    background: #2b2140;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--panel);
     overflow: hidden;
     margin-bottom: 4rem;
-    box-shadow: 8px 8px 0 var(--amber-soft), 8px 8px 0 1.5px var(--ink);
-    max-width: calc(100% - 8px);
+    max-width: calc(100% - 1px);
   }
 
   .terminal pre {
+    padding: 1.5rem 1.6rem;
     overflow-x: auto;
-  }
-
-  .terminal-bar {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding: 0.7rem 1rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  }
-
-  .dot {
-    width: 11px;
-    height: 11px;
-    border-radius: 50%;
-  }
-
-  .dot-r { background: #ff5c7a; }
-  .dot-y { background: #ffb020; }
-  .dot-g { background: #00b8a9; }
-
-  .terminal-title {
-    margin-left: auto;
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    color: rgba(255, 255, 255, 0.55);
-  }
-
-  .terminal pre {
-    padding: 1.4rem 1.5rem;
-    overflow-x: auto;
-    font-size: 0.84rem;
+    font-size: 0.85rem;
     line-height: 1.9;
-    color: #f5efe6;
+    color: var(--ink);
   }
 
   .facts {
-    padding: 0 0 4.5rem;
-  }
-
-  .facts dl {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
+    gap: 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 2.25rem 0;
+    margin-bottom: 5rem;
   }
 
   .fact {
-    border: 1.5px solid var(--ink);
-    border-radius: 14px;
-    padding: 1.1rem 1.25rem;
-    background: var(--cs, var(--surface));
+    padding: 0 2rem;
+    border-left: 1px solid var(--line);
   }
 
-  .fact-coral { background: var(--coral-soft); }
-  .fact-violet { background: var(--violet-soft); }
-  .fact-teal { background: var(--teal-soft); }
-  .fact-amber { background: var(--amber-soft); }
+  .fact:first-child {
+    padding-left: 0;
+    border-left: none;
+  }
 
-  .facts dt {
+  .fact dt {
     font-family: var(--font-mono);
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--ink-muted);
-    margin-bottom: 0.45rem;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
   }
 
-  .facts dd {
-    font-size: 1.7rem;
-    font-weight: 800;
+  .fact dd {
+    font-size: 1.9rem;
+    font-weight: 700;
     letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
   }
 
   .docs-entry {
-    padding-bottom: 5rem;
+    padding-bottom: 5.5rem;
   }
 
   .docs-entry h2 {
     font-family: var(--font-mono);
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: var(--ink-muted);
-    font-weight: 600;
+    color: var(--muted);
+    font-weight: 500;
     margin-bottom: 1.5rem;
   }
 
   .doc-links {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0 3rem;
   }
 
   .doc-links a {
-    border: 1.5px solid var(--ink);
-    border-radius: 14px;
-    padding: 1.25rem 1.3rem;
     display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-    background: var(--cs);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
-
-  .doc-links a:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: 4px 4px 0 var(--c);
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 1.1rem 0.25rem;
+    border-bottom: 1px solid var(--line);
+    transition: color 0.15s ease;
   }
 
   .doc-links .label {
     font-size: 0.98rem;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: -0.01em;
+    white-space: nowrap;
   }
 
   .doc-links .desc {
-    font-size: 0.82rem;
-    color: var(--ink-muted);
+    font-size: 0.84rem;
+    color: var(--muted);
     line-height: 1.5;
+    flex: 1;
+  }
+
+  .doc-links .arrow {
+    color: var(--line);
+    font-weight: 400;
+    transition: color 0.15s ease, transform 0.15s ease;
+  }
+
+  .doc-links a:hover .label {
+    color: var(--accent);
+  }
+
+  .doc-links a:hover .arrow {
+    color: var(--accent);
+    transform: translateX(2px);
   }
 
   @media (max-width: 860px) {
     .doc-links {
+      grid-template-columns: 1fr;
+    }
+    .facts {
       grid-template-columns: repeat(2, 1fr);
+      row-gap: 1.75rem;
+    }
+    .fact:nth-child(3) {
+      padding-left: 0;
+      border-left: none;
     }
   }
 
   @media (max-width: 720px) {
     .hero {
-      padding: 3.5rem 0 2.5rem;
-    }
-    .facts dl {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 0.85rem;
-    }
-  }
-
-  @media (max-width: 520px) {
-    .doc-links {
-      grid-template-columns: 1fr;
+      padding: 4rem 0 2.5rem;
     }
   }
 </style>
