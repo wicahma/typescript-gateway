@@ -175,6 +175,7 @@ export class ProxyHandler {
         ctx.timestamps.pluginStart = Date.now();
         parsedBody = await this.bodyParser.parse(ctx.req);
         ctx.timestamps.pluginEnd = Date.now();
+        ctx.body = parsedBody?.buffer ?? ctx.body;
       }
 
       // Use transformed body if available, otherwise use parsed body
@@ -382,6 +383,7 @@ export class ProxyHandler {
    */
   private shouldParseBody(ctx: RequestContext): boolean {
     if (!this.config.enableBodyParsing) return false;
+    if (ctx.body !== null) return false;
 
     // Parse body for POST, PUT, PATCH methods with content
     const hasBody = ['POST', 'PUT', 'PATCH'].includes(ctx.method);

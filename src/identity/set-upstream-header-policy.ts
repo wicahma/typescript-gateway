@@ -8,7 +8,7 @@ export interface SetUpstreamHeaderPolicyConfig {
   publicRoutes?: string[];
 }
 
-const SENSITIVE_HEADERS = ['authorization', 'cookie'];
+const SENSITIVE_HEADERS = ['authorization', 'cookie', 'x-api-key'];
 
 export class SetUpStreamHeaderPolicy implements GatewayPolicy {
   readonly name = 'set-upstream-header';

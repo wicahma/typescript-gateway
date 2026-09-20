@@ -8,9 +8,11 @@ import { logger } from '../utils/logger.js';
 export interface HmacSignPolicyConfig {
   credentialName: string;
   publicRoutes?: string[];
+  maxBodyBytes?: number;
 }
 
 const DEFAULT_PUBLIC_ROUTES = ['/', '/health', '/metrics'];
+const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
 
 export function verifyHmacSignature(
   secret: string,
@@ -37,19 +39,45 @@ export function verifyHmacSignature(
   return timingSafeEqual(actual, expected);
 }
 
+function readBodyStream(req: RequestContext['req'], maxBytes: number): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let total = 0;
+    let settled = false;
+    const finish = (err: Error | null, out: Buffer) => {
+      if (settled) return;
+      settled = true;
+      err ? reject(err) : resolve(out);
+    };
+    req.on('data', (chunk: Buffer) => {
+      total += chunk.length;
+      if (total > maxBytes) {
+        finish(new Error('ERR_BODY_TOO_LARGE_FOR_SIGNING'), Buffer.alloc(0));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => finish(null, Buffer.concat(chunks)));
+    req.on('error', (err: Error) => finish(err, Buffer.alloc(0)));
+  });
+}
+
 export class HmacSignPolicy implements GatewayPolicy {
   readonly name = 'upstream-hmac-signature';
 
   private readonly publicRoutes: Set<string>;
+  private readonly maxBodyBytes: number;
 
   constructor(
     private store: UpstreamCredentialStore,
     private config: HmacSignPolicyConfig,
   ) {
     this.publicRoutes = new Set(config.publicRoutes ?? DEFAULT_PUBLIC_ROUTES);
+    this.maxBodyBytes = config.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
   }
 
-  executeInbound(ctx: RequestContext): Response | void {
+  async executeInbound(ctx: RequestContext): Promise<Response | void> {
     if (this.publicRoutes.has(ctx.path)) return;
 
     if (!ctx.state['user']) {
@@ -65,6 +93,18 @@ export class HmacSignPolicy implements GatewayPolicy {
       return HttpProblems.internal('Upstream credential not configured.');
     }
 
+    if (ctx.body === null && !BODYLESS_METHODS.has(ctx.method)) {
+      try {
+        ctx.body = await readBodyStream(ctx.req, this.maxBodyBytes);
+      } catch (err) {
+        logger.error(
+          { requestId: ctx.requestId, credential: this.config.credentialName, err: (err as Error).message },
+          'Upstream signing body read failed',
+        );
+        return HttpProblems.internal('Failed to sign upstream request.');
+      }
+    }
+
     const timestamp = Math.floor(Date.now() / 1000).toString();
     const bodyDigest = createHash('sha256').update(ctx.body ?? Buffer.alloc(0)).digest('hex');
     const canonical = `${ctx.method}\n${ctx.path}\n${timestamp}\n${bodyDigest}`;
@@ -78,3 +118,5 @@ export class HmacSignPolicy implements GatewayPolicy {
     if (credential.keyId) ctx.headers['x-key-id'] = credential.keyId;
   }
 }
+
+const BODYLESS_METHODS = new Set(['GET', 'HEAD', 'DELETE', 'OPTIONS']);

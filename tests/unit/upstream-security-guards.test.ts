@@ -31,19 +31,19 @@ describe('Upstream Credential Injection - Security & Guard Edge Cases', () => {
     },
   ]);
 
-  it('ID-020 Guard: fails closed if context.user is undefined, null, or boolean false', () => {
+  it('ID-020 Guard: fails closed if context.user is undefined, null, or boolean false', async () => {
     const headerPolicy = new SetUpStreamHeaderPolicy(store, { credentialName: 'internal-vault' });
     const hmacPolicy = new HmacSignPolicy(store, { credentialName: 'internal-vault' });
 
     for (const invalidUser of [undefined, null, false, '']) {
       const ctx1 = makeCtx({ state: { user: invalidUser } });
-      const res1 = headerPolicy.executeInbound(ctx1) as Response;
+      const res1 = (await headerPolicy.executeInbound(ctx1)) as Response;
       expect(res1).toBeInstanceOf(Response);
       expect(res1.status).toBe(401);
       expect(ctx1.headers['authorization']).toBeUndefined();
 
       const ctx2 = makeCtx({ state: { user: invalidUser } });
-      const res2 = hmacPolicy.executeInbound(ctx2) as Response;
+      const res2 = (await hmacPolicy.executeInbound(ctx2)) as Response;
       expect(res2).toBeInstanceOf(Response);
       expect(res2.status).toBe(401);
       expect(ctx2.headers['x-signature']).toBeUndefined();
