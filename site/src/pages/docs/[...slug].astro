@@ -59,6 +59,99 @@ const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.da
       </div>
     </article>
   </div>
+
+  <script define:vars={{ allDocs: allDocs.map(d => ({ id: d.id, title: d.data.title, desc: d.data.description, section: d.data.section })) }}>
+    // Fuzzy docs search (client-side, zero deps). Subsequence match with
+    // bonus for word starts and consecutive runs — good enough for 12 pages.
+    // Runs deferred: the search overlay lives after this script in the DOM.
+    function initDocsSearch() {
+      const trigger = document.getElementById('search-trigger');
+      const overlay = document.getElementById('search-overlay');
+      const input = document.getElementById('search-input');
+      const results = document.getElementById('search-results');
+      if (!trigger || !overlay || !input || !results) return;
+
+      function fuzzy(needle, haystack) {
+        // subsequence match; score: consecutive +2, word-start +3, else +1
+        let score = 0;
+        let hi = 0;
+        let prev = -2;
+        const nl = needle.toLowerCase();
+        const hl = haystack.toLowerCase();
+        for (let i = 0; i < nl.length; i++) {
+          const c = nl[i];
+          let found = -1;
+          for (let j = hi; j < hl.length; j++) {
+            if (hl[j] === c) { found = j; break; }
+          }
+          if (found === -1) return -1;
+          if (found === prev + 1) score += 2;
+          else if (found === 0 || hl[found - 1] === ' ' || hl[found - 1] === '/') score += 3;
+          else score += 1;
+          prev = found;
+          hi = found + 1;
+        }
+        return score;
+      }
+
+      function search(q) {
+        const out = [];
+        for (const doc of allDocs) {
+          let s = fuzzy(q, doc.title) * 2;
+          if (s < 0) s = fuzzy(q, doc.section + ' ' + doc.desc);
+          if (s > 0) out.push({ doc, s });
+        }
+        out.sort((a, b) => b.s - a.s);
+        return out.map(o => o.doc);
+      }
+
+      function renderResults(q) {
+        results.innerHTML = '';
+        if (!q) { overlay.classList.add('open'); return; }
+        const hits = search(q);
+        if (!hits.length) {
+          results.innerHTML = '<div class="search-empty">No results for “' + q.replace(/</g, '&lt;') + '”</div>';
+          return;
+        }
+        for (const doc of hits) {
+          const a = document.createElement('a');
+          a.href = '/docs/' + doc.id;
+          a.className = 'search-item';
+          a.innerHTML = '<span class="search-title">' + doc.title.replace(/</g, '&lt;') + '</span>' +
+            '<span class="search-desc">' + (doc.desc || '').replace(/</g, '&lt;') + '</span>';
+          results.appendChild(a);
+        }
+      }
+
+      function open() {
+        overlay.classList.add('open');
+        input.value = '';
+        renderResults('');
+        input.focus();
+        document.body.style.overflow = 'hidden';
+      }
+      function close() {
+        overlay.classList.remove('open');
+        document.body.style.overflow = '';
+      }
+
+      trigger.addEventListener('click', open);
+      overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+      document.addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); open(); }
+        if (e.key === 'Escape' && overlay.classList.contains('open')) close();
+      });
+      input.addEventListener('input', () => renderResults(input.value.trim()));
+      results.addEventListener('click', e => {
+        if (e.target.closest('a')) close();
+      });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initDocsSearch);
+    } else {
+      initDocsSearch();
+    }
+  </script>
 </Layout>
 
 <style>
@@ -76,6 +169,8 @@ const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.da
     position: sticky;
     top: 5.5rem;
     height: fit-content;
+    max-height: calc(100vh - 7rem);
+    overflow-y: auto;
   }
 
   .mono-label {

@@ -85,12 +85,14 @@ const siteUrl = "https://tsgate.diama.dev";
         -webkit-font-smoothing: antialiased;
         text-rendering: optimizeLegibility;
         scroll-behavior: smooth;
+        /* no overflow-x here: overflow on <html> breaks position:sticky descendants */
       }
 
       body {
         min-height: 100dvh;
         display: flex;
         flex-direction: column;
+        overflow-x: hidden;
       }
 
       a {
@@ -194,6 +196,119 @@ const siteUrl = "https://tsgate.diama.dev";
         color: var(--accent);
       }
 
+      /* ---- search ---- */
+      .search-trigger {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        color: var(--muted);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 0.3rem 0.6rem;
+        cursor: pointer;
+        transition: color 0.15s ease, border-color 0.15s ease;
+      }
+
+      .search-trigger:hover {
+        color: var(--ink);
+        border-color: var(--muted);
+      }
+
+      .search-trigger kbd {
+        font-family: inherit;
+        font-size: 0.62rem;
+        color: var(--muted);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 0.05rem 0.3rem;
+        background: var(--bg);
+      }
+
+      .search-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 200;
+        background: rgba(20, 20, 20, 0.35);
+        padding: 12vh 1rem 0;
+        justify-content: center;
+      }
+
+      .search-overlay.open {
+        display: flex;
+      }
+
+      .search-panel {
+        width: 100%;
+        max-width: 560px;
+        height: fit-content;
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+      }
+
+      .search-input {
+        width: 100%;
+        border: none;
+        outline: none;
+        padding: 0.9rem 1.1rem;
+        font-family: var(--font-sans);
+        font-size: 0.95rem;
+        color: var(--ink);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .search-input::placeholder {
+        color: var(--muted);
+      }
+
+      .search-results {
+        max-height: 50vh;
+        overflow-y: auto;
+      }
+
+      .search-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        padding: 0.65rem 1.1rem;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .search-item:last-child {
+        border-bottom: none;
+      }
+
+      .search-item:hover {
+        background: var(--panel);
+      }
+
+      .search-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--ink);
+      }
+
+      .search-item:hover .search-title {
+        color: var(--accent);
+      }
+
+      .search-desc {
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+
+      .search-empty {
+        padding: 1.1rem;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
       /* ---- footer ---- */
       .site-footer {
         border-top: 1px solid var(--line);
@@ -233,10 +348,6 @@ const siteUrl = "https://tsgate.diama.dev";
         gap: 1.4rem;
       }
 
-      html, body {
-        overflow-x: hidden;
-      }
-
       @media (max-width: 640px) {
         .nav-container {
           flex-direction: column;
@@ -251,6 +362,9 @@ const siteUrl = "https://tsgate.diama.dev";
         }
         .github-link {
           font-size: 0.72rem;
+        }
+        .search-trigger kbd {
+          display: none;
         }
         .footer-container {
           flex-direction: column;
@@ -267,6 +381,10 @@ const siteUrl = "https://tsgate.diama.dev";
         </a>
 
         <nav class="links">
+          <button id="search-trigger" class="search-trigger" type="button" aria-label="Search docs">
+            Search
+            <kbd>Ctrl K</kbd>
+          </button>
           <a href="/docs/getting-started" class="nav-link">Docs</a>
           <a href="/docs/architecture" class="nav-link">Architecture</a>
           <a href="/docs/features" class="nav-link">Features</a>
@@ -284,6 +402,13 @@ const siteUrl = "https://tsgate.diama.dev";
     </header>
 
     <slot />
+
+    <div id="search-overlay" class="search-overlay" role="dialog" aria-modal="true" aria-label="Search documentation">
+      <div class="search-panel">
+        <input id="search-input" class="search-input" type="text" placeholder="Search docs…" autocomplete="off" />
+        <div id="search-results" class="search-results"></div>
+      </div>
+    </div>
 
     <footer class="site-footer">
       <div class="footer-container">
