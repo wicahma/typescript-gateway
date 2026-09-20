@@ -58,6 +58,7 @@ export class HttpClientPool {
   private pools: Map<string, PooledConnection[]> = new Map();
   private config: ConnectionPoolConfig;
   private metrics: Map<string, PoolMetrics> = new Map();
+  private poolSizes: Map<string, number> = new Map();
   private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor(config?: Partial<ConnectionPoolConfig>) {
@@ -65,6 +66,19 @@ export class HttpClientPool {
 
     // Start cleanup timer
     this.startCleanup();
+  }
+
+  /**
+   * Set per-upstream socket ceiling from route config poolSize
+   */
+  configure(upstreams: Array<{ id: string; poolSize?: number }>): void {
+    for (const u of upstreams) {
+      if (u.poolSize && u.poolSize > 0) this.poolSizes.set(u.id, u.poolSize);
+    }
+  }
+
+  private maxSizeFor(upstream: UpstreamTarget): number {
+    return this.poolSizes.get(upstream.id) ?? this.config.maxSize;
   }
 
   /**
@@ -85,7 +99,7 @@ export class HttpClientPool {
 
     if (!connection) {
       // Create new connection if pool not full
-      if (pool.length < this.config.maxSize) {
+      if (pool.length < this.maxSizeFor(upstream)) {
         connection = this.createConnection(upstream);
         pool.push(connection);
       } else {
@@ -242,12 +256,13 @@ export class HttpClientPool {
    */
   private createConnection(upstream: UpstreamTarget): PooledConnection {
     const isHttps = upstream.protocol === 'https';
+    const size = this.maxSizeFor(upstream);
 
     const agentOptions: http.AgentOptions = {
       keepAlive: true,
       keepAliveMsecs: 1000,
-      maxSockets: this.config.maxSize,
-      maxFreeSockets: this.config.maxSize,
+      maxSockets: size,
+      maxFreeSockets: size,
       timeout: this.config.requestTimeout,
     };
 

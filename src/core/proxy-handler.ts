@@ -48,10 +48,10 @@ const DEFAULT_CONFIG: ProxyHandlerConfig = {
   enableCircuitBreaker: true,
   enableHealthChecking: true,
   requestTimeout: 30000,
-  enableRequestTransformations: true,
-  enableResponseTransformations: true,
-  enableCompression: true,
-  enableAdvancedMetrics: true,
+  enableRequestTransformations: false,
+  enableResponseTransformations: false,
+  enableCompression: false,
+  enableAdvancedMetrics: false,
   maxRequestSize: 10485760, // 10MB
   maxResponseSize: 52428800, // 50MB
   maxHeaderSize: 16384, // 16KB
@@ -94,6 +94,7 @@ export class ProxyHandler {
    */
   initialize(upstreams: UpstreamTarget[]): void {
     this.upstreams = [...upstreams];
+    this.clientPool.configure(this.upstreams.map(u => ({ id: u.id, poolSize: u.poolSize })));
 
     // Initialize load balancer
     this.loadBalancer.setUpstreams(this.upstreams);

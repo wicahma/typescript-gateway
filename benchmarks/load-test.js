@@ -55,8 +55,8 @@ const instance = autocannon({
   const avgReq = result.requests.average ?? 0;
   const targetsMetIcon = p99 < 10 && avgReq > 10000 ? '✅' : '❌';
   console.log(`Performance targets: ${targetsMetIcon}`);
-  console.log(`  P99 < 10ms:      ${result.latency.p99 < 10 ? '✅' : '❌'} (${result.latency.p99.toFixed(2)}ms)`);
-  console.log(`  RPS > 10k:       ${result.requests.average > 10000 ? '✅' : '❌'} (${result.requests.average.toFixed(2)})`);
+  console.log(`  P99 < 10ms:      ${p99 > 0 && p99 < 10 ? '✅' : '❌'} (${p99.toFixed(2)}ms)`);
+  console.log(`  RPS > 10k:       ${avgReq > 10000 ? '✅' : '❌'} (${avgReq.toFixed(2)})`);
 });
 
 // Stream results to console
