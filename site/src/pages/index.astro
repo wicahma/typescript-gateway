@@ -8,6 +8,16 @@ PORT=8088 npm start
 
 curl http://localhost:8088/health`;
 
+// Hyperframe frames: request lifecycle, scrubbed by scroll (CSS animation-timeline)
+const frames = [
+  { n: '01', title: 'ACCEPT', body: 'request hits the socket. zero allocations on the way in.' },
+  { n: '02', title: 'MATCH', body: 'radix tree resolves method + path in O(log n).' },
+  { n: '03', title: 'POLICIES', body: 'inbound chain: auth, cache, rate limit. first Response wins.' },
+  { n: '04', title: 'FORWARD', body: 'keep-alive agent selected from the pool, request forwarded.' },
+  { n: '05', title: 'RESILIENCE', body: 'circuit breaker wraps the hop. open means fail fast.' },
+  { n: '06', title: 'RESPOND', body: 'transform, compress, write. context returns to the pool.' },
+];
+
 const groups = [
   { href: '/docs/core-routing', label: 'Core Routing & Proxy', desc: 'Radix router, proxy pipeline, context pooling.' },
   { href: '/docs/resilience', label: 'Resilience', desc: 'Circuit breaker, retries, health checks, fallbacks.' },
@@ -16,6 +26,7 @@ const groups = [
   { href: '/docs/observability', label: 'Observability', desc: 'Lock-free metrics, logging, live dashboard.' },
   { href: '/docs/operations', label: 'Operations', desc: 'Config validation, plugin chain, auto-tuner.' },
   { href: '/docs/identity-security', label: 'Identity & Security', desc: 'JWT, API keys, upstream credentials, RFC 7807.' },
+  { href: '/docs/usage', label: 'Usage Guide', desc: 'Recipes: proxying, auth, caching, plugins.' },
   { href: '/docs/features', label: 'Feature Matrix', desc: 'All 24 features, specs, and benchmarks.' },
 ];
 ---
@@ -27,19 +38,19 @@ const groups = [
 >
   <main>
     <section class="hero">
+      <p class="mono-eyebrow">0 runtime dependencies</p>
       <h1>
-        A simple gateway,<br />
-        <em>it's all you need.</em>
+        <span class="hl-line"><span>A simple gateway,</span></span>
+        <span class="hl-line"><em>it's all you need.</em></span>
       </h1>
 
       <p class="lede">
-        An ordinary API gateway — pure TypeScript on native <code>node:http</code>.
-        No framework, no runtime packages. 24 features, one process:
-        reverse proxy, radix routing, circuit breaking, connection pooling.
+        Pure TypeScript on native <code>node:http</code>. 24 features,
+        one process, zero frameworks.
       </p>
 
       <div class="actions">
-        <a href="/docs/getting-started" class="btn-primary">Read the docs →</a>
+        <a href="/docs/getting-started" class="btn-primary">Read the docs</a>
         <a
           href="https://github.com/wicahma/typescript-gateway"
           class="btn-ghost"
@@ -51,10 +62,28 @@ const groups = [
       </div>
     </section>
 
+    <section class="hyperframe" aria-label="Request lifecycle, scrubbed by scroll">
+      <div class="hf-stage" aria-hidden="true">
+        {frames.map((f, i) => (
+          <pre
+            class="hf-frame"
+            style={`--i: ${i}; --total: ${frames.length};`}
+          ><code>{`  client ──▶ gateway ──▶ upstream
+
+  ${f.n}  ${f.title}
+  ${'─'.repeat(34)}
+  ${f.body}`}</code></pre>
+        ))}
+      </div>
+      <div class="hf-caption">
+        <span class="hf-label">request lifecycle</span>
+        <span class="hf-track" aria-hidden="true"><span class="hf-fill"></span></span>
+      </div>
+    </section>
+
     <section class="terminal" aria-label="Quick start">
       <pre><code>{quickstart}</code></pre>
     </section>
-
     <section class="facts">
       <div class="fact">
         <dt>dependencies</dt>
@@ -96,19 +125,46 @@ const groups = [
     padding: 0 1.5rem;
     width: 100%;
   }
-
+  /* ---- hero: editorial typographic, staggered line reveal ---- */
   .hero {
-    padding: 6.5rem 0 3.5rem;
-    max-width: 760px;
+    padding: 7rem 0 4rem;
+    max-width: 780px;
+  }
+
+  .mono-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    margin-bottom: 1.4rem;
   }
 
   h1 {
-    font-size: clamp(2.6rem, 6.5vw, 4.4rem);
-    line-height: 1.04;
-    letter-spacing: -0.035em;
+    font-size: clamp(2.6rem, 7vw, 4.6rem);
     font-weight: 700;
-    margin-bottom: 1.5rem;
-    text-wrap: balance;
+    letter-spacing: -0.045em;
+    line-height: 1.02;
+  }
+
+  .hl-line {
+    display: block;
+    overflow: hidden;
+  }
+
+  .hl-line > span,
+  .hl-line > em {
+    display: inline-block;
+    transform: translateY(110%);
+    animation: hl-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .hl-line:nth-child(2) > span,
+  .hl-line:nth-child(2) > em {
+    animation-delay: 0.12s;
+  }
+
+  @keyframes hl-rise {
+    to { transform: translateY(0); }
   }
 
   h1 em {
@@ -117,182 +173,373 @@ const groups = [
   }
 
   .lede {
-    font-size: 1.1rem;
+    margin-top: 1.6rem;
+    font-size: 1.08rem;
     line-height: 1.7;
     color: var(--muted);
-    max-width: 620px;
+    max-width: 34rem;
   }
 
   .lede code {
-    font-size: 0.88em;
-    background: var(--panel);
-    border-radius: 5px;
-    padding: 0.1rem 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.9em;
     color: var(--ink);
+    background: var(--panel);
+    padding: 0.1rem 0.35rem;
+    border-radius: 5px;
   }
 
   .actions {
+    margin-top: 2.4rem;
     display: flex;
-    flex-wrap: wrap;
+    gap: 1rem;
     align-items: center;
-    gap: 1.5rem;
-    margin-top: 2.5rem;
   }
 
   .btn-primary {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.75rem 1.5rem;
-    border-radius: 10px;
-    font-size: 0.95rem;
+    background: var(--ink);
+    color: var(--bg);
     font-weight: 600;
-    background: var(--accent);
-    color: #fff;
-    transition: background 0.15s ease;
+    font-size: 0.92rem;
+    padding: 0.7rem 1.4rem;
+    border-radius: 999px;
+    transition: transform 0.15s ease, background 0.15s ease;
   }
 
   .btn-primary:hover {
-    background: #1e3fd1;
+    background: var(--accent);
+  }
+
+  .btn-primary:active {
+    transform: scale(0.98);
   }
 
   .btn-ghost {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--muted);
+    padding: 0.7rem 0.2rem;
+    transition: color 0.15s ease;
   }
 
   .btn-ghost:hover {
-    color: var(--accent);
-  }
-
-  .terminal {
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    background: var(--panel);
-    overflow: hidden;
-    margin-bottom: 4rem;
-    max-width: calc(100% - 1px);
-  }
-
-  .terminal pre {
-    padding: 1.5rem 1.6rem;
-    overflow-x: auto;
-    font-size: 0.85rem;
-    line-height: 1.9;
     color: var(--ink);
   }
 
+  /* ---- hyperframe: scroll-scrubbed frame sequence ---- */
+  .hyperframe {
+    margin: 4rem 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .hf-stage {
+    position: relative;
+    height: 340px;
+    overflow: hidden;
+  }
+
+  .hf-frame {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.92rem;
+    line-height: 1.9;
+    color: var(--ink);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  @supports (animation-timeline: scroll()) {
+    .hyperframe {
+      height: 300vh;
+    }
+
+    .hf-stage {
+      position: sticky;
+      top: 70px;
+      height: calc(100vh - 70px);
+      max-height: 640px;
+    }
+
+    /* Per-frame cover-range slices over the section's own view timeline.
+       view-timeline lives on the tall section (the only element that
+       actually moves); frames are absolutely positioned in the sticky
+       stage, so their own view() progress would never change. */
+    .hyperframe {
+      view-timeline: --hf block;
+    }
+
+    .hf-frame {
+      animation: hf-cycle linear both;
+      animation-timeline: --hf;
+      animation-duration: 1ms; /* required by spec; timeline drives progress */
+      animation-range: contain calc(var(--i) / var(--total) * 100%) contain calc((var(--i) + 1) / var(--total) * 100%);
+    }
+
+    .hf-fill {
+      transform-origin: left;
+      animation: hf-progress linear both;
+      animation-timeline: --hf;
+      animation-duration: 1ms;
+      animation-range: contain 0% contain 100%;
+    }
+  }
+
+  @keyframes hf-cycle {
+    0%, 6% { opacity: 0; transform: translateY(14px); }
+    12%, 88% { opacity: 1; transform: translateY(0); }
+    94%, 100% { opacity: 0; transform: translateY(-14px); }
+  }
+
+  @keyframes hf-progress {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+
+  .hf-caption {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.9rem 0;
+  }
+
+  .hf-label {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .hf-track {
+    flex: 1;
+    height: 2px;
+    background: var(--line);
+    display: block;
+  }
+
+  .hf-fill {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    transform: scaleX(0);
+  }
+
+  /* JS fallback for browsers without scroll-driven animations */
+  .hyperframe.no-sda {
+    height: auto;
+  }
+
+  .hyperframe.no-sda .hf-stage {
+    position: relative;
+    top: 0;
+    height: 340px;
+  }
+
+  .hyperframe.no-sda .hf-frame {
+    animation: none;
+    opacity: 1;
+    display: none;
+  }
+
+  .hyperframe.no-sda .hf-frame.visible {
+    display: flex;
+    animation: hf-fallback-in 0.35s ease both;
+  }
+
+  @keyframes hf-fallback-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  /* ---- facts: mono numerals, hairline row ---- */
   .facts {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 0;
     border-top: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
-    padding: 2.25rem 0;
-    margin-bottom: 5rem;
+    padding: 2.2rem 0 2.6rem;
   }
 
   .fact {
-    padding: 0 2rem;
-    border-left: 1px solid var(--line);
-  }
-
-  .fact:first-child {
-    padding-left: 0;
-    border-left: none;
+    padding-right: 1.5rem;
   }
 
   .fact dt {
     font-family: var(--font-mono);
-    font-size: 0.7rem;
-    text-transform: uppercase;
+    font-size: 0.68rem;
     letter-spacing: 0.1em;
+    text-transform: uppercase;
     color: var(--muted);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
   }
 
   .fact dd {
-    font-size: 1.9rem;
-    font-weight: 700;
-    letter-spacing: -0.03em;
+    font-family: var(--font-mono);
+    font-size: 1.7rem;
+    font-weight: 600;
+    color: var(--ink);
     font-variant-numeric: tabular-nums;
   }
 
+  /* ---- docs entry: 2-col list, hover slide ---- */
   .docs-entry {
-    padding-bottom: 5.5rem;
+    padding: 2rem 0 6rem;
+    border-top: 1px solid var(--line);
   }
 
   .docs-entry h2 {
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--muted);
-    font-weight: 500;
-    margin-bottom: 1.5rem;
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.4rem;
   }
 
   .doc-links {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr 1fr;
     gap: 0 3rem;
   }
 
   .doc-links a {
     display: flex;
     align-items: baseline;
-    gap: 0.75rem;
-    padding: 1.1rem 0.25rem;
+    gap: 0.8rem;
+    padding: 0.85rem 0;
     border-bottom: 1px solid var(--line);
-    transition: color 0.15s ease;
+    transition: border-color 0.15s ease;
   }
 
   .doc-links .label {
-    font-size: 0.98rem;
     font-weight: 600;
-    letter-spacing: -0.01em;
+    font-size: 0.95rem;
+    color: var(--ink);
     white-space: nowrap;
   }
 
   .doc-links .desc {
-    font-size: 0.84rem;
+    font-size: 0.8rem;
     color: var(--muted);
-    line-height: 1.5;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     flex: 1;
   }
 
   .doc-links .arrow {
-    color: var(--line);
-    font-weight: 400;
-    transition: color 0.15s ease, transform 0.15s ease;
+    color: var(--muted);
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.15s ease;
   }
 
-  .doc-links a:hover .label {
-    color: var(--accent);
+  .doc-links a:hover {
+    border-bottom-color: var(--accent);
   }
 
   .doc-links a:hover .arrow {
+    transform: translateX(4px);
     color: var(--accent);
-    transform: translateX(2px);
   }
 
-  @media (max-width: 860px) {
-    .doc-links {
-      grid-template-columns: 1fr;
+  /* ---- responsive ---- */
+  @media (max-width: 768px) {
+    .hero {
+      padding: 4.5rem 0 3rem;
     }
     .facts {
-      grid-template-columns: repeat(2, 1fr);
-      row-gap: 1.75rem;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.4rem 1rem;
     }
-    .fact:nth-child(3) {
-      padding-left: 0;
-      border-left: none;
+    .doc-links {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+    .doc-links .desc {
+      display: none;
+    }
+    .hyperframe {
+      height: auto;
+    }
+    .hf-stage {
+      position: relative;
+      top: 0;
+      height: 320px;
+    }
+    .hf-frame {
+      animation: none !important;
+      opacity: 1 !important;
+      display: none;
+    }
+    .hf-frame.visible {
+      display: flex;
     }
   }
 
-  @media (max-width: 720px) {
-    .hero {
-      padding: 4rem 0 2.5rem;
+  @media (prefers-reduced-motion: reduce) {
+    .hl-line > span,
+    .hl-line > em {
+      animation: none;
+      transform: none;
+    }
+    .hf-frame,
+    .hf-fill {
+      animation: none !important;
+      opacity: 1;
+      transform: none;
+    }
+    .hf-frame:not(:first-child) {
+      display: none;
     }
   }
 </style>
+
+<script>
+  // Hyperframe scrub driver (JS, always-on). Continuous rAF loop with
+  // document.hidden + reduced-motion guards, no scroll listeners, no deps.
+  // (CSS scroll-driven path dropped: support signals lie; IO gating
+  // untestable in some engines. One rect read per frame is cheap.)
+  (function () {
+    const section = document.querySelector('.hyperframe');
+    if (!section) return;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const frames = [...section.querySelectorAll('.hf-frame')];
+    const fill = section.querySelector('.hf-fill');
+    const total = frames.length;
+    let raf = 0;
+
+    function show(idx, progress) {
+      frames.forEach((f, j) => f.classList.toggle('visible', j === idx));
+      if (fill) fill.style.transform = `scaleX(${progress})`;
+    }
+
+    function jsScrub() {
+      section.classList.add('no-sda');
+      const tick = () => {
+        if (!document.hidden && !reduce) {
+          const rect = section.getBoundingClientRect();
+          const vh = window.innerHeight;
+          const onScreen = rect.bottom > 0 && rect.top < vh;
+          if (onScreen) {
+            // progress 0..1 as the section travels through the viewport
+            const p = Math.min(1, Math.max(0, (vh - rect.top) / (vh + rect.height)));
+            const idx = Math.min(total - 1, Math.floor(p * total));
+            show(idx, p);
+          }
+        }
+        raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+      show(0, 0);
+    }
+
+    if (reduce) {
+      show(0, 0);
+      return;
+    }
+    jsScrub();
+  })();
+</script>
