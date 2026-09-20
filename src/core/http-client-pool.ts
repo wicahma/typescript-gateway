@@ -85,41 +85,42 @@ export class HttpClientPool {
    * Acquire connection from pool
    */
   async acquire(upstream: UpstreamTarget): Promise<http.Agent | https.Agent> {
-    const startTime = process.hrtime.bigint();
     const poolKey = this.getPoolKey(upstream);
 
     let pool = this.pools.get(poolKey);
-    if (!pool) {
+    if (pool === undefined) {
       pool = [];
       this.pools.set(poolKey, pool);
     }
 
-    // Try to get idle connection
-    let connection = this.getIdleConnection(pool);
-
-    if (!connection) {
-      // Create new connection if pool not full
-      if (pool.length < this.maxSizeFor(upstream)) {
-        connection = this.createConnection(upstream);
-        pool.push(connection);
-      } else {
-        // Wait for connection to become available (with timeout)
-        connection = await this.waitForConnection(pool, this.config.connectionTimeout);
-      }
+    // ponytail: fast path — reuse an idle connection without hrtime timing or
+    // logger.debug; metrics bookkeeping stays (cheap counter/filter pass).
+    // Upgrade path: per-pool free-list head pointer if profiled as a hotspot.
+    const connection = this.getIdleConnection(pool);
+    if (connection) {
+      connection.inUse = true;
+      connection.lastUsed = Date.now();
+      connection.useCount++;
+      this.updateMetrics(poolKey, true);
+      return connection.agent;
     }
 
-    // Mark as in use
-    connection.inUse = true;
-    connection.lastUsed = Date.now();
-    connection.useCount++;
+    if (pool.length < this.maxSizeFor(upstream)) {
+      const created = this.createConnection(upstream);
+      pool.push(created);
+      created.inUse = true;
+      created.lastUsed = Date.now();
+      created.useCount = 1;
+      this.updateMetrics(poolKey, false);
+      return created.agent;
+    }
 
-    // Update metrics
-    this.updateMetrics(poolKey, connection.useCount > 1);
-
-    const duration = Number(process.hrtime.bigint() - startTime) / 1_000_000;
-    logger.debug(`Connection acquired in ${duration.toFixed(3)}ms`);
-
-    return connection.agent;
+    const waited = await this.waitForConnection(pool, this.config.connectionTimeout);
+    waited.inUse = true;
+    waited.lastUsed = Date.now();
+    waited.useCount++;
+    this.updateMetrics(poolKey, waited.useCount > 1);
+    return waited.agent;
   }
 
   /**
