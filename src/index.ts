@@ -12,6 +12,9 @@ import { AuthJwtPolicy, AuthJwtPolicyConfig } from './plugins/builtin/auth-jwt-p
 import { ConsumerStore } from './identity/consumer-store.js';
 import { ApiKeyPolicy } from './identity/api-key-policy.js';
 import { ConsumerRateLimitPolicy } from './identity/consumer-rate-limit-policy.js';
+import { UpstreamCredentialStore } from './identity/upstream-credential-store.js';
+import { SetUpStreamHeaderPolicy } from './identity/set-upstream-header-policy.js';
+import { HmacSignPolicy } from './identity/hmac-sign-policy.js';
 import { WithIdentity } from './types/identity.js';
 import { UpstreamTarget, CircuitBreakerState } from './types/core.js';
 
@@ -141,6 +144,29 @@ export class Gateway {
     const cacheConfig = (config as unknown as Record<string, unknown>)['responseCache'] as { enabled?: boolean } | undefined;
     if (cacheConfig?.enabled) {
       this.pipeline.register(new ResponseCachePolicy(new ResponseCache()));
+    }
+    const upstreamConfig = cfg.upstreamCredentials;
+    if (upstreamConfig?.enabled && upstreamConfig.credentials?.length) {
+      const credentials = new UpstreamCredentialStore(
+        upstreamConfig.credentials.map(c => ({ name: c.name, headers: c.headers ?? {}, hmac: c.hmac })),
+      );
+      if (upstreamConfig.injection) {
+        this.pipeline.register(
+          new SetUpStreamHeaderPolicy(credentials, {
+            credentialName: upstreamConfig.injection.credentialName,
+            publicRoutes: upstreamConfig.injection.publicRoutes,
+          }),
+        );
+      }
+      if (upstreamConfig.signing) {
+        this.pipeline.register(
+          new HmacSignPolicy(credentials, {
+            credentialName: upstreamConfig.signing.credentialName,
+            publicRoutes: upstreamConfig.signing.publicRoutes,
+          }),
+        );
+      }
+      logger.info({ credentials: credentials.stats().credentials }, 'Upstream credential injection enabled');
     }
   }
 

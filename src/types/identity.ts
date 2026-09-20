@@ -14,6 +14,18 @@ export interface ApiKeysConfig {
   }>;
 }
 
+export interface UpstreamCredentialsConfig {
+  enabled?: boolean;
+  credentials: Array<{
+    name: string;
+    headers?: Record<string, string>;
+    hmac?: { secret: string; keyId?: string; headerNamespace?: string };
+  }>;
+  injection?: { credentialName: string; publicRoutes?: string[] };
+  signing?: { credentialName: string; publicRoutes?: string[] };
+}
+
 export interface WithIdentity extends GatewayConfig {
   apiKeys?: ApiKeysConfig;
+  upstreamCredentials?: UpstreamCredentialsConfig;
 }
