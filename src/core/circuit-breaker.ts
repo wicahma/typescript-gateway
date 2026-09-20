@@ -80,6 +80,28 @@ export class CircuitBreaker {
    * Execute request with circuit breaker protection
    */
   async execute<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.state !== CircuitBreakerState.CLOSED) {
+      return this.executeSlow(fn);
+    }
+    // ponytail: CLOSED fast-path skips hrtime/duration-logging; still records
+    // success/failure into the sliding window + counters so state transitions
+    // and failure-rate checks behave identically to the slow path.
+    try {
+      const result = await fn();
+      this.metrics.totalRequests++;
+      this.metrics.successfulRequests++;
+      this.consecutiveSuccesses++;
+      this.consecutiveFailures = 0;
+      this.addToWindow(true);
+      this.emit(CircuitBreakerEvent.REQUEST_SUCCESS);
+      return result;
+    } catch (error) {
+      this.recordFailure();
+      throw error;
+    }
+  }
+
+  private async executeSlow<T>(fn: () => Promise<T>): Promise<T> {
     const startTime = process.hrtime.bigint();
 
     // Check if request should be allowed

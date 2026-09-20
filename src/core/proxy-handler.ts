@@ -88,7 +88,6 @@ export class ProxyHandler {
     this.compressionHandler = new CompressionHandler();
     this.advancedMetrics = new AdvancedMetrics();
   }
-
   /**
    * Initialize with upstreams
    */
