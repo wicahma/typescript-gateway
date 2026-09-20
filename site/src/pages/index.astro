@@ -1,24 +1,33 @@
 ---
 import Layout from '../layouts/Layout.astro';
 
-const quickstart = `git clone https://github.com/wicahma/typescript-service-gateway
-cd typescript-service-gateway && npm install
+const quickstart = `git clone https://github.com/wicahma/typescript-gateway
+cd typescript-gateway && npm install
 
 PORT=8088 npm start
 
 curl http://localhost:8088/health`;
 
-const install = `npm install && PORT=8088 npm start`;
+const groups = [
+  { href: '/docs/core-routing', label: 'Core Routing & Proxy', desc: 'Radix router, proxy pipeline, context pooling.', color: 'var(--coral)', soft: 'var(--coral-soft)' },
+  { href: '/docs/resilience', label: 'Resilience', desc: 'Circuit breaker, retries, health checks, fallbacks.', color: 'var(--violet)', soft: 'var(--violet-soft)' },
+  { href: '/docs/traffic-control', label: 'Traffic Control', desc: 'Rate limiting, response cache, load balancing.', color: 'var(--teal)', soft: 'var(--teal-soft)' },
+  { href: '/docs/payload', label: 'Payload Handling', desc: 'Body parsing, transformation, compression.', color: 'var(--amber)', soft: 'var(--amber-soft)' },
+  { href: '/docs/observability', label: 'Observability', desc: 'Lock-free metrics, logging, live dashboard.', color: 'var(--blue)', soft: 'var(--blue-soft)' },
+  { href: '/docs/operations', label: 'Operations', desc: 'Config validation, plugin chain, auto-tuner.', color: 'var(--pink)', soft: 'var(--pink-soft)' },
+  { href: '/docs/identity-security', label: 'Identity & Security', desc: 'JWT, API keys, upstream credentials, RFC 7807.', color: 'var(--coral)', soft: 'var(--coral-soft)' },
+  { href: '/docs/features', label: 'Feature Matrix', desc: 'All 24 features, specs, and benchmarks.', color: 'var(--violet)', soft: 'var(--violet-soft)' },
+];
 ---
 
 <Layout
-  title="TypeScript Service Gateway — A simple gateway, it's all you need"
-  description="Production-grade HTTP API gateway written in pure TypeScript with zero runtime dependencies. Sub-10ms P99 latency, radix router, circuit breaker, and connection pooling on native Node.js."
+  title="TypeScript Gateway — A simple gateway, it's all you need"
+  description="Production-grade HTTP API gateway written in pure TypeScript with zero runtime dependencies. P99 5ms hot path, 24 features, radix router, circuit breaker, and connection pooling on native Node.js."
   canonical="https://tsgate.diama.dev/"
 >
   <main>
     <section class="hero">
-      <p class="eyebrow">Zero runtime dependencies</p>
+      <p class="eyebrow"><span class="pill">zero runtime dependencies</span></p>
 
       <h1>
         A simple gateway,<br />
@@ -26,29 +35,29 @@ const install = `npm install && PORT=8088 npm start`;
       </h1>
 
       <p class="lede">
-        Just an ordinary API gateway — written in pure TypeScript, running on native
-        <code>node:http</code>. No framework. No runtime packages. Reverse proxy, radix routing,
-        circuit breaking, and connection pooling in a single process.
+        An ordinary API gateway — pure TypeScript on native <code>node:http</code>.
+        No framework, no runtime packages. 24 features, one process:
+        reverse proxy, radix routing, circuit breaking, connection pooling.
       </p>
 
       <div class="actions">
         <a href="/docs/getting-started" class="btn btn-primary">Read the docs</a>
         <a
-          href="https://github.com/wicahma/typescript-service-gateway"
+          href="https://github.com/wicahma/typescript-gateway"
           class="btn btn-secondary"
           target="_blank"
           rel="noopener noreferrer"
         >
-          github.com/wicahma
+          github.com/wicahma ↗
         </a>
       </div>
     </section>
 
     <section class="terminal" aria-label="Quick start">
       <div class="terminal-bar">
-        <span class="dot"></span>
-        <span class="dot"></span>
-        <span class="dot"></span>
+        <span class="dot dot-r"></span>
+        <span class="dot dot-y"></span>
+        <span class="dot dot-g"></span>
         <span class="terminal-title">bash</span>
       </div>
       <pre><code>{quickstart}</code></pre>
@@ -56,44 +65,34 @@ const install = `npm install && PORT=8088 npm start`;
 
     <section class="facts">
       <dl>
-        <div>
+        <div class="fact fact-coral">
           <dt>dependencies</dt>
           <dd>0</dd>
         </div>
-        <div>
-          <dt>p99 latency</dt>
-          <dd>&lt; 10ms</dd>
+        <div class="fact fact-violet">
+          <dt>hot path p99</dt>
+          <dd>5ms</dd>
         </div>
-        <div>
+        <div class="fact fact-teal">
+          <dt>features</dt>
+          <dd>24</dd>
+        </div>
+        <div class="fact fact-amber">
           <dt>tests</dt>
-          <dd>732</dd>
-        </div>
-        <div>
-          <dt>runtime</dt>
-          <dd>node:http</dd>
+          <dd>898 ✓</dd>
         </div>
       </dl>
     </section>
 
     <section class="docs-entry">
-      <h2>Documentation</h2>
+      <h2>Explore the docs</h2>
       <nav class="doc-links">
-        <a href="/docs/getting-started">
-          <span class="label">Getting Started</span>
-          <span class="desc">Install, build, run, and health-check the gateway.</span>
-        </a>
-        <a href="/docs/architecture">
-          <span class="label">Architecture &amp; Pipeline</span>
-          <span class="desc">The zero-allocation request lifecycle, end to end.</span>
-        </a>
-        <a href="/docs/configuration">
-          <span class="label">Configuration Reference</span>
-          <span class="desc">Declarative JSON config with env interpolation.</span>
-        </a>
-        <a href="/docs/resilience">
-          <span class="label">Resilience &amp; Reliability</span>
-          <span class="desc">Circuit breaker, load balancing, retries, rate limits.</span>
-        </a>
+        {groups.map(g => (
+          <a href={g.href} style={`--c: ${g.color}; --cs: ${g.soft};`}>
+            <span class="label">{g.label}</span>
+            <span class="desc">{g.desc}</span>
+          </a>
+        ))}
       </nav>
     </section>
   </main>
@@ -108,152 +107,189 @@ const install = `npm install && PORT=8088 npm start`;
   }
 
   .hero {
-    padding: 6.5rem 0 4rem;
+    padding: 5.5rem 0 3.5rem;
     max-width: 720px;
   }
 
   .eyebrow {
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--accent);
     margin-bottom: 1.5rem;
   }
 
-  h1 {
-    font-size: clamp(2.4rem, 6vw, 3.9rem);
-    line-height: 1.08;
-    letter-spacing: -0.035em;
+  .pill {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
     font-weight: 600;
-    margin-bottom: 1.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--coral);
+    background: var(--coral-soft);
+    border: 1px solid var(--coral);
+    border-radius: 999px;
+    padding: 0.3rem 0.9rem;
+  }
+
+  h1 {
+    font-size: clamp(2.5rem, 6.5vw, 4.1rem);
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+    font-weight: 800;
+    margin-bottom: 1.5rem;
+    text-wrap: balance;
   }
 
   h1 em {
-    font-family: var(--font-serif);
     font-style: italic;
-    font-weight: 400;
-    color: var(--text-muted);
+    font-weight: 500;
+    background: linear-gradient(120deg, var(--coral), var(--violet) 55%, var(--teal));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 
   .lede {
-    font-size: 1.05rem;
+    font-size: 1.08rem;
     line-height: 1.75;
-    color: var(--text-muted);
+    color: var(--ink-muted);
     max-width: 620px;
   }
 
   .lede code {
     font-size: 0.88em;
-    background: var(--code-bg);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 0.1rem 0.35rem;
-    color: var(--text);
+    background: var(--surface-2);
+    border-radius: 5px;
+    padding: 0.1rem 0.4rem;
+    color: var(--ink);
   }
 
   .actions {
     display: flex;
     flex-wrap: wrap;
     gap: 0.75rem;
-    margin-top: 2.5rem;
+    margin-top: 2.25rem;
   }
 
   .btn {
     display: inline-flex;
     align-items: center;
-    padding: 0.7rem 1.35rem;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    font-weight: 500;
-    border: 1px solid transparent;
+    padding: 0.75rem 1.5rem;
+    border-radius: 999px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  }
+
+  .btn:hover {
+    transform: translateY(-2px);
+  }
+
+  .btn:active {
+    transform: translateY(0);
   }
 
   .btn-primary {
-    background: var(--text);
-    color: var(--bg);
+    background: var(--coral);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(255, 92, 122, 0.35);
   }
 
   .btn-primary:hover {
-    background: #fff;
+    background: var(--violet);
+    box-shadow: 0 6px 18px rgba(124, 92, 255, 0.35);
   }
 
   .btn-secondary {
-    border-color: var(--border);
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    font-size: 0.82rem;
+    border: 1.5px solid var(--border-strong);
+    color: var(--ink);
+    background: var(--bg);
   }
 
   .btn-secondary:hover {
-    border-color: var(--border-hover);
-    color: var(--text);
+    border-color: var(--teal);
+    color: var(--teal);
   }
 
   .terminal {
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--surface);
+    border: 1.5px solid var(--ink);
+    border-radius: 14px;
+    background: #2b2140;
     overflow: hidden;
-    margin-bottom: 4.5rem;
+    margin-bottom: 4rem;
+    box-shadow: 8px 8px 0 var(--amber-soft), 8px 8px 0 1.5px var(--ink);
+    max-width: calc(100% - 8px);
+  }
+
+  .terminal pre {
+    overflow-x: auto;
   }
 
   .terminal-bar {
     display: flex;
     align-items: center;
     gap: 0.45rem;
-    padding: 0.65rem 0.9rem;
-    border-bottom: 1px solid var(--border);
-    background: #10141a;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   }
 
   .dot {
-    width: 10px;
-    height: 10px;
+    width: 11px;
+    height: 11px;
     border-radius: 50%;
-    background: var(--border-hover);
   }
+
+  .dot-r { background: #ff5c7a; }
+  .dot-y { background: #ffb020; }
+  .dot-g { background: #00b8a9; }
 
   .terminal-title {
     margin-left: auto;
     font-family: var(--font-mono);
     font-size: 0.72rem;
-    color: var(--text-muted);
+    color: rgba(255, 255, 255, 0.55);
   }
 
   .terminal pre {
     padding: 1.4rem 1.5rem;
     overflow-x: auto;
     font-size: 0.84rem;
-    line-height: 1.85;
-    color: var(--text);
+    line-height: 1.9;
+    color: #f5efe6;
   }
 
   .facts {
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-    padding: 2.5rem 0;
-    margin-bottom: 5rem;
+    padding: 0 0 4.5rem;
   }
 
   .facts dl {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 2rem;
+    gap: 1rem;
   }
+
+  .fact {
+    border: 1.5px solid var(--ink);
+    border-radius: 14px;
+    padding: 1.1rem 1.25rem;
+    background: var(--cs, var(--surface));
+  }
+
+  .fact-coral { background: var(--coral-soft); }
+  .fact-violet { background: var(--violet-soft); }
+  .fact-teal { background: var(--teal-soft); }
+  .fact-amber { background: var(--amber-soft); }
 
   .facts dt {
     font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--text-muted);
-    margin-bottom: 0.6rem;
+    color: var(--ink-muted);
+    margin-bottom: 0.45rem;
   }
 
   .facts dd {
-    font-size: 1.6rem;
-    font-weight: 600;
+    font-size: 1.7rem;
+    font-weight: 800;
     letter-spacing: -0.03em;
   }
 
@@ -263,56 +299,65 @@ const install = `npm install && PORT=8088 npm start`;
 
   .docs-entry h2 {
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: 0.78rem;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: var(--text-muted);
-    font-weight: 500;
+    color: var(--ink-muted);
+    font-weight: 600;
     margin-bottom: 1.5rem;
   }
 
   .doc-links {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1px;
-    background: var(--border);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
   }
 
   .doc-links a {
-    background: var(--bg);
-    padding: 1.5rem;
+    border: 1.5px solid var(--ink);
+    border-radius: 14px;
+    padding: 1.25rem 1.3rem;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 0.45rem;
+    background: var(--cs);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
 
   .doc-links a:hover {
-    background: var(--surface);
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 var(--c);
   }
 
   .doc-links .label {
-    font-size: 1rem;
-    font-weight: 500;
+    font-size: 0.98rem;
+    font-weight: 700;
     letter-spacing: -0.01em;
   }
 
   .doc-links .desc {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    line-height: 1.55;
+    font-size: 0.82rem;
+    color: var(--ink-muted);
+    line-height: 1.5;
+  }
+
+  @media (max-width: 860px) {
+    .doc-links {
+      grid-template-columns: repeat(2, 1fr);
+    }
   }
 
   @media (max-width: 720px) {
     .hero {
-      padding: 4.5rem 0 3rem;
+      padding: 3.5rem 0 2.5rem;
     }
     .facts dl {
       grid-template-columns: repeat(2, 1fr);
-      gap: 1.75rem;
+      gap: 0.85rem;
     }
+  }
+
+  @media (max-width: 520px) {
     .doc-links {
       grid-template-columns: 1fr;
     }

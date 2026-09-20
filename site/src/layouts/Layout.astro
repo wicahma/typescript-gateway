@@ -39,15 +39,18 @@ const siteUrl = "https://tsgate.diama.dev";
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
+
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23ff5c7a'/%3E%3Cpath d='M10 22V12l6-3 6 3v10' stroke='%23fff' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
 
     <!-- Structured Data (JSON-LD) -->
     <script type="application/ld+json" set:html={JSON.stringify({
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
-      "name": "TypeScript Service Gateway",
+      "name": "TypeScript Gateway",
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "Linux, macOS, Windows",
       "offers": {
@@ -61,18 +64,29 @@ const siteUrl = "https://tsgate.diama.dev";
 
     <style is:global>
       :root {
-        --bg: #0d0f12;
-        --surface: #14181f;
-        --border: #222936;
-        --border-hover: #374256;
-        --text: #e6edf3;
-        --text-muted: #8b949e;
-        --accent: #58a6ff;
-        --accent-subtle: rgba(88, 166, 255, 0.1);
-        --code-bg: #161b22;
-        --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        --bg: #fffdf7;
+        --surface: #fff3e4;
+        --surface-2: #ffe8d6;
+        --ink: #2b2140;
+        --ink-muted: #6f6685;
+        --border: #f0d9c0;
+        --border-strong: #e3c3a0;
+
+        --coral: #ff5c7a;
+        --coral-soft: #ffe4e9;
+        --violet: #7c5cff;
+        --violet-soft: #ede7ff;
+        --teal: #00b8a9;
+        --teal-soft: #d8f7f3;
+        --amber: #ffb020;
+        --amber-soft: #fff1d6;
+        --pink: #f649a7;
+        --pink-soft: #ffe0f0;
+        --blue: #3e8bff;
+        --blue-soft: #e0edff;
+
+        --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-        --font-serif: 'Newsreader', Georgia, serif;
       }
 
       * {
@@ -83,16 +97,17 @@ const siteUrl = "https://tsgate.diama.dev";
 
       html {
         background-color: var(--bg);
-        color: var(--text);
+        color: var(--ink);
         font-family: var(--font-sans);
         font-size: 15px;
         line-height: 1.6;
         -webkit-font-smoothing: antialiased;
         text-rendering: optimizeLegibility;
+        scroll-behavior: smooth;
       }
 
       body {
-        min-height: 100vh;
+        min-height: 100dvh;
         display: flex;
         flex-direction: column;
       }
@@ -100,7 +115,7 @@ const siteUrl = "https://tsgate.diama.dev";
       a {
         color: inherit;
         text-decoration: none;
-        transition: color 0.15s ease;
+        transition: color 0.2s ease;
       }
 
       code, pre {
@@ -108,45 +123,204 @@ const siteUrl = "https://tsgate.diama.dev";
       }
 
       ::selection {
-        background: #264f78;
+        background: var(--violet);
         color: #fff;
       }
 
-      /* Clean scrollbar */
       ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+        width: 10px;
+        height: 10px;
       }
       ::-webkit-scrollbar-track {
         background: var(--bg);
       }
       ::-webkit-scrollbar-thumb {
-        background: var(--border);
-        border-radius: 4px;
+        background: var(--border-strong);
+        border-radius: 8px;
+        border: 2px solid var(--bg);
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: var(--border-hover);
+        background: var(--coral);
+      }
+
+      /* ---- playful top rainbow bar ---- */
+      .rainbow-bar {
+        height: 5px;
+        background: linear-gradient(90deg,
+          var(--coral) 0%, var(--amber) 25%,
+          var(--teal) 50%, var(--blue) 75%, var(--violet) 100%);
+      }
+
+      /* ---- nav ---- */
+      .site-nav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: rgba(255, 253, 247, 0.88);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .nav-container {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 0.85rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        font-weight: 700;
+        font-size: 1rem;
+        letter-spacing: -0.01em;
+      }
+
+      .brand-mark {
+        width: 26px;
+        height: 26px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, var(--coral), var(--violet));
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 0.72rem;
+        font-weight: 800;
+        font-family: var(--font-mono);
+      }
+
+      .links {
+        display: flex;
+        align-items: center;
+        gap: 1.35rem;
+        font-size: 0.92rem;
+        font-weight: 500;
+        flex-wrap: wrap;
+      }
+
+      .nav-link {
+        color: var(--ink-muted);
+        transition: color 0.2s ease;
+      }
+
+      .nav-link:hover {
+        color: var(--coral);
+      }
+
+      .github-link {
+        padding: 0.4rem 0.85rem;
+        background: var(--ink);
+        border-radius: 999px;
+        color: var(--bg);
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        font-weight: 600;
+        transition: transform 0.2s ease, background 0.2s ease;
+      }
+
+      .github-link:hover {
+        background: var(--coral);
+        transform: translateY(-1px);
+      }
+
+      /* ---- footer ---- */
+      .site-footer {
+        border-top: 1px solid var(--border);
+        margin-top: auto;
+        padding: 2.75rem 1.5rem 2.5rem;
+        background: var(--surface);
+      }
+
+      .footer-container {
+        max-width: 1080px;
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1.5rem;
+      }
+
+      .footer-copy .tag {
+        font-size: 0.92rem;
+        font-weight: 600;
+        color: var(--ink);
+        margin-bottom: 0.3rem;
+      }
+
+      .footer-copy .sub {
+        font-size: 0.82rem;
+        color: var(--ink-muted);
+      }
+
+      .footer-copy a {
+        color: var(--coral);
+        font-weight: 600;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+
+      .footer-links {
+        display: flex;
+        gap: 1.25rem;
+        font-size: 0.86rem;
+        font-weight: 500;
+      }
+
+      .footer-links a {
+        color: var(--ink-muted);
+      }
+
+      .footer-links a:hover {
+        color: var(--violet);
+      }
+
+      @media (max-width: 640px) {
+        .links {
+          gap: 0.9rem;
+          font-size: 0.85rem;
+        }
+        .nav-container {
+          padding: 0.75rem 1rem;
+        }
+        .footer-container {
+          flex-direction: column;
+        }
+      }
+
+      html, body {
+        overflow-x: hidden;
       }
     </style>
   </head>
   <body>
+    <div class="rainbow-bar" aria-hidden="true"></div>
+
     <header class="site-nav">
       <div class="nav-container">
         <a href="/" class="brand">
-          <span class="brand-badge">TSG</span>
-          <span class="brand-text">typescript-gateway</span>
+          <span class="brand-mark">ts</span>
+          TypeScript Gateway
         </a>
+
         <nav class="links">
           <a href="/docs/getting-started" class="nav-link">Docs</a>
           <a href="/docs/architecture" class="nav-link">Architecture</a>
+          <a href="/docs/features" class="nav-link">Features</a>
           <a href="/docs/configuration" class="nav-link">Config</a>
           <a
-            href="https://github.com/wicahma/typescript-service-gateway"
+            href="https://github.com/wicahma/typescript-gateway"
             target="_blank"
             rel="noopener noreferrer"
-            class="nav-link github-link"
+            class="github-link"
           >
-            GitHub
+            GitHub ↗
           </a>
         </nav>
       </div>
@@ -158,141 +332,15 @@ const siteUrl = "https://tsgate.diama.dev";
       <div class="footer-container">
         <div class="footer-copy">
           <p class="tag">Zero runtime dependencies. Pure Node.js & TypeScript.</p>
-          <p class="sub">MIT License · Built with care by <a href="https://github.com/wicahma" target="_blank" rel="noopener noreferrer">@wicahma</a></p>
+          <p class="sub">MIT License · built by <a href="https://github.com/wicahma" target="_blank" rel="noopener noreferrer">@wicahma</a></p>
         </div>
         <div class="footer-links">
           <a href="/docs/getting-started">Docs</a>
-          <a href="https://github.com/wicahma/typescript-service-gateway" target="_blank" rel="noopener noreferrer">Repository</a>
-          <a href="https://github.com/wicahma/typescript-service-gateway/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">License</a>
+          <a href="/docs/features">Features</a>
+          <a href="https://github.com/wicahma/typescript-gateway" target="_blank" rel="noopener noreferrer">Repository</a>
+          <a href="https://github.com/wicahma/typescript-gateway/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">License</a>
         </div>
       </div>
     </footer>
   </body>
 </html>
-
-<style>
-  .site-nav {
-    border-bottom: 1px solid var(--border);
-    background: rgba(13, 15, 18, 0.85);
-    backdrop-filter: blur(12px);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-
-  .nav-container {
-    max-width: 1080px;
-    margin: 0 auto;
-    padding: 0.9rem 1.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    font-weight: 600;
-    font-size: 0.95rem;
-    letter-spacing: -0.01em;
-  }
-
-  .brand-badge {
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    font-weight: 700;
-    padding: 0.15rem 0.45rem;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--accent);
-  }
-
-  .links {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    font-size: 0.9rem;
-  }
-
-  .nav-link {
-    color: var(--text-muted);
-  }
-
-  .nav-link:hover {
-    color: var(--text);
-  }
-
-  .github-link {
-    padding: 0.35rem 0.75rem;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: 0.8rem;
-  }
-
-  .github-link:hover {
-    border-color: var(--border-hover);
-    background: #1c222c;
-  }
-
-  .site-footer {
-    border-top: 1px solid var(--border);
-    margin-top: auto;
-    padding: 3rem 1.5rem 2.5rem;
-    background: #090b0e;
-  }
-
-  .footer-container {
-    max-width: 1080px;
-    margin: 0 auto;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1.5rem;
-  }
-
-  .footer-copy .tag {
-    font-size: 0.9rem;
-    color: var(--text);
-    margin-bottom: 0.3rem;
-  }
-
-  .footer-copy .sub {
-    font-size: 0.82rem;
-    color: var(--text-muted);
-  }
-
-  .footer-copy a {
-    color: var(--text);
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-
-  .footer-links {
-    display: flex;
-    gap: 1.25rem;
-    font-size: 0.85rem;
-  }
-
-  .footer-links a {
-    color: var(--text-muted);
-  }
-
-  .footer-links a:hover {
-    color: var(--text);
-  }
-
-  @media (max-width: 640px) {
-    .links {
-      gap: 1rem;
-    }
-    .footer-container {
-      flex-direction: column;
-    }
-  }
-</style>

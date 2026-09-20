@@ -20,8 +20,8 @@ TypeScript Service Gateway is an ultra-low-latency HTTP reverse proxy and API ga
 Clone the repository and install development dependencies (compiler, linter, test runner):
 
 ```bash
-git clone https://github.com/wicahma/typescript-service-gateway.git
-cd typescript-service-gateway
+git clone https://github.com/wicahma/typescript-gateway.git
+cd typescript-gateway
 npm install
 ```
 

@@ -241,7 +241,7 @@ typescript-gateway/
 │   ├── integration/       # Integration tests
 │   └── performance/       # Performance tests
 ├── benchmarks/            # Benchmark scripts
-├── docs/                  # Documentation
+├── site/                  # Documentation site (Astro, tsgate.diama.dev)
 ├── package.json
 ├── tsconfig.json
 └── README.md
