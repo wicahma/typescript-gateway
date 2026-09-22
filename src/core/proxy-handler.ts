@@ -40,6 +40,15 @@ export interface ProxyHandlerConfig {
   /** Maximum header size in bytes */
   maxHeaderSize?: number;
   /**
+   * When set (> 0), GET/HEAD proxy responses whose upstream Content-Length
+   * meets/exceeds this many bytes are streamed straight to the client via
+   * forwardStreaming (no Buffer.concat, no response transformations).
+   * Responses without Content-Length (chunked) also stream. Zero overhead
+   * for small responses: they stay on the buffered path.
+   */
+  streamingThreshold?: number;
+
+  /**
    * Enable WebSocket/SSE upgrade tunneling. When true, HTTP Upgrade
    * requests that match a route are tunneled to the route's upstream:
    * the gateway performs the upstream handshake, replies 101 to the
@@ -208,6 +217,18 @@ export class ProxyHandler {
       }
 
       ctx.upstream = upstream;
+
+      // Step 4b: streaming path for large GET/HEAD responses (no transform)
+      const streamable =
+        (this.config.streamingThreshold ?? 0) > 0 &&
+        !this.config.enableResponseTransformations &&
+        (ctx.method === 'GET' || ctx.method === 'HEAD');
+
+      if (streamable) {
+        await this.proxyRequestStreaming(ctx, upstream, transformedHeaders, transformedPath, finalBody);
+        ctx.responded = true;
+        return;
+      }
 
       // Step 5: Check circuit breaker and proxy request
       const breaker = this.circuitBreakers.get(upstream.id);
@@ -407,6 +428,62 @@ export class ProxyHandler {
       });
       ctx.timestamps.upstreamEnd = Date.now();
       return result;
+    } finally {
+      ctx.req.off('close', onClose);
+    }
+  }
+
+  /**
+   * Stream an upstream response directly to ctx.res once headers indicate
+   * the body meets the streaming threshold (or is chunked with no length).
+   * Smaller bodies fall back to the buffered forward() so transformations
+   * and metrics stay on the existing path.
+   */
+  private async proxyRequestStreaming(
+    ctx: RequestContext,
+    upstream: UpstreamTarget,
+    headers: http.IncomingHttpHeaders,
+    path: string,
+    body?: Buffer | null
+  ): Promise<void> {
+    ctx.timestamps.upstreamStart = Date.now();
+    const threshold = this.config.streamingThreshold ?? 0;
+
+    const ac = new AbortController();
+    const onClose = (): void => { if (!ctx.responded) ac.abort(); };
+    ctx.req.on('close', onClose);
+
+    try {
+      await this.urlForwarder.forwardStreaming(
+        {
+          method: ctx.method,
+          path,
+          headers,
+          body: body ?? ctx.body ?? null,
+          upstream,
+          timeout: ctx.route?.route.timeout ?? this.config.requestTimeout,
+          signal: ac.signal,
+        },
+        (proxyRes) => {
+          const len = Number(proxyRes.headers['content-length'] ?? 0);
+          const chunked = proxyRes.headers['transfer-encoding'] === 'chunked';
+          if (!chunked && len < threshold) {
+            // Small enough for the buffered path — buffer into memory then send.
+            const chunks: Buffer[] = [];
+            proxyRes.on('data', (c: Buffer) => chunks.push(c));
+            proxyRes.once('end', () => {
+              ctx.timestamps.upstreamEnd = Date.now();
+              ctx.res.writeHead(proxyRes.statusCode ?? 502, proxyRes.headers);
+              ctx.res.end(Buffer.concat(chunks));
+            });
+            return;
+          }
+
+          ctx.timestamps.upstreamEnd = Date.now();
+          ctx.res.writeHead(proxyRes.statusCode ?? 502, proxyRes.headers);
+          proxyRes.pipe(ctx.res);
+        }
+      );
     } finally {
       ctx.req.off('close', onClose);
     }

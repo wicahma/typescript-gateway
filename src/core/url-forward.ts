@@ -54,6 +54,63 @@ export class UrlForwarder {
     return flight;
   }
 
+  /**
+   * Streaming variant: invokes onResponse as soon as upstream headers land,
+   * passing the raw IncomingMessage for the caller to pipe to the client.
+   * Body is never buffered. Used for large responses where buffering would
+   * inflate memory and TTFB. The promise resolves when the stream ends.
+   */
+  async forwardStreaming(
+    request: ForwardRequest,
+    onResponse: (res: http.IncomingMessage) => void
+  ): Promise<void> {
+    const { method, path, headers, body, upstream, signal } = request;
+    const timeout = request.timeout ?? upstream.timeout;
+
+    if (signal?.aborted) throw new Error('Client disconnected before upstream request');
+
+    await new Promise<void>((resolve, reject) => {
+      this.clientPool.acquire(upstream).then((agent) => {
+        const client = upstream.protocol === 'https' ? https : http;
+        const options: http.RequestOptions = {
+          hostname: upstream.host,
+          port: upstream.port,
+          path: upstream.basePath + path,
+          method,
+          headers: { ...headers },
+          agent,
+          timeout,
+        };
+        if (body) {
+          (options.headers as http.OutgoingHttpHeaders)['content-length'] = body.length;
+        }
+
+        const proxyReq = client.request(options, (proxyRes) => {
+          onResponse(proxyRes);
+          proxyRes.on('end', () => { this.clientPool.release(upstream, agent); resolve(); });
+          proxyRes.on('error', (e) => { this.clientPool.remove(upstream, agent); reject(e); });
+        });
+
+        const onAbort = (): void => {
+          proxyReq.destroy();
+          this.clientPool.remove(upstream, agent);
+          reject(new Error('Client disconnected during upstream request'));
+        };
+
+        proxyReq.on('error', (e) => { this.clientPool.remove(upstream, agent); reject(e); });
+        proxyReq.on('timeout', () => {
+          proxyReq.destroy();
+          this.clientPool.remove(upstream, agent);
+          reject(new Error('Upstream request timeout'));
+        });
+
+        if (body) proxyReq.write(body);
+        proxyReq.end();
+        signal?.addEventListener('abort', onAbort, { once: true });
+      }).catch(reject);
+    });
+  }
+
   async forward(request: ForwardRequest): Promise<ForwardResult> {
     const { method, path, headers, body, upstream, signal } = request;
     const timeout = request.timeout ?? upstream.timeout;
