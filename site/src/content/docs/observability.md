@@ -277,3 +277,13 @@ Built-in `PerformanceAlerter` rules:
   in try/catch and logs to the console — a bad rule doesn't stop the others.
 - **Alert spam**: a per-rule-name cooldown prevents more than one alert per rule per
   cooldown period.
+
+## Access Log Sampling
+
+At high RPS, per-request access logging can become its own bottleneck (every
+`logger.info` is a format + write). Sampling keeps the signal without the cost.
+
+`server.accessLogSampleRate` (default `1` — log every request, no behavior
+change). Set to `N` to log 1-in-N completed requests, deterministic via the
+request-id counter (stable, correlatable). Responses with status `>= 500`
+always log regardless of sampling — errors never leave the observability trail.

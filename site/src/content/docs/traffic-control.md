@@ -148,21 +148,32 @@ serves them back without touching the upstream. Its goal is to cut latency and u
 load for repeated GETs, with correct HTTP caching semantics
 (`Cache-Control`, ETag, conditional requests) — without a single external dependency.
 
-Implementation: `src/core/response-cache.ts`, the `ResponseCache` class (514 lines).
-Pure `Map` + `node:crypto` for key/ETag hashing. Zero-dep.
+Implementation: `src/core/response-cache.ts` (`ResponseCache`) plus the pipeline
+policy `src/pipeline/response-cache-policy.ts` (`ResponseCachePolicy`) that wires it
+into the inbound chain. Pure `Map` + `node:crypto` for key/ETag hashing. Zero-dep.
 
 ### How it works
 
 1. **Cache key** (`generateKey`): `sha256(method | url | sorted varyHeaders)`.
-   The `Vary` header is included in the key so different per-header representations
-   are stored separately.
+   The `Vary` header is part of the key — and since 2026-09-21 the policy also
+   tracks which vary headers a stored key used (`ResponseCache.varyIndex`), so a
+   response that declares `Vary: Accept-Encoding` is re-keyed per encoding on
+   lookup. gzip, brotli, and identity representations coexist; a client asking
+   for an unseen encoding misses instead of receiving the wrong bytes.
+   Lookup is two-pass: probe the request-only key first (zero cost for
+   non-varying entries), re-key only on miss.
 2. **Storing** (`set`): reject responses larger than `maxSize`
    (fail-safe, never evict to fit); evict LRU until it fits (bounded by `maxEntries` and
    `maxSize` bytes); old entries with the same key are overwritten (size debited first).
-3. **Reading** (`get`): check age `(now - cachedAt)/1000` against `ttl`:
+3. **Reading** (`lookup`): returns `{ response, state }` where state is
+   `fresh | stale | miss`:
    - Fresh → hit, `hits++`, update LRU.
-   - Expired but within `staleWhileRevalidate` → still served (stale),
-     the caller revalidates in the background.
+   - Expired but within `staleWhileRevalidate` → served stale with
+     `x-cache: STALE`, and the policy's `onStaleRevalidate` callback refreshes
+     in the background. Refresh is single-flight per key per window: the
+     in-flight mark is cleared when the refreshed entry lands (in
+     `executeOutbound`), not when the callback returns — one extra upstream
+     fetch per window, no stampede.
    - Older than that → entry deleted, miss.
 4. **Cacheability** (`isCacheable`, static): only `GET`/`HEAD`, only 2xx
    statuses, and rejects `no-store`, `private`, `no-cache`.
@@ -170,8 +181,14 @@ Pure `Map` + `node:crypto` for key/ETag hashing. Zero-dep.
 6. **Conditional request** (`checkConditional`): match `If-None-Match` (ETag,
    including `*` and lists) or `If-Modified-Since` against the entry — a successful
    comparison means 304, not a full body.
-7. **Purge** (`purge(pattern)`): remove all keys matching the regex, returns the count.
-8. **Statistics** (`getStats`): `hits`, `misses`, `hitRate`, `entries`, `size`,
+7. **Conditional revalidation (outbound)**: `etag` and `last-modified` from the
+   upstream response are persisted into the entry on `set`. During SWR
+   revalidation, `ResponseCachePolicy.validatorsFor(key)` exposes them as
+   `If-None-Match` / `If-Modified-Since` headers; an upstream `304 Not Modified`
+   is merged into the entry via `ResponseCache.refresh(key, headers)` — the
+   body is not transferred again and the freshness lifetime restarts.
+8. **Purge** (`purge(pattern)`): remove all keys matching the regex, returns the count.
+9. **Statistics** (`getStats`): `hits`, `misses`, `hitRate`, `entries`, `size`,
    `evictions`.
 
 ### Configuration

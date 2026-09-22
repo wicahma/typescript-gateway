@@ -9,7 +9,7 @@ section: "Guide"
 
 ## Test Suites
 
-Vitest, 898 tests across 56 files at last full run. Three lanes:
+Vitest, 918 tests across 59 files at last full run. Three lanes:
 
 ```bash
 npm test                      # all suites

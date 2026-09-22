@@ -5,7 +5,7 @@ order: 4
 section: "Features"
 ---
 
-All 4 features in this group are **implemented and verified** — each has a full FSD + ERD spec pair and unit/integration coverage in the repo test suite.
+All features in this group are **implemented and verified** — each has a full FSD + ERD spec pair and unit/integration coverage in the repo test suite.
 
 ## Radix Router
 
@@ -271,3 +271,51 @@ Injected via `ProxyHandler.initialize(upstreams)`.
 | Compressible response (large JSON + `accept-encoding: gzip`) | Negotiate + compress + `Content-Encoding` header | Compressed response; ratio metric recorded |
 | Client IP for LB `ip-hash` | `X-Forwarded-For` → `X-Real-IP` → `socket.remoteAddress` (in order) | Sticky routing per IP |
 | `shutdown()` called | `healthChecker.stop()` + `clientPool.destroy()` | Upstream connections closed cleanly |
+
+## WebSocket Tunneling
+
+Opt-in `Upgrade` handling: when `proxy.enableWebSocket` is set, the proxy handler
+completes the WebSocket handshake against the selected upstream, writes the
+`101 Switching Protocols` response to the client, and pipes both sockets
+bidirectionally. Raw byte pipe — no per-frame inspection.
+
+Implementation: `ProxyHandler.tunnelUpgrade` in `src/core/proxy-handler.ts`;
+wiring chain `config.proxy.enableWebSocket` → `ProxyHandler({enableWebSocket})` →
+`setRouter()` → `Server.setProxyHandler()` → `handleUpgrade`. All links optional;
+missing any link rejects upgrades exactly as before.
+
+| Trigger | Behavior |
+|---|---|
+| `enableWebSocket` unset/false | Upgrade requests rejected as before |
+| Upstream handshake fails | Client socket destroyed, no half-open tunnel |
+| Upstream dies mid-stream | Tunnel closes (no mid-stream failover) |
+
+## OpenAPI Generator
+
+Zero-dependency OpenAPI 3 generator over the live route table
+(`src/core/openapi-generator.ts`). `generateOpenApi(routes, upstreams, info)`
+emits paths (converting `:param` → `{param}` and `*` → `{wildcard}`), groups
+operations into tags by first path segment, and maps upstreams to `servers`.
+Useful for exposing a spec endpoint or feeding client generators.
+
+## Client Disconnect Propagation
+
+Every proxied request gets an `AbortController`; the client socket's `close`
+event aborts the in-flight upstream fetch (`ForwardRequest.signal`). A caller
+that goes away stops consuming upstream resources immediately. The listener is
+removed in `finally` — `close` also fires on normal completion, no leak.
+
+## Request Coalescing (single-flight)
+
+`UrlForwarder.share()`: N identical in-flight GET/HEAD requests collapse into
+one upstream fetch. A cache-miss stampede costs one upstream call, not N.
+Only GET/HEAD are coalesced; different paths or methods never share a flight.
+
+## Streaming Response Path
+
+`ProxyHandlerConfig.streamingThreshold` (bytes): when set above zero and
+response transformations are disabled, GET/HEAD responses stream directly to
+the client via `UrlForwarder.forwardStreaming` — headers forwarded immediately,
+body piped without `Buffer.concat`. Small bodies (Content-Length below the
+threshold) stay on the buffered path at zero cost; chunked/unknown-length
+bodies always stream.

@@ -1,13 +1,13 @@
 ---
 title: "Feature Matrix"
-description: "All 24 features across 7 groups, with spec coverage (FSD + ERD) and implementation status."
+description: "All 30 features across 7 groups, with spec coverage (FSD + ERD) and implementation status."
 order: 11
 section: "Features"
 ---
 
 # Feature Matrix
 
-All 24 features in 7 groups. Every implemented feature ships with an FSD (functional spec) and ERD (data model) pair, plus unit and integration test coverage. 898/898 tests green at time of writing.
+All 30 features in 7 groups. Every implemented feature ships with an FSD (functional spec) and ERD (data model) pair, plus unit and integration test coverage. 918/918 tests green at time of writing.
 
 | Group | Feature | FSD | ERD | Status |
 |---|---|---|---|---|
@@ -15,6 +15,11 @@ All 24 features in 7 groups. Every implemented feature ships with an FSD (functi
 | Core Routing | Reverse Proxy Handler | ✓ | ✓ | implemented |
 | Core Routing | Request Pipeline | ✓ | ✓ | implemented |
 | Core Routing | Request Context Pool | ✓ | ✓ | implemented |
+| Core Routing | WebSocket Tunneling | ✓ | ✓ | implemented |
+| Core Routing | OpenAPI Generator | ✓ | ✓ | implemented |
+| Core Routing | Client Disconnect Propagation | ✓ | ✓ | implemented |
+| Core Routing | Request Coalescing | ✓ | ✓ | implemented |
+| Core Routing | Streaming Response Path | ✓ | ✓ | implemented |
 | Resilience | Circuit Breaker | ✓ | ✓ | implemented |
 | Resilience | Retry Manager | ✓ | ✓ | implemented |
 | Resilience | Health Checker | ✓ | ✓ | implemented |
@@ -30,6 +35,7 @@ All 24 features in 7 groups. Every implemented feature ships with an FSD (functi
 | Observability | Metrics Histogram | ✓ | ✓ | implemented |
 | Observability | Native Structured Logger | ✓ | ✓ | implemented |
 | Observability | Performance Dashboard | ✓ | ✓ | implemented |
+| Observability | Access Log Sampling | ✓ | ✓ | implemented |
 | Observability | CPU & Memory Profiler | ✓ | ✓ | implemented |
 | Operations | Config Loader & Validator | ✓ | ✓ | implemented |
 | Operations | Plugin Execution Chain | ✓ | ✓ | implemented |

@@ -27,13 +27,13 @@ const groups = [
   { href: '/docs/operations', label: 'Operations', desc: 'Config validation, plugin chain, auto-tuner.' },
   { href: '/docs/identity-security', label: 'Identity & Security', desc: 'JWT, API keys, upstream credentials, RFC 7807.' },
   { href: '/docs/usage', label: 'Usage Guide', desc: 'Recipes: proxying, auth, caching, plugins.' },
-  { href: '/docs/features', label: 'Feature Matrix', desc: 'All 24 features, specs, and benchmarks.' },
+  { href: '/docs/features', label: 'Feature Matrix', desc: 'All 30 features, specs, and benchmarks.' },
 ];
 ---
 
 <Layout
   title="TypeScript Gateway — A simple gateway, it's all you need"
-  description="Production-grade HTTP API gateway written in pure TypeScript with zero runtime dependencies. P99 5ms hot path, 24 features, radix router, circuit breaker, and connection pooling on native Node.js."
+  description="Production-grade HTTP API gateway written in pure TypeScript with zero runtime dependencies. P99 5ms hot path, 30 features, radix router, circuit breaker, and connection pooling on native Node.js."
   canonical="https://tsgate.diama.dev/"
 >
   <main>
@@ -45,7 +45,7 @@ const groups = [
       </h1>
 
       <p class="lede">
-        Pure TypeScript on native <code>node:http</code>. 24 features,
+        Pure TypeScript on native <code>node:http</code>. 30 features,
         one process, zero frameworks.
       </p>
 
@@ -95,12 +95,24 @@ const groups = [
       </div>
       <div class="fact">
         <dt>features</dt>
-        <dd>24</dd>
+        <dd>30</dd>
       </div>
       <div class="fact">
         <dt>tests</dt>
-        <dd>898 ✓</dd>
+        <dd>918 ✓</dd>
       </div>
+    </section>
+
+    <section class="latest">
+      <h2><span class="latest-tag">new</span> Latest additions</h2>
+      <ul>
+        <li><strong>WebSocket tunneling</strong><span>raw bidirectional pipe, opt-in</span></li>
+        <li><strong>OpenAPI generator</strong><span>spec from the live route table</span></li>
+        <li><strong>Single-flight coalescing</strong><span>stampede = 1 upstream call</span></li>
+        <li><strong>Conditional revalidation</strong><span>304 merge, no body transfer</span></li>
+        <li><strong>Vary-aware cache keys</strong><span>gzip / br / identity coexist</span></li>
+        <li><strong>Streaming responses</strong><span>large bodies pipe, no buffering</span></li>
+      </ul>
     </section>
 
     <section class="docs-entry">
@@ -127,23 +139,29 @@ const groups = [
   }
   /* ---- hero: editorial typographic, staggered line reveal ---- */
   .hero {
-    padding: 7rem 0 4rem;
-    max-width: 780px;
+    padding: 8rem 0 4.5rem;
+    max-width: 860px;
   }
 
   .mono-eyebrow {
     font-family: var(--font-mono);
     font-size: 0.72rem;
-    letter-spacing: 0.08em;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
     color: var(--accent);
     margin-bottom: 1.4rem;
+    display: inline-block;
+    border: 1.5px solid var(--accent);
+    padding: 0.3rem 0.7rem;
+    border-radius: 4px;
   }
 
   h1 {
-    font-size: clamp(2.6rem, 7vw, 4.6rem);
-    font-weight: 700;
-    letter-spacing: -0.045em;
-    line-height: 1.02;
+    font-size: clamp(3rem, 8.5vw, 6rem);
+    font-weight: 800;
+    letter-spacing: -0.05em;
+    line-height: 0.98;
   }
 
   .hl-line {
@@ -197,17 +215,17 @@ const groups = [
   }
 
   .btn-primary {
-    background: var(--ink);
-    color: var(--bg);
-    font-weight: 600;
-    font-size: 0.92rem;
-    padding: 0.7rem 1.4rem;
-    border-radius: 999px;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 0.8rem 1.6rem;
+    border-radius: 8px;
     transition: transform 0.15s ease, background 0.15s ease;
   }
 
   .btn-primary:hover {
-    background: var(--accent);
+    background: var(--ink);
   }
 
   .btn-primary:active {
@@ -381,10 +399,73 @@ const groups = [
 
   .fact dd {
     font-family: var(--font-mono);
-    font-size: 1.7rem;
-    font-weight: 600;
+    font-size: 2.4rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
     color: var(--ink);
     font-variant-numeric: tabular-nums;
+  }
+
+  /* ---- latest additions: bold list ---- */
+  .latest {
+    padding: 3.5rem 0 3rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .latest h2 {
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+  }
+
+  .latest-tag {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    background: var(--accent);
+    color: #fff;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+  }
+
+  .latest ul {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+
+  .latest li {
+    background: var(--bg);
+    padding: 1.2rem 1.3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    transition: background 0.15s ease;
+  }
+
+  .latest li:hover {
+    background: var(--panel);
+  }
+
+  .latest li strong {
+    font-size: 0.98rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .latest li span {
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    color: var(--muted);
   }
 
   /* ---- docs entry: 2-col list, hover slide ---- */
@@ -457,6 +538,9 @@ const groups = [
     .doc-links {
       grid-template-columns: 1fr;
       gap: 0;
+    }
+    .latest ul {
+      grid-template-columns: 1fr;
     }
     .doc-links .desc {
       display: none;
