@@ -34,23 +34,37 @@ describe('CPUProfiler', () => {
     expect(result).toHaveProperty('totalSamples');
   });
 
-  it('should capture samples', () => {
+  it('should capture samples', async () => {
     profiler.startSampling(10);
-    
-    setTimeout(() => {
-      const result = profiler.stopSampling();
-      expect(result.samples.length).toBeGreaterThan(0);
-    }, 50);
+
+    await new Promise<void>((resolve, reject) => {
+      setTimeout(() => {
+        try {
+          const result = profiler.stopSampling();
+          expect(result.samples.length).toBeGreaterThan(0);
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      }, 50);
+    });
   });
 
-  it('should limit samples to maxSamples', () => {
+  it('should limit samples to maxSamples', async () => {
     const limitedProfiler = createCPUProfiler({ maxSamples: 5 });
     limitedProfiler.startSampling(1);
-    
-    setTimeout(() => {
-      const result = limitedProfiler.stopSampling();
-      expect(result.samples.length).toBeLessThanOrEqual(5);
-    }, 50);
+
+    await new Promise<void>((resolve, reject) => {
+      setTimeout(() => {
+        try {
+          const result = limitedProfiler.stopSampling();
+          expect(result.samples.length).toBeLessThanOrEqual(5);
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      }, 50);
+    });
   });
 
   it('should throw on double start', () => {
