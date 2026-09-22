@@ -1,10 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { execFileSync } from 'child_process';
-import { existsSync, readFileSync, rmSync, mkdirSync } from 'fs';
+import { existsSync, readFileSync, rmSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
-const CLI = join(__dirname, '../../dist/cli.js');
-const TMP = join(__dirname, '../../.tmp-cli-test');
+const ROOT = join(__dirname, '../..');
+const CLI = join(ROOT, 'dist/cli.js');
+const TMP = join(ROOT, '.tmp-cli-test');
+
+beforeAll(() => {
+  if (!existsSync(CLI)) {
+    execFileSync('npm', ['run', 'build'], { cwd: ROOT, stdio: 'pipe' });
+  }
+}, 120_000);
 
 describe('tsgate CLI', () => {
   it('prints usage on unknown command', () => {
@@ -43,7 +50,7 @@ describe('tsgate CLI', () => {
     rmSync(TMP, { recursive: true, force: true });
     mkdirSync(TMP, { recursive: true });
     const bad = join(TMP, 'bad.json');
-    require('fs').writeFileSync(bad, '{ not json');
+    writeFileSync(bad, '{ not json');
     try {
       execFileSync('node', [CLI, 'validate', '-c', bad], { encoding: 'utf-8', stdio: 'pipe' });
       expect.unreachable();
