@@ -158,6 +158,43 @@ describe('UrlForwarder', () => {
     await expect(pending).rejects.toThrow(/client disconnected/i);
   });
 
+  it('coalesces concurrent identical GETs into one upstream fetch', async () => {
+    let hits = 0;
+    const upstream = await startUpstream((req, res) => {
+      hits++;
+      setTimeout(() => { res.writeHead(200); res.end(`hit-${hits}`); }, 40);
+    });
+    const forwarder = new UrlForwarder(new HttpClientPool());
+
+    const [a, b, c] = await Promise.all([
+      forwarder.share({ method: 'GET', path: '/same', headers: {}, upstream, timeout: 5000 }),
+      forwarder.share({ method: 'GET', path: '/same', headers: {}, upstream, timeout: 5000 }),
+      forwarder.share({ method: 'GET', path: '/same', headers: {}, upstream, timeout: 5000 }),
+    ]);
+
+    expect(hits).toBe(1);
+    expect(a.body?.toString()).toBe('hit-1');
+    expect(b.body?.toString()).toBe('hit-1');
+    expect(c.body?.toString()).toBe('hit-1');
+  });
+
+  it('does not coalesce non-idempotent methods or different paths', async () => {
+    let hits = 0;
+    const upstream = await startUpstream((req, res) => {
+      hits++;
+      res.writeHead(200); res.end('ok');
+    });
+    const forwarder = new UrlForwarder(new HttpClientPool());
+
+    await Promise.all([
+      forwarder.share({ method: 'POST', path: '/x', headers: {}, upstream, timeout: 5000 }),
+      forwarder.share({ method: 'POST', path: '/x', headers: {}, upstream, timeout: 5000 }),
+      forwarder.share({ method: 'GET', path: '/a', headers: {}, upstream, timeout: 5000 }),
+      forwarder.share({ method: 'GET', path: '/b', headers: {}, upstream, timeout: 5000 }),
+    ]);
+    expect(hits).toBe(4);
+  });
+
   it('rejects immediately when the signal is already aborted', async () => {
     const upstream = await startUpstream((req, res) => { res.writeHead(200); res.end('ok'); });
     const forwarder = new UrlForwarder(new HttpClientPool());

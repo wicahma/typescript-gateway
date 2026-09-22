@@ -26,9 +26,32 @@ export interface ForwardResult {
 
 export class UrlForwarder {
   private clientPool: HttpClientPool;
+  private inflight: Map<string, Promise<ForwardResult>> = new Map();
 
   constructor(clientPool: HttpClientPool) {
     this.clientPool = clientPool;
+  }
+
+  /**
+   * Coalescing wrapper: identical idempotent requests (same method + URL)
+   * that arrive while one is already in flight share its result instead of
+   * each hitting the upstream — collapses cache-miss stampedes to a single
+   * upstream fetch. First caller owns the fetch; the rest await the same
+   * promise. Only safe for GET/HEAD (responses must be shareable).
+   */
+  share(request: ForwardRequest): Promise<ForwardResult> {
+    const isIdempotent = request.method === 'GET' || request.method === 'HEAD';
+    const flightKey = `${request.method} ${request.upstream.id} ${request.upstream.basePath}${request.path}`;
+    if (!isIdempotent) return this.forward(request);
+
+    const existing = this.inflight.get(flightKey);
+    if (existing) return existing;
+
+    const flight = this.forward(request).finally(() => {
+      this.inflight.delete(flightKey);
+    });
+    this.inflight.set(flightKey, flight);
+    return flight;
   }
 
   async forward(request: ForwardRequest): Promise<ForwardResult> {

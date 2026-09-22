@@ -393,7 +393,10 @@ export class ProxyHandler {
     ctx.req.on('close', onClose);
 
     try {
-      const result = await this.urlForwarder.forward({
+      // Coalesce identical in-flight GET/HEAD fetches (stampede guard)
+      const useShare = ctx.method === 'GET' || ctx.method === 'HEAD';
+      const dispatch = useShare ? this.urlForwarder.share.bind(this.urlForwarder) : this.urlForwarder.forward.bind(this.urlForwarder);
+      const result = await dispatch({
         method: ctx.method,
         path,
         headers,
