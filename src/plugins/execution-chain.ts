@@ -173,7 +173,16 @@ export class PluginExecutionChain {
         });
         break;
       }
-      
+
+      // ponytail: hooks declared in plugin.asyncHooks run off the request
+      // path (microtask, no await). Ceiling: no backpressure — if an async
+      // hook is slower than request throughput, microtasks accumulate.
+      // Upgrade path: cap with a bounded queue + drop counter.
+      if (wrapper.plugin.asyncHooks?.includes(hook)) {
+        results.push(this.scheduleAsyncHook(wrapper, hook, ctx, error));
+        continue;
+      }
+
       const result = await this.executePluginHook(wrapper, hook, ctx, error);
       results.push(result);
       
@@ -190,6 +199,62 @@ export class PluginExecutionChain {
     return results;
   }
   
+  /**
+   * Schedule a hook fire-and-forget on the microtask queue.
+   * Returns a placeholder result immediately; the hook executes after the
+   * request path continues. Errors and timeouts are logged + counted in
+   * metrics, never thrown to the caller.
+   */
+  private scheduleAsyncHook(
+    wrapper: PluginWrapper,
+    hook: PluginHook,
+    ctx: RequestContext,
+    error?: Error
+  ): PluginExecutionResult {
+    setImmediate(async () => {
+      const startTime = process.hrtime.bigint();
+      let timedOut = false;
+      let executionError: Error | undefined;
+
+      try {
+        const hookFn = this.getHookFunction(wrapper.plugin, hook);
+        if (!hookFn) return;
+
+        await this.executeWithTimeout(
+          () => hookFn.call(wrapper.plugin, ctx, error),
+          wrapper.timeout,
+          `${wrapper.plugin.name}.${hook} (async)`
+        );
+      } catch (err) {
+        executionError = err instanceof Error ? err : new Error(String(err));
+        timedOut = executionError.message.includes('timed out');
+        logger.error(
+          { err: executionError, plugin: wrapper.plugin.name, hook, timedOut },
+          'Async plugin execution error'
+        );
+      }
+
+      if (this.defaultOptions.collectMetrics) {
+        const durationMicros = Number(process.hrtime.bigint() - startTime) / 1000;
+        pluginMetricsCollector.recordExecution(
+          wrapper.plugin.name,
+          durationMicros,
+          !executionError,
+          timedOut
+        );
+      }
+    });
+
+    return {
+      plugin: wrapper.plugin.name,
+      hook,
+      duration: 0,
+      success: true,
+      timedOut: false,
+      shortCircuited: false,
+    };
+  }
+
   /**
    * Execute a specific plugin hook
    */

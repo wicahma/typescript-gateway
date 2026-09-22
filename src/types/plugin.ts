@@ -40,6 +40,15 @@ export interface Plugin {
   author?: string;
 
   /**
+   * Declares which hooks may run off the request path (fire-and-forget).
+   * Hooks listed here execute asynchronously via a microtask queue:
+   * the gateway does not await their completion before continuing.
+   * Safe only for hooks that do NOT mutate the request/response flow
+   * (e.g. logging, metrics, cleanup). Defaults to empty (all synchronous).
+   */
+  asyncHooks?: PluginHook[];
+
+  /**
    * Initialize plugin
    * Called once during plugin loading
    */

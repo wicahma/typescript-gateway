@@ -13,6 +13,7 @@ class MockPlugin implements Plugin {
   name: string;
   version = '1.0.0';
   description = 'Mock plugin for testing';
+  asyncHooks?: PluginHook[];
   
   preRouteCalled = false;
   preHandlerCalled = false;
@@ -372,13 +373,76 @@ describe('PluginExecutionChain', () => {
       const plugin = new MockPlugin('test');
       chain.register(plugin);
       await chain.initializeAll();
-      
+
       const ctx = createMockContext();
-      
+
       await chain.executeHook(PluginHook.PRE_ROUTE, ctx);
-      
+
       // Plugin context should be initialized
       expect(ctx.state['__plugins']).toBeDefined();
+    });
+  });
+
+  describe('Async hooks (fire-and-forget)', () => {
+    it('should not block the request path for hooks declared in asyncHooks', async () => {
+      const plugin = new MockPlugin('async-logger');
+      plugin.asyncHooks = [PluginHook.POST_RESPONSE];
+
+      let hookRan = false;
+      plugin.postResponse = () => {
+        hookRan = true;
+      };
+
+      chain.register(plugin);
+      await chain.initializeAll();
+
+      const ctx = createMockContext();
+      const results = await chain.executeHook(PluginHook.POST_RESPONSE, ctx);
+
+      // Request path must NOT see the hook result synchronously
+      expect(hookRan).toBe(false);
+      expect(results[0]?.success).toBe(true);
+      expect(results[0]?.duration).toBe(0);
+
+      // Microtask queue drains on next tick
+      await new Promise((r) => setImmediate(r));
+      expect(hookRan).toBe(true);
+    });
+
+    it('should not leak errors from async hooks to the request path', async () => {
+      const plugin = new MockPlugin('async-error');
+      plugin.asyncHooks = [PluginHook.POST_RESPONSE];
+      plugin.postResponse = () => {
+        throw new Error('async boom');
+      };
+
+      chain.register(plugin);
+      await chain.initializeAll();
+
+      const ctx = createMockContext();
+      const results = await chain.executeHook(PluginHook.POST_RESPONSE, ctx);
+
+      expect(results[0]?.success).toBe(true);
+      // No unhandled rejection
+      await new Promise((r) => setImmediate(r));
+    });
+
+    it('should still execute synchronous hooks inline even when other hooks are async', async () => {
+      const plugin = new MockPlugin('mixed');
+      plugin.asyncHooks = [PluginHook.POST_RESPONSE];
+
+      chain.register(plugin);
+      await chain.initializeAll();
+
+      const ctx = createMockContext();
+
+      await chain.executeHook(PluginHook.PRE_ROUTE, ctx);
+      expect(plugin.preRouteCalled).toBe(true);
+
+      await chain.executeHook(PluginHook.POST_RESPONSE, ctx);
+      expect(plugin.postResponseCalled).toBe(false);
+      await new Promise((r) => setImmediate(r));
+      expect(plugin.postResponseCalled).toBe(true);
     });
   });
 });
