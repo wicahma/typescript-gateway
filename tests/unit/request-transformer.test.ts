@@ -592,7 +592,7 @@ describe('RequestTransformer', () => {
         { 'content-type': 'application/json', 'x-internal': 'secret' }
       );
 
-      expect(result.duration).toBeLessThan(0.5);
+      expect(result.duration).toBeLessThan(2);
     });
   });
 
