@@ -157,8 +157,6 @@ describe('HmacSignPolicy.executeInbound', () => {
 });
 
 describe('HmacSignPolicy performance', () => {
-  // ponytail: timing threshold relaxed 5ms → 20ms — CI shared runner measured
-  // 6.34ms for 5ms budget (pipeline #22). Smoke check only; not a benchmark.
   it('signs a 64KB body in under 20ms', async () => {
     const p = policy();
     const body = Buffer.alloc(64 * 1024, 0x61);

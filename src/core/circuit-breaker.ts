@@ -83,9 +83,6 @@ export class CircuitBreaker {
     if (this.state !== CircuitBreakerState.CLOSED) {
       return this.executeSlow(fn);
     }
-    // ponytail: CLOSED fast-path skips hrtime/duration-logging; still records
-    // success/failure into the sliding window + counters so state transitions
-    // and failure-rate checks behave identically to the slow path.
     try {
       const result = await fn();
       this.metrics.totalRequests++;

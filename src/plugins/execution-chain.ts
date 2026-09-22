@@ -174,10 +174,6 @@ export class PluginExecutionChain {
         break;
       }
 
-      // ponytail: hooks declared in plugin.asyncHooks run off the request
-      // path (microtask, no await). Ceiling: no backpressure — if an async
-      // hook is slower than request throughput, microtasks accumulate.
-      // Upgrade path: cap with a bounded queue + drop counter.
       if (wrapper.plugin.asyncHooks?.includes(hook)) {
         results.push(this.scheduleAsyncHook(wrapper, hook, ctx, error));
         continue;

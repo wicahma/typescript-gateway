@@ -26,8 +26,6 @@ export class Server {
   constructor(config: ServerConfig, router: Router) {
     this.config = config;
     this.router = router;
-    // ponytail: fixed integer sample rate; 1 = log every request (default,
-    // no behavior change). Set higher (e.g. 100) to log 1-in-N requests.
     this.accessLogSampleRate = Math.max(1, (config as unknown as Record<string, unknown>)['accessLogSampleRate'] as number ?? 1);
 
     // Initialize request context pool with configurable size
@@ -198,9 +196,7 @@ export class Server {
       // Record latency
       metrics.recordLatency(startTime);
 
-      // Access logging — sampled when throughput is high so logging itself
-      // does not become the bottleneck. Every Nth request logs in full;
-      // errors (>=500) always log regardless of sampling.
+      // Access logging
       const shouldLog =
         ctx.res.statusCode >= 500 ||
         this.requestIdCounter % this.accessLogSampleRate === 0;

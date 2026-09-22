@@ -310,9 +310,6 @@ describe('CompressionHandler', () => {
       const data = Buffer.from('Test'.repeat(100), 'utf-8');
       const result = await handler.compress(data, 'gzip');
 
-      // ponytail: timing assertions flake on shared CI (measured 2.65ms for a
-      // 2ms threshold). 10ms ceiling keeps the smoke check without flakes.
-      // Upgrade path: replace with statistical bench, not a unit test.
       expect(result.duration).toBeLessThan(10);
     });
 

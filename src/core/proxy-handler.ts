@@ -403,10 +403,6 @@ export class ProxyHandler {
   ): Promise<{ statusCode: number; headers: http.IncomingHttpHeaders; body?: Buffer }> {
     ctx.timestamps.upstreamStart = Date.now();
 
-    // ponytail: AbortController per proxied request; the client socket 'close'
-    // event aborts the in-flight upstream fetch so we stop spending upstream
-    // resources on a caller that is already gone. Ceiling: 'close' also fires
-    // on normal completion — the listener is removed on finally, no leak.
     const ac = new AbortController();
     const onClose = (): void => {
       if (!ctx.responded) ac.abort();
@@ -535,10 +531,6 @@ export class ProxyHandler {
    * then pipes the two sockets. Returns false when the route/upstream
    * cannot be resolved so the server can reject the upgrade.
    *
-   * ponytail: raw bidirectional pipe, no per-frame inspection, no LB
-   * re-selection on upstream failure. Ceiling: a dead upstream kills the
-   * tunnel (no failover mid-stream). Upgrade path: frame-aware proxy with
-   * reconnect.
    */
   public async tunnelUpgrade(
     req: http.IncomingMessage,
@@ -617,9 +609,6 @@ export class ProxyHandler {
    * behaviour as closely as the tunnel case allows.
    */
   private resolveUpstreamForRoute(route: { handler: unknown; path: string }): UpstreamTarget | null {
-    // ponytail: the HTTP path resolves upstreams via the pipeline context;
-    // for tunnels there is no RequestContext yet, so we pick the first
-    // healthy upstream through the load balancer directly.
     const lb = this.loadBalancer;
     if (!lb) return null;
     const lbCtx: LoadBalancerContext = { path: route.path } as LoadBalancerContext;

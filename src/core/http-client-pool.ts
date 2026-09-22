@@ -93,9 +93,6 @@ export class HttpClientPool {
       this.pools.set(poolKey, pool);
     }
 
-    // ponytail: fast path — reuse an idle connection without hrtime timing or
-    // logger.debug; metrics bookkeeping stays (cheap counter/filter pass).
-    // Upgrade path: per-pool free-list head pointer if profiled as a hotspot.
     const connection = this.getIdleConnection(pool);
     if (connection) {
       connection.inUse = true;

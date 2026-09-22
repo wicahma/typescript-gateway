@@ -58,10 +58,6 @@ export class LoadBalancer {
    * Select upstream based on strategy
    */
   select(context?: LoadBalancerContext): UpstreamTarget | null {
-    // ponytail: single-upstream fast path skips hrtime timing, strategy
-    // dispatch, and logger.debug — the common case (most gateways proxy one
-    // upstream per route). Upgrade path: restore the timed slow path if
-    // multi-upstream load-balancing strategies become a hot path in profile.
     if (this.upstreams.length === 1) {
       const only = this.upstreams[0]!;
       if (only.healthy !== false) {

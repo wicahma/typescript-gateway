@@ -62,10 +62,6 @@ export class ResponseCachePolicy implements GatewayPolicy {
     if (!hit) return;
     ctx.state['cacheHit'] = true;
 
-    // ponytail: single-flight per key per SWR window — mark in-flight until
-    // the entry is refreshed (executeOutbound clears the mark), NOT until the
-    // callback returns. One extra upstream fetch per window, no stampede.
-    // Upgrade path: track in-flight promise and coalesce results.
     if (state === 'stale' && this.onStaleRevalidate && !this.revalidating.has(key)) {
       this.revalidating.add(key);
       setImmediate(() => {
