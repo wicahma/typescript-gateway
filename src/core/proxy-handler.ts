@@ -1,4 +1,5 @@
 import http from 'http';
+import { Socket } from 'net';
 import { RequestContext, UpstreamTarget } from '../types/core.js';
 import { BodyParser, ParsedBody } from './body-parser.js';
 import { HttpClientPool } from './http-client-pool.js';
@@ -38,6 +39,13 @@ export interface ProxyHandlerConfig {
   maxResponseSize?: number;
   /** Maximum header size in bytes */
   maxHeaderSize?: number;
+  /**
+   * Enable WebSocket/SSE upgrade tunneling. When true, HTTP Upgrade
+   * requests that match a route are tunneled to the route's upstream:
+   * the gateway performs the upstream handshake, replies 101 to the
+   * client, then pipes both sockets. Default false (upgrade is rejected).
+   */
+  enableWebSocket?: boolean;
 }
 
 /**
@@ -73,6 +81,13 @@ export class ProxyHandler {
   private advancedMetrics: AdvancedMetrics;
   private config: ProxyHandlerConfig;
   private upstreams: UpstreamTarget[] = [];
+  private router?: { match(method: string, path: string): { route: { path: string; handler: unknown } } | null };
+
+  /** Inject a router so upgrade tunneling can resolve routes. Optional —
+   * without it, tunnelUpgrade always refuses (returns false). */
+  public setRouter(router: { match(method: string, path: string): { route: { path: string; handler: unknown } } | null }): void {
+    this.router = router;
+  }
 
   constructor(config?: Partial<ProxyHandlerConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -432,6 +447,104 @@ export class ProxyHandler {
 
     // Fallback to socket address
     return ctx.req.socket.remoteAddress || '';
+  }
+
+  /**
+   * Tunnel an HTTP Upgrade request (WebSocket) to the matched route's
+   * upstream. Performs the upstream handshake, writes 101 to the client,
+   * then pipes the two sockets. Returns false when the route/upstream
+   * cannot be resolved so the server can reject the upgrade.
+   *
+   * ponytail: raw bidirectional pipe, no per-frame inspection, no LB
+   * re-selection on upstream failure. Ceiling: a dead upstream kills the
+   * tunnel (no failover mid-stream). Upgrade path: frame-aware proxy with
+   * reconnect.
+   */
+  public async tunnelUpgrade(
+    req: http.IncomingMessage,
+    clientSocket: Socket,
+    head: Buffer
+  ): Promise<boolean> {
+    if (!this.config.enableWebSocket) return false;
+
+    const method = (req.method || 'GET') as RequestContext['method'];
+    const path = (req.url || '/').split('?')[0] ?? '/';
+    const routeMatch = this.router?.match?.(method, path);
+    if (!routeMatch) return false;
+
+    const upstream = this.resolveUpstreamForRoute(routeMatch.route);
+    if (!upstream) return false;
+
+    const headers: http.OutgoingHttpHeaders = { ...req.headers, host: `${upstream.host}:${upstream.port}` };
+
+    const client = upstream.protocol === 'https' ? await import('node:https') : http;
+    const upstreamReq = client.request({
+      hostname: upstream.host,
+      port: upstream.port,
+      path: (upstream.basePath || '') + (req.url || '/'),
+      method,
+      headers,
+    });
+
+    return await new Promise<boolean>((resolve) => {
+      upstreamReq.on('upgrade', (upstreamRes, upstreamSocket, upstreamHead) => {
+        const responseLines: string[] = [`HTTP/1.1 101 Switching Protocols`];
+        for (const [k, v] of Object.entries(upstreamRes.headers)) {
+          if (v === undefined) continue;
+          responseLines.push(`${k}: ${Array.isArray(v) ? v.join(', ') : v}`);
+        }
+        clientSocket.write(responseLines.join('\r\n') + '\r\n\r\n');
+
+        if (head.length > 0) upstreamSocket.write(head);
+        if (upstreamHead.length > 0) clientSocket.write(upstreamHead);
+
+        upstreamSocket.pipe(clientSocket);
+        clientSocket.pipe(upstreamSocket);
+
+        const closeBoth = (): void => {
+          if (!clientSocket.destroyed) clientSocket.destroy();
+          if (!upstreamSocket.destroyed) upstreamSocket.destroy();
+        };
+        clientSocket.on('error', closeBoth);
+        upstreamSocket.on('error', closeBoth);
+        clientSocket.on('close', closeBoth);
+        upstreamSocket.on('close', closeBoth);
+
+        logger.info({ path, upstream: upstream.id }, 'WebSocket tunnel established');
+        resolve(true);
+      });
+
+      upstreamReq.on('response', (res) => {
+        // Upstream refused the upgrade: forward the status then close.
+        clientSocket.write(`HTTP/1.1 ${res.statusCode ?? 502} Upgrade Refused\r\nConnection: close\r\n\r\n`);
+        clientSocket.destroy();
+        resolve(true);
+      });
+
+      upstreamReq.on('error', (err) => {
+        logger.error({ err, path, upstream: upstream.id }, 'WebSocket upstream handshake failed');
+        clientSocket.destroy();
+        resolve(true); // handled (rejected) — not a "no route" case
+      });
+
+      upstreamReq.end();
+    });
+  }
+
+  /**
+   * Resolve the upstream for a route. Uses the load balancer when the
+   * route has no explicit upstream binding, matching the HTTP path's
+   * behaviour as closely as the tunnel case allows.
+   */
+  private resolveUpstreamForRoute(route: { handler: unknown; path: string }): UpstreamTarget | null {
+    // ponytail: the HTTP path resolves upstreams via the pipeline context;
+    // for tunnels there is no RequestContext yet, so we pick the first
+    // healthy upstream through the load balancer directly.
+    const lb = this.loadBalancer;
+    if (!lb) return null;
+    const lbCtx: LoadBalancerContext = { path: route.path } as LoadBalancerContext;
+    const upstream = lb.select(lbCtx);
+    return upstream ?? null;
   }
 
   /**

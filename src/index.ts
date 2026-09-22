@@ -197,8 +197,16 @@ export class Gateway {
     }));
 
     if (upstreams.length > 0) {
-      this.proxyHandler = new ProxyHandler();
+      const proxyCfg = (config as unknown as Record<string, unknown>)['proxy'] as { enableWebSocket?: boolean } | undefined;
+      const wsEnabled = proxyCfg?.enableWebSocket === true;
+
+      this.proxyHandler = new ProxyHandler(wsEnabled ? { enableWebSocket: true } : undefined);
       this.proxyHandler.initialize(upstreams);
+
+      if (wsEnabled && this.proxyHandler && this.server) {
+        this.proxyHandler.setRouter(this.router);
+        this.server.setProxyHandler(this.proxyHandler);
+      }
 
       const reserved = new Set(['/', '/health', '/metrics']);
       for (const route of config.routes || []) {

@@ -20,6 +20,7 @@ export class Server {
   private activeSockets = new Set<Socket>();
   private isShuttingDown = false;
   private pipeline?: RequestPipeline;
+  private proxyHandler?: { tunnelUpgrade(req: IncomingMessage, socket: Socket, head: Buffer): Promise<boolean> };
 
   constructor(config: ServerConfig, router: Router) {
     this.config = config;
@@ -84,17 +85,26 @@ export class Server {
   }
 
   /**
-   * Handle WebSocket upgrade requests
+   * Handle WebSocket upgrade requests — tunnel via ProxyHandler when
+   * WebSocket support is enabled, otherwise reject.
    */
-  private handleUpgrade(
-    _req: IncomingMessage,
-    socket: Socket,
-    _head: Buffer
-  ): void {
-    // Placeholder for
-    // Currently just destroy the socket
-    logger.debug('WebSocket upgrade requested (not yet supported)');
-    socket.destroy();
+  private handleUpgrade(req: IncomingMessage, socket: Socket, head: Buffer): void {
+    if (!this.proxyHandler) {
+      logger.debug('WebSocket upgrade requested (WebSocket disabled)');
+      socket.destroy();
+      return;
+    }
+    void this.proxyHandler.tunnelUpgrade(req, socket, head).then((tunneled) => {
+      if (!tunneled && !socket.destroyed) {
+        logger.debug({ path: req.url }, 'WebSocket upgrade rejected (no matching route/upstream)');
+        socket.destroy();
+      }
+    });
+  }
+
+  /** Attach a proxy handler capable of tunnelUpgrade. Optional. */
+  setProxyHandler(handler: { tunnelUpgrade(req: IncomingMessage, socket: Socket, head: Buffer): Promise<boolean> }): void {
+    this.proxyHandler = handler;
   }
 
   /**
