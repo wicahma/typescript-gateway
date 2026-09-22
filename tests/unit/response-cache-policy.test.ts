@@ -70,6 +70,46 @@ describe('ResponseCachePolicy', () => {
     expect(await policy.executeInbound?.(makeCtx())).toBeUndefined();
   });
 
+  it('serves stale entry with x-cache STALE and triggers single-flight revalidation', async () => {
+    const revalidateCalls: string[] = [];
+    const policy = new ResponseCachePolicy(cache, {
+      onStaleRevalidate: (key) => { revalidateCalls.push(key); },
+    });
+
+    // Seed cache with entry already expired but inside SWR window
+    const key = cache.generateKey('GET', '/data', {});
+    cache.set(key, {
+      statusCode: 200,
+      headers: { 'content-type': 'text/plain' },
+      body: Buffer.from('stale-body'),
+      cachedAt: Date.now() - 5000, // 5s old, ttl expired
+      ttl: 0,
+      staleWhileRevalidate: 60,
+      size: 10,
+    });
+
+    const staleHit = await policy.executeInbound?.(makeCtx());
+    expect(staleHit).toBeInstanceOf(Response);
+    expect(staleHit!.headers.get('x-cache')).toBe('STALE');
+    expect(await staleHit!.text()).toBe('stale-body');
+
+    // Callback fires once (single-flight) even across concurrent stale hits
+    await new Promise((r) => setImmediate(r));
+    await policy.executeInbound?.(makeCtx());
+    await policy.executeInbound?.(makeCtx());
+    await new Promise((r) => setImmediate(r));
+    expect(revalidateCalls.length).toBe(1);
+  });
+
+  it('does not mark fresh hits as STALE', async () => {
+    const policy = new ResponseCachePolicy(cache);
+    const resp = out(200, 'fresh-body');
+    resp.headers['cache-control'] = 'max-age=60, stale-while-revalidate=60';
+    await policy.executeOutbound?.(makeCtx(), resp);
+    const hit = await policy.executeInbound?.(makeCtx());
+    expect(hit!.headers.get('x-cache')).toBe('HIT');
+  });
+
   it('integrates with RequestPipeline: HIT short-circuits before outbound policies run', async () => {
     let outboundRuns = 0;
     const counter = {

@@ -5,6 +5,13 @@ import { ResponseCache } from './response-cache.js';
 
 interface CachePolicyConfig {
   cacheableMethods?: string[];
+  /**
+   * Background revalidator. When a stale entry is served (stale-while-
+   * revalidate window), the policy invokes this with the cache key so the
+   * gateway can refresh the entry off the request path. The caller decides
+   * how to re-fetch (the policy cannot self-invoke the pipeline).
+   */
+  onStaleRevalidate?: (key: string, ctx: RequestContext) => void;
 }
 
 export class ResponseCachePolicy implements GatewayPolicy {
@@ -12,24 +19,43 @@ export class ResponseCachePolicy implements GatewayPolicy {
 
   private cache: ResponseCache;
   private cacheableMethods: Set<string>;
+  private onStaleRevalidate?: (key: string, ctx: RequestContext) => void;
+  private revalidating = new Set<string>();
 
   constructor(cache: ResponseCache, config: CachePolicyConfig = {}) {
     this.cache = cache;
     this.cacheableMethods = new Set(config.cacheableMethods ?? ['GET', 'HEAD']);
+    this.onStaleRevalidate = config.onStaleRevalidate;
   }
 
   executeInbound(ctx: RequestContext): Response | void {
     if (!this.cacheableMethods.has(ctx.method)) return;
     const key = this.cache.generateKey(ctx.method, ctx.path, ctx.headers);
-    const hit = this.cache.get(key);
+    const { response: hit, state } = this.cache.lookup(key);
     if (!hit) return;
     ctx.state['cacheHit'] = true;
+
+    // ponytail: single-flight per key per SWR window — mark in-flight until
+    // the entry is refreshed (executeOutbound clears the mark), NOT until the
+    // callback returns. One extra upstream fetch per window, no stampede.
+    // Upgrade path: track in-flight promise and coalesce results.
+    if (state === 'stale' && this.onStaleRevalidate && !this.revalidating.has(key)) {
+      this.revalidating.add(key);
+      setImmediate(() => {
+        try {
+          this.onStaleRevalidate?.(key, ctx);
+        } catch {
+          this.revalidating.delete(key);
+        }
+      });
+    }
+
     const headers = new Headers();
     for (const [key, value] of Object.entries(normalizeHeaders(hit.headers))) {
       if (Array.isArray(value)) value.forEach((v) => headers.append(key, v));
       else headers.set(key, String(value));
     }
-    headers.set('x-cache', 'HIT');
+    headers.set('x-cache', state === 'stale' ? 'STALE' : 'HIT');
     return new Response(new Uint8Array(hit.body), {
       status: hit.statusCode,
       headers,
@@ -42,6 +68,7 @@ export class ResponseCachePolicy implements GatewayPolicy {
     const headerRecord = toRecord(response.headers);
     if (!ResponseCache.isCacheable(response.statusCode, headerRecord, ctx.method)) return;
     const key = this.cache.generateKey(ctx.method, ctx.path, ctx.headers);
+    this.revalidating.delete(key); // refresh landed: next SWR window may revalidate
     const cacheControl = ResponseCache.parseCacheControl(
       typeof headerRecord['cache-control'] === 'string' ? headerRecord['cache-control'] : undefined
     );
@@ -52,6 +79,7 @@ export class ResponseCachePolicy implements GatewayPolicy {
       cachedAt: Date.now(),
       ttl: this.cache.getTTL(cacheControl),
       size: response.body.length,
+      staleWhileRevalidate: cacheControl.staleWhileRevalidate,
     });
     response.headers['x-cache'] = 'MISS';
     return response;

@@ -15,6 +15,19 @@ export interface CacheConfig {
 }
 
 /**
+ * Result of a cache lookup: the stored response (if any) plus freshness state.
+ * - 'fresh'  : age <= ttl, serve directly
+ * - 'stale'  : within stale-while-revalidate window, serve + refresh in background
+ * - 'miss'   : not present or expired beyond SWR window
+ */
+export type CacheLookupState = 'fresh' | 'stale' | 'miss';
+
+export interface CacheLookup {
+  response: CachedResponse | null;
+  state: CacheLookupState;
+}
+
+/**
  * Cached response entry
  */
 export interface CachedResponse {
@@ -163,6 +176,42 @@ export class ResponseCache {
     this.updateLRU(key);
 
     return true;
+  }
+
+  /**
+   * Lookup with freshness state. Same read path as get(), but the caller
+   * learns whether the returned entry is fresh or stale-within-SWR so it
+   * can trigger background revalidation. Does NOT delete stale entries.
+   */
+  public lookup(key: string): CacheLookup {
+    const entry = this.cache.get(key);
+    if (!entry) {
+      if (this.config.enableStats) this.stats.misses++;
+      return { response: null, state: 'miss' };
+    }
+
+    const now = Date.now();
+    const age = (now - entry.response.cachedAt) / 1000;
+
+    if (age > entry.response.ttl) {
+      const swr = entry.response.staleWhileRevalidate;
+      if (swr && age <= entry.response.ttl + swr) {
+        if (this.config.enableStats) this.stats.hits++;
+        entry.hits++;
+        entry.lastAccess = now;
+        this.updateLRU(key);
+        return { response: entry.response, state: 'stale' };
+      }
+      this.delete(key);
+      if (this.config.enableStats) this.stats.misses++;
+      return { response: null, state: 'miss' };
+    }
+
+    if (this.config.enableStats) this.stats.hits++;
+    entry.hits++;
+    entry.lastAccess = now;
+    this.updateLRU(key);
+    return { response: entry.response, state: 'fresh' };
   }
 
   /**
