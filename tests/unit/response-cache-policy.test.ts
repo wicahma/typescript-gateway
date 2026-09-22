@@ -138,6 +138,31 @@ describe('ResponseCachePolicy', () => {
     expect(await policy.executeInbound?.(other)).toBeUndefined();
   });
 
+  it('exposes validators (If-None-Match) for conditional revalidation and refresh() restarts freshness', async () => {
+    const policy = new ResponseCachePolicy(cache);
+    const ctx = makeCtx();
+    const resp = out(200, 'cached-with-etag');
+    resp.headers['etag'] = '"abc123"';
+    resp.headers['cache-control'] = 'max-age=60';
+    await policy.executeOutbound?.(ctx, resp);
+
+    const key = cache.generateKey('GET', '/data', {});
+    const validators = policy.validatorsFor(key);
+    expect(validators['if-none-match']).toBe('"abc123"');
+
+    // Force stale, then refresh via 304-style headers
+    const entry = cache.lookup(key).response!;
+    entry.cachedAt = Date.now() - 120_000;
+    entry.ttl = 1;
+    entry.staleWhileRevalidate = 600;
+    expect(cache.lookup(key).state).toBe('stale');
+
+    const refreshed = cache.refresh(key, { etag: '"def456"' });
+    expect(refreshed).toBe(true);
+    expect(cache.lookup(key).state).toBe('fresh');
+    expect(cache.lookup(key).response!.etag).toBe('"def456"');
+  });
+
   it('integrates with RequestPipeline: HIT short-circuits before outbound policies run', async () => {
     let outboundRuns = 0;
     const counter = {

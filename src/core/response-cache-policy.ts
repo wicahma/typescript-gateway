@@ -22,6 +22,21 @@ export class ResponseCachePolicy implements GatewayPolicy {
   private onStaleRevalidate?: (key: string, ctx: RequestContext) => void;
   private revalidating = new Set<string>();
 
+  /**
+   * Conditional headers (If-None-Match / If-Modified-Since) for the entry
+   * currently stored under key — pass them to the upstream fetch inside
+   * onStaleRevalidate so a 304 refreshes the entry via cache.refresh()
+   * without transferring the body again.
+   */
+  public validatorsFor(key: string): Record<string, string> {
+    const entry = this.cache.lookup(key).response;
+    if (!entry) return {};
+    const headers: Record<string, string> = {};
+    if (entry.etag) headers['if-none-match'] = entry.etag;
+    if (entry.lastModified) headers['if-modified-since'] = entry.lastModified;
+    return headers;
+  }
+
   constructor(cache: ResponseCache, config: CachePolicyConfig = {}) {
     this.cache = cache;
     this.cacheableMethods = new Set(config.cacheableMethods ?? ['GET', 'HEAD']);
@@ -103,6 +118,8 @@ export class ResponseCachePolicy implements GatewayPolicy {
       ttl: this.cache.getTTL(cacheControl),
       size: response.body.length,
       staleWhileRevalidate: cacheControl.staleWhileRevalidate,
+      etag: typeof headerRecord['etag'] === 'string' ? headerRecord['etag'] : undefined,
+      lastModified: typeof headerRecord['last-modified'] === 'string' ? headerRecord['last-modified'] : undefined,
     });
     response.headers['x-cache'] = 'MISS';
     return response;
