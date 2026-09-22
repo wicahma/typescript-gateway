@@ -10,6 +10,12 @@ export interface ForwardRequest {
   body?: Buffer | null;
   upstream: UpstreamTarget;
   timeout?: number;
+  /**
+   * Client disconnect signal. When aborted, the upstream request is
+   * destroyed immediately so we stop spending upstream resources on a
+   * caller that is already gone.
+   */
+  signal?: AbortSignal;
 }
 
 export interface ForwardResult {
@@ -26,8 +32,12 @@ export class UrlForwarder {
   }
 
   async forward(request: ForwardRequest): Promise<ForwardResult> {
-    const { method, path, headers, body, upstream } = request;
+    const { method, path, headers, body, upstream, signal } = request;
     const timeout = request.timeout ?? upstream.timeout;
+
+    if (signal?.aborted) {
+      throw new Error('Client disconnected before upstream request');
+    }
 
     return new Promise((resolve, reject) => {
       this.clientPool
@@ -48,6 +58,12 @@ export class UrlForwarder {
             const outHeaders = options.headers as http.OutgoingHttpHeaders;
             outHeaders['content-length'] = body.length;
           }
+
+          const onAbort = (): void => {
+            proxyReq.destroy();
+            this.clientPool.remove(upstream, agent);
+            reject(new Error('Client disconnected during upstream request'));
+          };
 
           const proxyReq = client.request(options, (proxyRes) => {
             const chunks: Buffer[] = [];
@@ -87,6 +103,7 @@ export class UrlForwarder {
           }
 
           proxyReq.end();
+          signal?.addEventListener('abort', onAbort, { once: true });
         })
         .catch(reject);
     });

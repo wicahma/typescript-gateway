@@ -136,4 +136,36 @@ describe('UrlForwarder', () => {
       forwarder.forward({ method: 'GET', path: '/slow', headers: {}, upstream, timeout: 300 })
     ).rejects.toThrow(/timeout/i);
   });
+
+  it('aborts the upstream request when the client disconnects', async () => {
+    let upstreamSawRequest = false;
+    const upstream = await startUpstream((req, res) => {
+      upstreamSawRequest = true;
+      // deliberately slow: 5s response so we can abort mid-flight
+      setTimeout(() => { res.writeHead(200); res.end('late'); }, 5000);
+    });
+    const forwarder = new UrlForwarder(new HttpClientPool());
+    const ac = new AbortController();
+
+    const pending = forwarder.forward({
+      method: 'GET', path: '/slow', headers: {}, upstream, timeout: 10000, signal: ac.signal,
+    });
+
+    await new Promise((r) => setTimeout(r, 50)); // let upstream receive it
+    expect(upstreamSawRequest).toBe(true);
+
+    ac.abort();
+    await expect(pending).rejects.toThrow(/client disconnected/i);
+  });
+
+  it('rejects immediately when the signal is already aborted', async () => {
+    const upstream = await startUpstream((req, res) => { res.writeHead(200); res.end('ok'); });
+    const forwarder = new UrlForwarder(new HttpClientPool());
+    const ac = new AbortController();
+    ac.abort();
+
+    await expect(
+      forwarder.forward({ method: 'GET', path: '/', headers: {}, upstream, timeout: 5000, signal: ac.signal })
+    ).rejects.toThrow(/client disconnected/i);
+  });
 });

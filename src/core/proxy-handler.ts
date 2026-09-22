@@ -366,16 +366,32 @@ export class ProxyHandler {
     body?: Buffer | null
   ): Promise<{ statusCode: number; headers: http.IncomingHttpHeaders; body?: Buffer }> {
     ctx.timestamps.upstreamStart = Date.now();
-    const result = await this.urlForwarder.forward({
-      method: ctx.method,
-      path,
-      headers,
-      body: body ?? ctx.body ?? null,
-      upstream,
-      timeout: this.config.requestTimeout,
-    });
-    ctx.timestamps.upstreamEnd = Date.now();
-    return result;
+
+    // ponytail: AbortController per proxied request; the client socket 'close'
+    // event aborts the in-flight upstream fetch so we stop spending upstream
+    // resources on a caller that is already gone. Ceiling: 'close' also fires
+    // on normal completion — the listener is removed on finally, no leak.
+    const ac = new AbortController();
+    const onClose = (): void => {
+      if (!ctx.responded) ac.abort();
+    };
+    ctx.req.on('close', onClose);
+
+    try {
+      const result = await this.urlForwarder.forward({
+        method: ctx.method,
+        path,
+        headers,
+        body: body ?? ctx.body ?? null,
+        upstream,
+        timeout: this.config.requestTimeout,
+        signal: ac.signal,
+      });
+      ctx.timestamps.upstreamEnd = Date.now();
+      return result;
+    } finally {
+      ctx.req.off('close', onClose);
+    }
   }
 
   /**
