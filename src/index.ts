@@ -5,6 +5,8 @@ import { ResponseCache } from './core/response-cache.js';
 import { ResponseCachePolicy } from './core/response-cache-policy.js';
 import { createConfigLoader } from './config/loader.js';
 import { RequestPipeline } from './pipeline/request-pipeline.js';
+import { PluginPolicy } from './pipeline/policy.js';
+import { Plugin } from './types/plugin.js';
 import { logger } from './utils/logger.js';
 import { metrics } from './utils/metrics.js';
 import { ConfigFile } from './types/config.js';
@@ -78,6 +80,11 @@ export class Gateway {
 
   getRouter(): Router {
     return this.router;
+  }
+
+  registerPlugin(plugin: Plugin, config: Record<string, unknown> = {}): void {
+    this.pipeline.register(new PluginPolicy(plugin, config));
+    plugin.init?.(config);
   }
 
   getServer(): Server | null {
@@ -202,6 +209,7 @@ export class Gateway {
 
       this.proxyHandler = new ProxyHandler(wsEnabled ? { enableWebSocket: true } : undefined);
       this.proxyHandler.initialize(upstreams);
+      this.proxyHandler.setPipeline(this.pipeline);
 
       if (wsEnabled && this.proxyHandler && this.server) {
         this.proxyHandler.setRouter(this.router);

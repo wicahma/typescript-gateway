@@ -12,6 +12,8 @@ import { ResponseTransformer, ResponseTransformation } from './response-transfor
 import { CompressionHandler } from './compression-handler.js';
 import { AdvancedMetrics } from './advanced-metrics.js';
 import { logger } from '../utils/logger.js';
+import { RequestPipeline } from '../pipeline/request-pipeline.js';
+import { OutboundResponse } from '../pipeline/policy.js';
 
 /**
  * Proxy handler configuration
@@ -96,6 +98,12 @@ export class ProxyHandler {
    * without it, tunnelUpgrade always refuses (returns false). */
   public setRouter(router: { match(method: string, path: string): { route: { path: string; handler: unknown } } | null }): void {
     this.router = router;
+  }
+
+  private pipeline?: RequestPipeline;
+
+  public setPipeline(pipeline: RequestPipeline): void {
+    this.pipeline = pipeline;
   }
 
   constructor(config?: Partial<ProxyHandlerConfig>) {
@@ -300,6 +308,18 @@ export class ProxyHandler {
         }
 
         responseSize = finalResponseBody.length;
+      }
+
+      // Step 7b: outbound policy pipeline (plugins etc.)
+      if (this.pipeline) {
+        const out: OutboundResponse = await this.pipeline.runOutbound(ctx, {
+          statusCode: finalStatusCode,
+          headers: finalHeaders,
+          body: finalResponseBody,
+        });
+        finalStatusCode = out.statusCode;
+        finalHeaders = out.headers;
+        finalResponseBody = out.body;
       }
 
       // Step 8: Send response
