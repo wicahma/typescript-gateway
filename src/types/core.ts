@@ -83,6 +83,13 @@ export interface Route {
   handler: RouteHandler;
   /** Priority for route matching (higher = checked first) */
   priority: number;
+  /**
+   * Per-route upstream timeout override in milliseconds.
+   * When set, proxying this route uses it instead of the global
+   * requestTimeout. Useful for a slow-report route without inflating
+   * the global budget.
+   */
+  timeout?: number;
   /** Compiled regex for dynamic routes (cached) */
   pattern?: RegExp;
   /** Parameter names for dynamic routes */

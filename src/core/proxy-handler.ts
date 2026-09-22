@@ -384,7 +384,7 @@ export class ProxyHandler {
         headers,
         body: body ?? ctx.body ?? null,
         upstream,
-        timeout: this.config.requestTimeout,
+        timeout: ctx.route?.route.timeout ?? this.config.requestTimeout,
         signal: ac.signal,
       });
       ctx.timestamps.upstreamEnd = Date.now();

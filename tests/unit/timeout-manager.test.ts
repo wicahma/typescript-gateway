@@ -254,6 +254,20 @@ describe('TimeoutManager', () => {
     });
   });
 
+  describe('Route timeout override', () => {
+    it('prefers per-route timeout over global when both set', () => {
+      const route = { timeout: 123 } as { timeout?: number };
+      const effective = route.timeout ?? timeoutManager.getTimeout('upstream');
+      expect(effective).toBe(123);
+    });
+
+    it('falls back to global when route has no override', () => {
+      const route = {} as { timeout?: number };
+      const effective = route.timeout ?? timeoutManager.getTimeout('upstream');
+      expect(effective).toBe(20000);
+    });
+  });
+
   describe('Cleanup', () => {
     it('should cleanup on success', async () => {
       const fn = async () => {
