@@ -17,6 +17,7 @@ export class Server {
   private config: ServerConfig;
   private contextPool: ContextPool;
   private requestIdCounter = 0;
+  private accessLogSampleRate: number;
   private activeSockets = new Set<Socket>();
   private isShuttingDown = false;
   private pipeline?: RequestPipeline;
@@ -25,6 +26,9 @@ export class Server {
   constructor(config: ServerConfig, router: Router) {
     this.config = config;
     this.router = router;
+    // ponytail: fixed integer sample rate; 1 = log every request (default,
+    // no behavior change). Set higher (e.g. 100) to log 1-in-N requests.
+    this.accessLogSampleRate = Math.max(1, (config as unknown as Record<string, unknown>)['accessLogSampleRate'] as number ?? 1);
 
     // Initialize request context pool with configurable size
     this.contextPool = new ContextPool(1000);
@@ -194,17 +198,24 @@ export class Server {
       // Record latency
       metrics.recordLatency(startTime);
 
-      // Access logging
-      logger.info(
-        {
-          requestId: ctx.requestId,
-          method: ctx.method,
-          path: ctx.path,
-          status: ctx.res.statusCode,
-          durationMs: Number(process.hrtime.bigint() - startTime) / 1_000_000,
-        },
-        'Request completed'
-      );
+      // Access logging — sampled when throughput is high so logging itself
+      // does not become the bottleneck. Every Nth request logs in full;
+      // errors (>=500) always log regardless of sampling.
+      const shouldLog =
+        ctx.res.statusCode >= 500 ||
+        this.requestIdCounter % this.accessLogSampleRate === 0;
+      if (shouldLog) {
+        logger.info(
+          {
+            requestId: ctx.requestId,
+            method: ctx.method,
+            path: ctx.path,
+            status: ctx.res.statusCode,
+            durationMs: Number(process.hrtime.bigint() - startTime) / 1_000_000,
+          },
+          'Request completed'
+        );
+      }
 
       // Release context back to pool
       this.contextPool.release(ctx);
