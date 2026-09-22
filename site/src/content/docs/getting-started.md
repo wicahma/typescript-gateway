@@ -1,100 +1,149 @@
 ---
 title: "Getting Started"
-description: "How to install, configure, build, and run the TypeScript Service Gateway with zero runtime dependencies."
+description: "From zero to a running gateway in about two minutes. No framework knowledge needed."
 order: 1
 section: "Guide"
+track: "guide"
 ---
 
 # Getting Started
 
-TypeScript Service Gateway is an ultra-low-latency HTTP reverse proxy and API gateway with **zero runtime dependencies** (`dependencies: {}`). Everything executes on Node.js native primitives (`node:http`, `node:zlib`, `node:crypto`).
+TypeScript Gateway is a reverse proxy and API gateway written in pure
+TypeScript on top of Node's built-in `node:http`. There is no framework
+underneath — install it, write one JSON file, and you have a gateway.
 
-## Prerequisites
+## What you'll need
 
-- **Node.js**: `v20.x` or `v22.x` LTS
-- **Package Manager**: `npm`, `pnpm`, or `bun`
-- **TypeScript**: `^6.0.3` (dev only)
+- **Node.js 20 or newer** — check with `node -v`
+- A backend to proxy to (any HTTP service; for trying things out,
+  `python3 -m http.server 3000` works fine)
 
-## Installation
+That's the whole list.
 
-Clone the repository and install development dependencies (compiler, linter, test runner):
-
-```bash
-git clone https://github.com/wicahma/typescript-gateway.git
-cd typescript-gateway
-npm install
-```
-
-## Running the Gateway
-
-### 1. Development Mode (Hot Execution via tsx)
+## Install
 
 ```bash
-PORT=8088 npm run dev
+npm install -g typescript-gateway
 ```
 
-*Note: Default port in `config/gateway.config.json` is `3000`. If port 3000 is occupied by homelab or CI services, override it via the `PORT` environment variable.*
-
-### 2. Production Mode
-
-The repository includes a `prestart` lifecycle hook that automatically builds TypeScript before starting Node:
+Or straight from GitHub while the npm name settles:
 
 ```bash
-PORT=8088 npm start
+npm install -g github:wicahma/typescript-gateway
 ```
 
-Manual compile and start:
+## Create your first gateway
 
 ```bash
-npm run build
-PORT=8088 node dist/index.js
+mkdir my-gateway && cd my-gateway
+tsgate init
 ```
 
-### 3. Custom Configuration Path
+`init` scaffolds three things:
 
-```bash
-PORT=8080 CONFIG_PATH=./config/production.json npm start
+```
+my-gateway/
+├── package.json
+├── gateway.config.json   ← routes, upstreams, plugins
+└── plugins/
+    └── hello.ts          ← an example plugin
 ```
 
-## Built-in System Endpoints
+Open `gateway.config.json` — the important part is tiny:
 
-The gateway reserves three core routes that are handled in-memory without upstream forwarding:
-
-### Health Check (`GET /health`)
-```bash
-curl -i http://localhost:8088/health
-```
 ```json
 {
-  "status": "ok",
-  "uptime": 14.82
+  "server": { "port": 8088 },
+  "routes": [{ "method": "GET", "path": "/api/*" }],
+  "upstreams": [{ "id": "backend", "host": "localhost", "port": 3000 }]
 }
 ```
 
-### Metrics Snapshot (`GET /metrics`)
+Read it as: *"requests to `GET /api/**` go to the service on
+`localhost:3000`"*. Everything else has sensible defaults.
+
+## Run it
+
+Start a throwaway backend first so you can see traffic flow:
+
 ```bash
-curl -i http://localhost:8088/metrics
+python3 -m http.server 3000 &
 ```
-Returns latency histograms (P50, P90, P99), active connections, upstream status, and error counts.
 
-### Root Identifier (`GET /`)
+Then start the gateway:
+
 ```bash
-curl -i http://localhost:8088/
+tsgate start
 ```
-Returns plaintext: `TypeScript Service Gateway`.
 
-## Running the Test Suite
+You should see `Gateway started` on port 8088. Try it:
 
 ```bash
-# Run full suite (37 files, 732 tests)
-npm test
+curl http://localhost:8088/health
+curl http://localhost:8088/api/test
+```
 
-# Unit tests only
-npm run test:unit
+The second request was proxied to your backend — and the response carries an
+`x-hello: from tsgate plugin` header. That header came from
+`plugins/hello.ts`, the example plugin that `init` created. You just ran a
+gateway with a working plugin without writing any code.
 
-# Typecheck without emit
-npm run typecheck
+## Your first plugin
 
-# Code quality check
-npm run lint
+Open `plugins/hello.ts`:
+
+```ts
+import type { Plugin } from 'typescript-gateway';
+
+const plugin: Plugin = {
+  name: 'hello',
+  version: '1.0.0',
+  description: 'Adds a response header',
+
+  async postHandler(ctx) {
+    ctx.state['pluginHeaders'] = { 'x-hello': 'from tsgate plugin' };
+  },
+};
+
+export default plugin;
+```
+
+Every `.ts` file in `plugins/` is loaded at startup. Hooks available:
+`preRoute`, `preHandler` (before the upstream call), `postHandler`,
+`postResponse` (after), `onError`, plus `init` and `destroy` for setup and
+teardown. To change response headers, put them in `ctx.state.pluginHeaders` —
+they get merged into the final response.
+
+> **Note:** setting headers directly on `ctx.res` in `postHandler` won't
+> survive — the proxy writes upstream headers after your hook runs. Use
+> `ctx.state.pluginHeaders` instead.
+
+## Check your config without starting
+
+```bash
+tsgate validate
+```
+
+Prints `OK: ... (N routes, M upstreams)` or tells you exactly what's wrong.
+
+## Where to go next
+
+- **Recipes** — real-world setups: auth, rate limiting, caching, load
+  balancing. See [Usage Guide](/docs/usage).
+- **Configuration** — every option in `gateway.config.json`, explained. See
+  [Configuration](/docs/configuration).
+- **How it works** — the request lifecycle, from socket to upstream and back.
+  See [Architecture](/docs/architecture).
+- **Deep dives** — the Reference section in the sidebar documents each
+  subsystem in full detail.
+
+## Embedding in your own app
+
+The CLI is optional. The gateway is a library too:
+
+```ts
+import { Gateway } from 'typescript-gateway';
+
+const gateway = new Gateway('./gateway.config.json');
+await gateway.start();
 ```

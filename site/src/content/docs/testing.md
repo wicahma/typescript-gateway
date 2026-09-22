@@ -3,6 +3,7 @@ title: "Testing & Benchmarks"
 description: "Running the test suites, reproducible performance benchmarks, and known ceilings."
 order: 13
 section: "Guide"
+track: "reference"
 ---
 
 # Testing & Benchmarks

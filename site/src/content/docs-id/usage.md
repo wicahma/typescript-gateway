@@ -1,18 +1,16 @@
 ---
-title: "Usage Guide"
-description: "Practical recipes: proxying, auth, rate limiting, caching, load balancing, and custom plugins."
+title: "Panduan Penggunaan"
+description: "Resep praktis: proxying, auth, rate limiting, caching, load balancing, dan plugin kustom."
 order: 12
 section: "Guide"
 track: "guide"
 ---
 
-# Usage Guide
+Resep end-to-end buat setup gateway yang paling umum. Semua contoh memakai skema config asli dari `src/types/config.ts` dan `src/types/identity.ts` — nggak ada yang sekadar wacana.
 
-End-to-end recipes for the most common gateway setups. All examples use the real config schema from `src/types/config.ts` and `src/types/identity.ts` — nothing here is aspirational.
+## Reverse Proxy Dasar
 
-## Basic Reverse Proxy
-
-Route traffic to a single backend. Routes not in the reserved set (`/`, `/health`, `/metrics`) are proxied to the first configured upstream.
+Arahkan traffic ke satu backend. Route yang tidak termasuk daftar reserved (`/`, `/health`, `/metrics`) akan di-proxy ke upstream pertama yang dikonfigurasi.
 
 ```json
 {
@@ -45,9 +43,9 @@ Route traffic to a single backend. Routes not in the reserved set (`/`, `/health
 }
 ```
 
-Path patterns: `:param` captures one segment, `*` is a terminal wildcard. A trailing slash is equivalent to no trailing slash. Reserved paths (`/`, `/health`, `/metrics`) are always handled by the gateway itself.
+Pola path: `:param` menangkap satu segmen, `*` adalah wildcard di ujung. Trailing slash dianggap sama dengan tanpa trailing slash. Path reserved (`/`, `/health`, `/metrics`) selalu ditangani oleh gateway sendiri.
 
-Run and verify:
+Jalankan dan verifikasi:
 
 ```bash
 PORT=8088 npm start
@@ -55,9 +53,9 @@ curl http://localhost:8088/api/42          # -> proxied to backend /api/42
 curl http://localhost:8088/health          # -> gateway health report
 ```
 
-## JWT Authentication
+## Autentikasi JWT
 
-Enabled when an `auth` block is present and `enabled !== false`. JWTs are verified against a JWKS (`node:crypto` only — no external JWT library). Invalid tokens get a 401 `application/problem+json` response; valid identity lands in `ctx.state.user`.
+Aktif saat blok `auth` ada dan `enabled !== false`. JWT diverifikasi terhadap JWKS (`node:crypto` saja — tanpa library JWT eksternal). Token yang tidak valid dapat response 401 `application/problem+json`; identitas yang valid masuk ke `ctx.state.user`.
 
 ```json
 {
@@ -72,9 +70,9 @@ Enabled when an `auth` block is present and `enabled !== false`. JWTs are verifi
 }
 ```
 
-## API Keys + Per-Consumer Rate Limits
+## API Key + Rate Limit per Consumer
 
-Enabled when `apiKeys.enabled` and `apiKeys.consumers` are set. Two policies are registered automatically: `ApiKeyPolicy` (validates `x-api-key` against issued keys) and `ConsumerRateLimitPolicy` (per-consumer quota).
+Aktif saat `apiKeys.enabled` dan `apiKeys.consumers` di-set. Dua policy otomatis didaftarkan: `ApiKeyPolicy` (memvalidasi `x-api-key` terhadap key yang diterbitkan) dan `ConsumerRateLimitPolicy` (kuota per consumer).
 
 ```json
 {
@@ -102,11 +100,11 @@ Enabled when `apiKeys.enabled` and `apiKeys.consumers` are set. Two policies are
 }
 ```
 
-`rateLimit` is requests per minute per consumer; `0` means unlimited. Keys are resolved through an in-memory `ConsumerStore` with a TTL cache in front — after the first hit, validation is a cache lookup.
+`rateLimit` adalah jumlah request per menit per consumer; `0` berarti unlimited. Key diresolve lewat `ConsumerStore` in-memory dengan TTL cache di depannya — setelah hit pertama, validasi tinggal lookup cache.
 
 ## Response Caching
 
-Enabled when `responseCache.enabled` is set. `ResponseCachePolicy` short-circuits cache hits before the upstream is touched and adds an `x-cache: HIT|MISS` header.
+Aktif saat `responseCache.enabled` di-set. `ResponseCachePolicy` memotong jalan untuk cache hit sebelum upstream disentuh dan menambahkan header `x-cache: HIT|MISS`.
 
 ```json
 {
@@ -114,9 +112,9 @@ Enabled when `responseCache.enabled` is set. `ResponseCachePolicy` short-circuit
 }
 ```
 
-## Upstream Credential Injection + HMAC Signing
+## Injeksi Kredensial Upstream + HMAC Signing
 
-For upstreams that require static headers or HMAC request signing (e.g. internal services behind a signature check). Credentials live in the gateway config; headers are injected (or signatures computed) right before forwarding.
+Buat upstream yang butuh header statis atau HMAC request signing (misalnya service internal di balik pemeriksaan signature). Kredensial disimpan di config gateway; header diinjeksikan (atau signature dihitung) tepat sebelum diteruskan.
 
 ```json
 {
@@ -135,11 +133,11 @@ For upstreams that require static headers or HMAC request signing (e.g. internal
 }
 ```
 
-Secrets support env interpolation (`${VAR}` / `${VAR:-default}`) — never commit raw secrets.
+Secret mendukung interpolasi env (`${VAR}` / `${VAR:-default}`) — jangan pernah commit secret mentah.
 
-## Custom Plugin (Code-Level)
+## Plugin Kustom (Level Kode)
 
-The declarative `plugins` array exists in the schema, but the pipeline policies are wired programmatically in `src/index.ts`. To add your own inbound/outbound logic, implement the `GatewayPolicy` interface (`src/pipeline/policy.ts`) and register it:
+Array `plugins` deklaratif memang ada di skema, tapi policy pipeline dirakit secara programatik di `src/index.ts`. Buat menambahkan logika inbound/outbound sendiri, implementasikan interface `GatewayPolicy` (`src/pipeline/policy.ts`) lalu daftarkan:
 
 ```ts
 import { GatewayPolicy, RequestContext, OutboundResponse } from './pipeline/policy.js';
@@ -170,11 +168,11 @@ class TenantHeaderPolicy implements GatewayPolicy {
 pipeline.register(new TenantHeaderPolicy());
 ```
 
-Execution order = registration order. The first inbound policy returning a `Response` short-circuits the chain (upstream never sees the request). Outbound policies compose left-to-right over the `OutboundResponse`.
+Urutan eksekusi = urutan registrasi. Policy inbound pertama yang mengembalikan `Response` memotong rantai (upstream tidak pernah melihat request-nya). Policy outbound dikomposisikan kiri-ke-kanan atas `OutboundResponse`.
 
-## Programmatic Rate Limiting (Plugin Hook API)
+## Rate Limiting Programatik (Plugin Hook API)
 
-For limiter strategies beyond the consumer quota above, the `Plugin` hook API (`src/types/plugin.ts`) + `RateLimitPlugin` (`src/plugins/builtin/rate-limit-plugin.ts`) supports token-bucket and sliding-window strategies keyed by IP, header, upstream, or consumer:
+Buat strategi limiter di luar kuota consumer di atas, `Plugin` hook API (`src/types/plugin.ts`) + `RateLimitPlugin` (`src/plugins/builtin/rate-limit-plugin.ts`) mendukung strategi token-bucket dan sliding-window dengan key berdasarkan IP, header, upstream, atau consumer:
 
 ```ts
 import { createRateLimitPlugin } from './plugins/builtin/rate-limit-plugin.js';
@@ -189,11 +187,11 @@ const limiter = createRateLimitPlugin({
 // register on a PluginExecutionChain or run preRoute manually
 ```
 
-Token bucket absorbs short bursts at a sustained average; sliding window enforces hard "N per minute" quotas. Both are in-memory and zero-dependency.
+Token bucket menyerap burst singkat dengan rata-rata yang stabil; sliding window menegakkan kuota keras "N per menit". Keduanya in-memory dan tanpa dependensi.
 
-## Load Balancing Across Upstreams
+## Load Balancing Antar Upstream
 
-Multiple upstreams with the same role are selected per request by the `LoadBalancer` (round-robin / ip-hash / weighted; health-aware). Mark a `weight` per upstream to skew traffic:
+Beberapa upstream dengan peran yang sama dipilih per request oleh `LoadBalancer` (round-robin / ip-hash / weighted; sadar kesehatan). Tandai `weight` per upstream untuk memiringkan traffic:
 
 ```json
 {
@@ -204,9 +202,9 @@ Multiple upstreams with the same role are selected per request by the `LoadBalan
 }
 ```
 
-Unhealthy upstreams (per active + passive checks) stop receiving traffic immediately; circuit breakers per upstream prevent retry storms during partial outages.
+Upstream yang tidak sehat (menurut pemeriksaan aktif + pasif) langsung berhenti menerima traffic; circuit breaker per upstream mencegah retry storm saat terjadi gangguan parsial.
 
-## Verifying Your Setup
+## Memverifikasi Setup Kamu
 
 ```bash
 # health + upstream report

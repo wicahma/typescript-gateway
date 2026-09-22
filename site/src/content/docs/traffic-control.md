@@ -1,8 +1,9 @@
 ---
-title: "Traffic Control (F3)"
+title: "Traffic Control"
 description: "Rate limiting, response caching, and load balancing across upstreams."
 order: 6
 section: "Features"
+track: "reference"
 ---
 
 All 3 features in this group are **implemented and verified** — each has a full FSD + ERD spec pair and unit/integration coverage in the repo test suite.

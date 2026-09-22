@@ -1,8 +1,9 @@
 ---
-title: "Core Routing & Proxy (F1)"
+title: "Core Routing & Proxy"
 description: "Radix router, reverse proxy pipeline, policy chaining, and zero-allocation context pooling."
 order: 4
 section: "Features"
+track: "reference"
 ---
 
 All features in this group are **implemented and verified** — each has a full FSD + ERD spec pair and unit/integration coverage in the repo test suite.
@@ -176,7 +177,7 @@ No new `gateway.config.json` fields for the pipeline itself. Wiring happens
 in `src/index.ts`:
 
 - `auth` (object, optional) in config → `AuthJwtPolicy` is registered.
-- `ResponseCachePolicy` is always registered (uses the F3 `ResponseCache`).
+- `ResponseCachePolicy` is always registered (uses `ResponseCache`).
 - `Server.setPipeline(pipeline)` — replaces `preRouteHook` (removed).
 
 Policy registration is programmatic (TypeScript), not declarative —
@@ -266,7 +267,7 @@ Injected via `ProxyHandler.initialize(upstreams)`.
 | All upstreams unhealthy | `LoadBalancer.select` returns null | 503 `service_unavailable` |
 | Upstream timeout (`requestTimeout`) | `proxyReq.destroy()`, agent `remove`d from pool, throw | 504 `gateway_timeout` |
 | Upstream error mid-stream | `proxyRes.on('error')` → agent removed, reject | 502 `bad_gateway` |
-| Circuit breaker OPEN | `breaker.execute` short-circuits without touching the upstream | Fast error, details in F2 Circuit-Breaker |
+| Circuit breaker OPEN | `breaker.execute` short-circuits without touching the upstream | Fast error, details in Resilience → Circuit Breaker |
 | Body without `content-length` (chunked) | `shouldParseBody` false; body still forwarded when `ctx.body` exists | Forwarding continues |
 | Compressible response (large JSON + `accept-encoding: gzip`) | Negotiate + compress + `Content-Encoding` header | Compressed response; ratio metric recorded |
 | Client IP for LB `ip-hash` | `X-Forwarded-For` → `X-Real-IP` → `socket.remoteAddress` (in order) | Sticky routing per IP |

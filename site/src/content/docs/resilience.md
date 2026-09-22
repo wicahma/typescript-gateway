@@ -1,8 +1,9 @@
 ---
-title: "Resilience (F2)"
+title: "Resilience"
 description: "Circuit breaker, retries, health checks, fallbacks, and timeout budgets."
 order: 5
 section: "Features"
+track: "reference"
 ---
 
 All 5 features in this group are **implemented and verified** — each has a full FSD + ERD spec pair and unit/integration coverage in the repo test suite.

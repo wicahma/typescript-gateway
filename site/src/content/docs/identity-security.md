@@ -1,8 +1,9 @@
 ---
-title: "Identity & Security (F7)"
+title: "Identity & Security"
 description: "JWT auth, API-key engine, upstream credential injection, RFC 7807 errors."
 order: 10
 section: "Features"
+track: "reference"
 ---
 
 All 4 features in this group are **implemented and verified** — each has a full FSD + ERD spec pair and unit/integration coverage in the repo test suite.
@@ -96,7 +97,7 @@ All 4 features in this group are **implemented and verified** — each has a ful
 ## JWT Auth Plugin
 
 - **Spec:** The built-in inbound plugin `auth-jwt` acting as an OAuth2/JWT Resource Server: verifies Bearer tokens against a local JWKS (inline in `gateway.config.json`) without external dependencies — only `node:crypto` (`createPublicKey`, `verify`).
-- **Why it matters:** The gateway currently has no built-in auth policy. This plugin is the first identity & security layer (F7) before the API-Key-Engine (M3) and Upstream-Credential-Injection (M4) follow.
+- **Why it matters:** The gateway currently has no built-in auth policy. This plugin is the first identity & security layer before API keys and upstream credential injection followed.
 - **Status:** Implemented. The hook-based plugin `auth-jwt.ts` (8 tests) + the policy pipeline `auth-jwt-policy.ts` (5 tests), both committed and verified in the 790/790 suite.
 
 ### How it works

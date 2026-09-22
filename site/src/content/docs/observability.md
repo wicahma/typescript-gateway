@@ -1,8 +1,9 @@
 ---
-title: "Observability (F5)"
+title: "Observability"
 description: "Lock-free metrics, structured logging, live dashboard, and in-process profiling."
 order: 8
 section: "Features"
+track: "reference"
 ---
 
 All 4 features in this group are **implemented and verified** — each has a full FSD + ERD spec pair and unit/integration coverage in the repo test suite.

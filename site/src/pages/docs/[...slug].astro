@@ -3,47 +3,77 @@ import { getCollection, render } from 'astro:content';
 import Layout from '../../layouts/Layout.astro';
 
 export async function getStaticPaths() {
-  const docs = await getCollection('docs');
-  return docs.map(doc => ({
-    params: { slug: doc.id },
-    props: { doc },
-  }));
+  const en = (await getCollection('docs')).map(doc => ({ params: { slug: doc.id }, props: { doc, lang: 'en' as const } }));
+  const id = (await getCollection('docs-id')).map(doc => ({ params: { slug: `id/${doc.id}` }, props: { doc, lang: 'id' as const } }));
+  return [...en, ...id];
 }
 
-const { doc } = Astro.props;
+const { doc, lang } = Astro.props;
 const { Content } = await render(doc);
 
-const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.data.order);
+const collection = lang === 'id' ? 'docs-id' : 'docs';
+const allDocs = (await getCollection(collection)).sort((a, b) => a.data.order - b.data.order);
+const guides = allDocs.filter(d => d.data.track === 'guide');
+const refs = allDocs.filter(d => d.data.track === 'reference');
+
+const enDocs = await getCollection('docs');
+const idDocs = await getCollection('docs-id');
+const idSet = new Set(idDocs.map(d => d.id));
+
+const baseId = doc.id;
+const altLang = lang === 'id' ? 'en' : 'id';
+const altAvailable = lang === 'id' ? enDocs.some(d => d.id === baseId) : idSet.has(baseId);
+const altHref = lang === 'id' ? `/docs/${baseId}` : `/docs/id/${baseId}`;
+
+const t = {
+  sidebar: lang === 'id' ? 'Dokumentasi' : 'Documentation',
+  guide: lang === 'id' ? 'Panduan' : 'Guides',
+  reference: lang === 'id' ? 'Referensi' : 'Reference',
+  edit: lang === 'id' ? 'Sarankan perubahan di GitHub ↗' : 'Suggest an edit on GitHub ↗',
+  langSwitch: lang === 'id' ? 'EN' : 'ID',
+};
 ---
 
 <Layout
   title={`${doc.data.title} — TypeScript Gateway Docs`}
   description={doc.data.description}
-  canonical={`https://tsgate.diama.dev/docs/${doc.id}`}
+  canonical={`https://tsgate.diama.dev/docs/${lang === 'id' ? `id/${doc.id}` : doc.id}`}
 >
   <div class="docs-wrapper">
     <aside class="sidebar">
       <div class="sidebar-head">
-        <span class="mono-label">Documentation</span>
+        <span class="mono-label">{t.sidebar}</span>
+        {altAvailable ? (
+          <a href={altHref} class="lang-switch" title={altLang === 'id' ? 'Bahasa Indonesia' : 'English'}>{t.langSwitch}</a>
+        ) : (
+          <a href={lang === 'id' ? `/docs/${baseId}` : '/docs/getting-started'} class="lang-switch" title="English">{t.langSwitch}</a>
+        )}
       </div>
       <nav class="sidebar-nav">
-        {
-          allDocs.map(item => (
-            <a
-              href={`/docs/${item.id}`}
-              class:list={['nav-item', { active: item.id === doc.id }]}
-            >
-              <span class="num">{String(item.data.order).padStart(2, '0')}</span>
-              <span class="nav-text">{item.data.title}</span>
-            </a>
-          ))
-        }
+        <span class="nav-group">{t.guide}</span>
+        {guides.map(item => (
+          <a
+            href={lang === 'id' ? `/docs/id/${item.id}` : `/docs/${item.id}`}
+            class:list={['nav-item', { active: item.id === doc.id }]}
+          >
+            <span class="nav-text">{item.data.title}</span>
+          </a>
+        ))}
+        <span class="nav-group">{t.reference}</span>
+        {refs.map(item => (
+          <a
+            href={lang === 'id' ? `/docs/id/${item.id}` : `/docs/${item.id}`}
+            class:list={['nav-item', { active: item.id === doc.id }]}
+          >
+            <span class="nav-text">{item.data.title}</span>
+          </a>
+        ))}
       </nav>
     </aside>
 
     <article class="content">
       <header class="content-header doc-reveal">
-        <p class="section-badge">{doc.data.section}</p>
+        <p class="section-badge">{doc.data.track === 'guide' ? t.guide : t.reference}</p>
         <h1 class="doc-title">{doc.data.title}</h1>
         <p class="description">{doc.data.description}</p>
       </header>
@@ -54,16 +84,13 @@ const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.da
 
       <div class="doc-footer-nav">
         <a href="https://github.com/wicahma/typescript-gateway" target="_blank" rel="noopener noreferrer" class="edit-link">
-          Suggest an edit on GitHub ↗
+          {t.edit}
         </a>
       </div>
     </article>
   </div>
 
-  <script define:vars={{ allDocs: allDocs.map(d => ({ id: d.id, title: d.data.title, desc: d.data.description, section: d.data.section })) }}>
-    // Fuzzy docs search (client-side, zero deps). Subsequence match with
-    // bonus for word starts and consecutive runs — good enough for 12 pages.
-    // Runs deferred: the search overlay lives after this script in the DOM.
+  <script define:vars={{ allDocs: allDocs.map(d => ({ id: d.id, title: d.data.title, desc: d.data.description, section: d.data.section })), langPrefix: lang === 'id' ? '/docs/id/' : '/docs/' }}>
     function initDocsSearch() {
       const trigger = document.getElementById('search-trigger');
       const overlay = document.getElementById('search-overlay');
@@ -72,7 +99,6 @@ const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.da
       if (!trigger || !overlay || !input || !results) return;
 
       function fuzzy(needle, haystack) {
-        // subsequence match; score: consecutive +2, word-start +3, else +1
         let score = 0;
         let hi = 0;
         let prev = -2;
@@ -115,7 +141,7 @@ const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.da
         }
         for (const doc of hits) {
           const a = document.createElement('a');
-          a.href = '/docs/' + doc.id;
+          a.href = langPrefix + doc.id;
           a.className = 'search-item';
           a.innerHTML = '<span class="search-title">' + doc.title.replace(/</g, '&lt;') + '</span>' +
             '<span class="search-desc">' + (doc.desc || '').replace(/</g, '&lt;') + '</span>';
@@ -165,7 +191,6 @@ const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.da
     width: 100%;
   }
 
-  /* page-enter reveal (CSS only, gated on reduced motion) */
   @media (prefers-reduced-motion: no-preference) {
     .doc-reveal {
       animation: doc-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -188,6 +213,29 @@ const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.da
     overflow-y: auto;
   }
 
+  .sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .lang-switch {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    border: 1.5px solid var(--accent);
+    border-radius: 4px;
+    padding: 0.15rem 0.5rem;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .lang-switch:hover {
+    background: var(--accent);
+    color: #fff;
+  }
+
   .mono-label {
     font-family: var(--font-mono);
     font-size: 0.7rem;
@@ -202,6 +250,20 @@ const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.da
     margin-top: 1rem;
   }
 
+  .nav-group {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    opacity: 0.75;
+    margin: 1.1rem 0 0.35rem;
+  }
+
+  .nav-group:first-child {
+    margin-top: 0;
+  }
+
   .nav-item {
     display: flex;
     align-items: center;
@@ -213,14 +275,6 @@ const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.da
     transition: color 0.15s ease;
   }
 
-  .nav-item .num {
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    color: var(--muted);
-    opacity: 0.6;
-    font-variant-numeric: tabular-nums;
-  }
-
   .nav-item:hover {
     color: var(--ink);
   }
@@ -228,11 +282,6 @@ const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.da
   .nav-item.active {
     color: var(--accent);
     font-weight: 600;
-  }
-
-  .nav-item.active .num {
-    color: var(--accent);
-    opacity: 1;
   }
 
   .content {
@@ -267,7 +316,6 @@ const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.da
     line-height: 1.6;
   }
 
-  /* Prose */
   .prose :global(h1) {
     font-size: 1.6rem;
     font-weight: 700;
@@ -418,6 +466,10 @@ const allDocs = (await getCollection('docs')).sort((a, b) => a.data.order - b.da
       display: flex;
       flex-wrap: wrap;
       gap: 0.15rem 1.1rem;
+    }
+    .nav-group {
+      width: 100%;
+      margin-top: 0.9rem;
     }
     .nav-item {
       padding: 0.2rem 0;

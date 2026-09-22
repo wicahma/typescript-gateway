@@ -1,8 +1,9 @@
 ---
-title: "Payload Handling (F4)"
+title: "Payload Handling"
 description: "Body parsing, request/response transformation, and native compression."
 order: 7
 section: "Features"
+track: "reference"
 ---
 
 All 4 features in this group are **implemented and verified** — each has a full FSD + ERD spec pair and unit/integration coverage in the repo test suite.

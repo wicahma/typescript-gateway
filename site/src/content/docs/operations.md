@@ -1,8 +1,9 @@
 ---
-title: "Operations & Configuration (F6)"
+title: "Operations & Configuration"
 description: "Zero-dependency config loading and validation, plugin execution chain, auto-tuning."
 order: 9
 section: "Features"
+track: "reference"
 ---
 
 All 3 features in this group are **implemented and verified** — each has a full FSD + ERD spec pair and unit/integration coverage in the repo test suite.
