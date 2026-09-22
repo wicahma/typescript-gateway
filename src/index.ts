@@ -243,6 +243,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 }
 
 export { Server, Router };
+export { generateOpenApi, toOpenApiPath } from './core/openapi-generator.js';
+export type { OpenApiDoc, OpenApiInfo } from './core/openapi-generator.js';
 export * from './types/core.js';
 export * from './types/plugin.js';
 export * from './types/config.js';
