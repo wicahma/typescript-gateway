@@ -49,6 +49,8 @@ export interface CachedResponse {
   size: number;
   /** Stale-while-revalidate duration in seconds */
   staleWhileRevalidate?: number;
+  /** Internal: the vary-aware key under which this entry is canonical. */
+  varyKey?: string;
 }
 
 /**
@@ -102,6 +104,7 @@ export class ResponseCache {
     misses: 0,
     evictions: 0,
   };
+  private varyIndex: Map<string, string[]> = new Map();
 
   constructor(config: CacheConfig = {}) {
     this.config = {
@@ -172,6 +175,14 @@ export class ResponseCache {
     this.cache.set(key, entry);
     this.currentSize += response.size;
 
+    const varyRaw = response.headers['vary'];
+    const varyStr = Array.isArray(varyRaw) ? varyRaw.join(',') : varyRaw;
+    if (typeof varyStr === 'string') {
+      this.varyIndex.set(key, varyStr.split(',').map((v) => v.trim().toLowerCase()).filter(Boolean));
+    } else {
+      this.varyIndex.delete(key);
+    }
+
     // Update LRU list
     this.updateLRU(key);
 
@@ -212,6 +223,30 @@ export class ResponseCache {
     entry.lastAccess = now;
     this.updateLRU(key);
     return { response: entry.response, state: 'fresh' };
+  }
+
+  /**
+   * Vary header names recorded for a cache key, from the response's own
+   * Vary header. Empty array = response does not vary.
+   */
+  public varyOf(key: string): string[] {
+    return this.varyIndex.get(key) ?? [];
+  }
+
+  /**
+   * Merge validators from an upstream 304 response into a stale entry and
+   * restart its freshness lifetime. Returns true when the entry was
+   * refreshed (i.e. it existed).
+   */
+  public refresh(key: string, headers: Record<string, string | string[]>): boolean {
+    const entry = this.cache.get(key);
+    if (!entry) return false;
+    entry.response.cachedAt = Date.now();
+    const etag = headers['etag'];
+    if (typeof etag === 'string') entry.response.etag = etag;
+    const lm = headers['last-modified'];
+    if (typeof lm === 'string') entry.response.lastModified = lm;
+    return true;
   }
 
   /**
@@ -288,6 +323,7 @@ export class ResponseCache {
 
     this.currentSize -= entry.response.size;
     this.cache.delete(key);
+    this.varyIndex.delete(key);
 
     const index = this.lruKeys.indexOf(key);
     if (index > -1) {
@@ -302,6 +338,7 @@ export class ResponseCache {
    */
   public clear(): void {
     this.cache.clear();
+    this.varyIndex.clear();
     this.lruKeys = [];
     this.currentSize = 0;
   }

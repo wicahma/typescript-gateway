@@ -110,6 +110,34 @@ describe('ResponseCachePolicy', () => {
     expect(hit!.headers.get('x-cache')).toBe('HIT');
   });
 
+  it('keys cached responses per Vary header value', async () => {
+    const policy = new ResponseCachePolicy(cache);
+
+    const gzipReq = makeCtx();
+    gzipReq.headers = { 'accept-encoding': 'gzip' };
+    const gzipResp = out(200, 'gzip-body');
+    gzipResp.headers['vary'] = 'Accept-Encoding';
+    await policy.executeOutbound?.(gzipReq, gzipResp);
+
+    const brReq = makeCtx();
+    brReq.headers = { 'accept-encoding': 'br' };
+    const brResp = out(200, 'br-body');
+    brResp.headers['vary'] = 'Accept-Encoding';
+    await policy.executeOutbound?.(brReq, brResp);
+
+    // Same path, different Accept-Encoding → distinct cache entries
+    const gzipHit = await policy.executeInbound?.((() => { const c = makeCtx(); c.headers = { 'accept-encoding': 'gzip' }; return c; })());
+    expect(await gzipHit!.text()).toBe('gzip-body');
+
+    const brHit = await policy.executeInbound?.((() => { const c = makeCtx(); c.headers = { 'accept-encoding': 'br' }; return c; })());
+    expect(await brHit!.text()).toBe('br-body');
+
+    // A request with an unseen encoding misses (must not serve gzip/br bytes)
+    const other = makeCtx();
+    other.headers = { 'accept-encoding': 'identity' };
+    expect(await policy.executeInbound?.(other)).toBeUndefined();
+  });
+
   it('integrates with RequestPipeline: HIT short-circuits before outbound policies run', async () => {
     let outboundRuns = 0;
     const counter = {

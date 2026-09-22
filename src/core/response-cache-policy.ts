@@ -31,7 +31,19 @@ export class ResponseCachePolicy implements GatewayPolicy {
   executeInbound(ctx: RequestContext): Response | void {
     if (!this.cacheableMethods.has(ctx.method)) return;
     const key = this.cache.generateKey(ctx.method, ctx.path, ctx.headers);
-    const { response: hit, state } = this.cache.lookup(key);
+    // Vary-aware: entry may live under a vary-sensitive key derived from
+    // the response Vary header. Probe the request key first (zero cost when
+    // the response never varied), re-key only on miss with stored vary.
+    let probe = this.cache.lookup(key);
+    if (probe.state === 'miss') {
+      const varyNames = this.cache.varyOf(key);
+      if (varyNames.length > 0) {
+        const varyHeaders: Record<string, string | string[] | undefined> = {};
+        for (const name of varyNames) varyHeaders[name] = ctx.headers[name];
+        probe = this.cache.lookup(this.cache.generateKey(ctx.method, ctx.path, varyHeaders));
+      }
+    }
+    const { response: hit, state } = probe;
     if (!hit) return;
     ctx.state['cacheHit'] = true;
 
@@ -67,7 +79,18 @@ export class ResponseCachePolicy implements GatewayPolicy {
     if (!response.body) return;
     const headerRecord = toRecord(response.headers);
     if (!ResponseCache.isCacheable(response.statusCode, headerRecord, ctx.method)) return;
-    const key = this.cache.generateKey(ctx.method, ctx.path, ctx.headers);
+    // Re-key with Vary headers when the upstream response declares Vary.
+    const varyRaw = headerRecord['vary'];
+    const varyStr = Array.isArray(varyRaw) ? varyRaw.join(',') : varyRaw;
+    let key = this.cache.generateKey(ctx.method, ctx.path, ctx.headers);
+    if (typeof varyStr === 'string') {
+      const names = varyStr.split(',').map((v) => v.trim().toLowerCase()).filter(Boolean);
+      if (names.length > 0) {
+        const varyHeaders: Record<string, string | string[] | undefined> = {};
+        for (const name of names) varyHeaders[name] = ctx.headers[name];
+        key = this.cache.generateKey(ctx.method, ctx.path, varyHeaders);
+      }
+    }
     this.revalidating.delete(key); // refresh landed: next SWR window may revalidate
     const cacheControl = ResponseCache.parseCacheControl(
       typeof headerRecord['cache-control'] === 'string' ? headerRecord['cache-control'] : undefined
