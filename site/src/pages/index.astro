@@ -37,6 +37,7 @@ const groups = [
   canonical="https://tsgate.diama.dev/"
 >
   <main>
+    <canvas id="packet-field" aria-hidden="true"></canvas>
     <section class="hero">
       <p class="mono-eyebrow">0 runtime dependencies</p>
       <h1>
@@ -60,6 +61,12 @@ const groups = [
         >
           GitHub ↗
         </a>
+      </div>
+    </section>
+
+    <section class="ticker" aria-hidden="true">
+      <div class="ticker-track">
+        <span>GET /api/users → 200 · 3.2ms</span><span>POST /api/orders → 201 · 12ms</span><span>GET /api/products → 304 · 0.4ms</span><span>cache HIT · x-cache: STALE → refreshed</span><span>circuit CLOSED · upstream backend-1</span><span>GET /api/search → 200 · gzip 78%</span><span>rate-limit OK · 412/500 req</span><span>WS tunnel established · /socket</span><span>GET /api/users → 200 · 3.2ms</span><span>POST /api/orders → 201 · 12ms</span><span>GET /api/products → 304 · 0.4ms</span><span>cache HIT · x-cache: STALE → refreshed</span><span>circuit CLOSED · upstream backend-1</span><span>GET /api/search → 200 · gzip 78%</span><span>rate-limit OK · 412/500 req</span><span>WS tunnel established · /socket</span>
       </div>
     </section>
 
@@ -140,8 +147,18 @@ const groups = [
   }
   /* ---- hero: editorial typographic, staggered line reveal ---- */
   .hero {
+    position: relative;
+    z-index: 1;
     padding: 8rem 0 4.5rem;
     max-width: 860px;
+  }
+
+  #packet-field {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.55;
   }
 
   .mono-eyebrow {
@@ -245,8 +262,45 @@ const groups = [
     color: var(--ink);
   }
 
+  /* ---- ticker: request-log marquee ---- */
+  .ticker {
+    position: relative;
+    z-index: 1;
+    background: var(--bg);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    overflow: hidden;
+    padding: 0.55rem 0;
+  }
+
+  .ticker-track {
+    display: flex;
+    gap: 2.5rem;
+    width: max-content;
+    animation: ticker-scroll 40s linear infinite;
+  }
+
+  .ticker-track span {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  @keyframes ticker-scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ticker-track { animation: none; }
+  }
+
   /* ---- hyperframe: scroll-scrubbed frame sequence ---- */
   .hyperframe {
+    position: relative;
+    z-index: 1;
+    background: var(--bg);
     margin: 4rem 0;
     border-top: 1px solid var(--line);
     border-bottom: 1px solid var(--line);
@@ -378,6 +432,9 @@ const groups = [
   }
   /* ---- facts: mono numerals, hairline row ---- */
   .facts {
+    position: relative;
+    z-index: 1;
+    background: var(--bg);
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 0;
@@ -409,6 +466,9 @@ const groups = [
 
   /* ---- latest additions: bold list ---- */
   .latest {
+    position: relative;
+    z-index: 1;
+    background: var(--bg);
     padding: 3.5rem 0 3rem;
     border-top: 1px solid var(--line);
   }
@@ -471,6 +531,9 @@ const groups = [
 
   /* ---- docs entry: 2-col list, hover slide ---- */
   .docs-entry {
+    position: relative;
+    z-index: 1;
+    background: var(--bg);
     padding: 2rem 0 6rem;
     border-top: 1px solid var(--line);
   }
@@ -626,5 +689,96 @@ const groups = [
       return;
     }
     jsScrub();
+  })();
+</script>
+
+<script>
+  (function () {
+    const canvas = document.getElementById('packet-field');
+    if (!canvas) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const gl = canvas.getContext('webgl', { alpha: true, antialias: false });
+    if (!gl) return;
+
+    const vsrc = `
+      attribute vec2 aPos;
+      attribute float aSeed;
+      uniform float uTime;
+      uniform vec2 uRes;
+      varying float vSeed;
+      void main() {
+        float speed = 0.03 + fract(aSeed * 7.13) * 0.06;
+        float x = fract(aSeed + uTime * speed);
+        float y = aPos.y + sin(uTime * 0.6 + aSeed * 40.0) * 0.015;
+        vSeed = aSeed;
+        gl_Position = vec4(x * 2.0 - 1.0, y, 0.0, 1.0);
+        gl_PointSize = 2.0 + fract(aSeed * 3.7) * 3.0;
+      }`;
+    const fsrc = `
+      precision mediump float;
+      varying float vSeed;
+      void main() {
+        vec2 c = gl_PointCoord - 0.5;
+        if (dot(c, c) > 0.25) discard;
+        float a = 0.25 + fract(vSeed * 5.3) * 0.35;
+        gl_FragColor = vec4(0.16, 0.32, 1.0, a);
+      }`;
+
+    function compile(type, src) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      return gl.getShaderParameter(s, gl.COMPILE_STATUS) ? s : null;
+    }
+    const vs = compile(gl.VERTEX_SHADER, vsrc);
+    const fs = compile(gl.FRAGMENT_SHADER, fsrc);
+    if (!vs || !fs) return;
+    const prog = gl.createProgram();
+    gl.attachShader(prog, vs);
+    gl.attachShader(prog, fs);
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+    gl.useProgram(prog);
+
+    const N = 260;
+    const data = new Float32Array(N * 3);
+    for (let i = 0; i < N; i++) {
+      data[i * 3] = 0;
+      data[i * 3 + 1] = Math.random() * 2 - 1;
+      data[i * 3 + 2] = Math.random();
+    }
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    const aPos = gl.getAttribLocation(prog, 'aPos');
+    const aSeed = gl.getAttribLocation(prog, 'aSeed');
+    gl.enableVertexAttribArray(aPos);
+    gl.enableVertexAttribArray(aSeed);
+    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 12, 0);
+    gl.vertexAttribPointer(aSeed, 1, gl.FLOAT, false, 12, 8);
+
+    const uTime = gl.getUniformLocation(prog, 'uTime');
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    const start = performance.now();
+    (function tick() {
+      if (!document.hidden) {
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.uniform1f(uTime, (performance.now() - start) / 1000);
+        gl.drawArrays(gl.POINTS, 0, N);
+      }
+      requestAnimationFrame(tick);
+    })();
   })();
 </script>
