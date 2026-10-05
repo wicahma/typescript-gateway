@@ -20,7 +20,7 @@ import { UpstreamCredentialStore } from './identity/upstream-credential-store.js
 import { SetUpStreamHeaderPolicy } from './identity/set-upstream-header-policy.js';
 import { HmacSignPolicy } from './identity/hmac-sign-policy.js';
 import { WithIdentity } from './types/identity.js';
-import { UpstreamTarget, CircuitBreakerState } from './types/core.js';
+import { UpstreamTarget, CircuitBreakerState, RequestContext } from './types/core.js';
 import { AuthJwtPlugin } from './plugins/builtin/auth-jwt.js';
 import { HeaderTransformerPlugin } from './plugins/builtin/header-transformer.js';
 import { RateLimitPlugin } from './plugins/builtin/rate-limit-plugin.js';
@@ -32,6 +32,7 @@ export class Gateway {
   private server: Server | null = null;
   private router: Router;
   private proxyHandler: ProxyHandler | null = null;
+  private currentConfig: ConfigFile | null = null;
   private configLoader;
   private metricsInterval: NodeJS.Timeout | null = null;
   private pipeline = new RequestPipeline();
@@ -51,6 +52,7 @@ export class Gateway {
 
   async start(): Promise<void> {
     const config = await this.configLoader.load();
+    this.currentConfig = config;
     this.registerSystemRoutes();
 
     this.boundPort = Number(process.env['PORT']) || config.server.port;
@@ -137,11 +139,30 @@ export class Gateway {
       ctx.responded = true;
     });
 
-    this.router.register('GET', '/metrics', async ctx => {
+    const mon = this.currentConfig?.monitoring;
+    const promPath = mon?.export?.prometheus?.path;
+    const serveMetrics = async (ctx: RequestContext): Promise<void> => {
+      const snapshot = metrics.snapshot() as unknown as Record<string, unknown>;
+      if (mon?.metrics?.enabled && this.proxyHandler) {
+        // B6: monitoring.metrics.enabled surfaces the ProxyHandler's
+        // AdvancedMetrics (route/upstream views) on the metrics endpoint.
+        const am = this.proxyHandler.getAdvancedMetrics();
+        snapshot['advanced'] = {
+          routes: am.getRouteMetrics(),
+          upstreams: am.getUpstreamMetrics(),
+        };
+      }
       ctx.res.writeHead(200, { 'Content-Type': 'application/json' });
-      ctx.res.end(JSON.stringify(metrics.snapshot(), null, 2));
+      ctx.res.end(JSON.stringify(snapshot, null, 2));
       ctx.responded = true;
-    });
+    };
+
+    // monitoring.export.prometheus.path, when set, is the metrics endpoint
+    // (default '/metrics' stays registered for compatibility).
+    this.router.register('GET', promPath ?? '/metrics', serveMetrics);
+    if (promPath && promPath !== '/metrics') {
+      this.router.register('GET', '/metrics', serveMetrics);
+    }
 
     this.router.register('GET', '/', async ctx => {
       ctx.res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -282,7 +303,7 @@ export class Gateway {
         this.server.setProxyHandler(this.proxyHandler);
       }
 
-      const reserved = new Set(['/', '/health', '/metrics']);
+      const reserved = new Set(['/', '/health', '/metrics', config.monitoring?.export?.prometheus?.path ?? '']);
       for (const route of config.routes || []) {
         if (reserved.has(route.path)) continue;
         this.router.register(route.method, route.path, async ctx => {
@@ -316,6 +337,7 @@ export class Gateway {
     // RequestPipeline avoid duplicates on reload. The Server reads both via
     // the same object references (router) or setPipeline (pipeline).
     this.router.clear();
+    this.currentConfig = cfg;
     this.registerSystemRoutes();
     this.pipeline = new RequestPipeline();
     if (this.server) this.server.setPipeline(this.pipeline);
