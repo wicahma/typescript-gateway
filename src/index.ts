@@ -1,3 +1,5 @@
+import { realpathSync } from 'fs';
+import { pathToFileURL } from 'url';
 import { Server } from './core/server.js';
 import { Router } from './core/router.js';
 import { ProxyHandler } from './core/proxy-handler.js';
@@ -253,7 +255,9 @@ export class Gateway {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Same realpath discipline as cli.ts: npm .bin shims invoke this file
+// through a symlink, so compare resolved paths.
+if (process.argv[1] && pathToFileURL(realpathSync(process.argv[1])).href === import.meta.url) {
   const configPath = process.env['CONFIG_PATH'] || './config/gateway.config.json';
   const gateway = new Gateway(configPath);
   gateway.start().catch(error => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { execFileSync } from 'child_process';
-import { existsSync, readFileSync, rmSync, mkdirSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from 'fs';
 import { join } from 'path';
 
 const ROOT = join(__dirname, '../..');
@@ -57,6 +57,16 @@ describe('tsgate CLI', () => {
     } catch {
       expect(true).toBe(true);
     }
+    rmSync(TMP, { recursive: true, force: true });
+  });
+
+  it('runs when invoked through a symlink (npm .bin shim)', () => {
+    rmSync(TMP, { recursive: true, force: true });
+    mkdirSync(TMP, { recursive: true });
+    const link = join(TMP, 'tsgate');
+    symlinkSync(CLI, link);
+    const out = execFileSync('node', [link, 'version'], { encoding: 'utf-8' });
+    expect(out.trim()).toMatch(/^\d+\.\d+\.\d+$/);
     rmSync(TMP, { recursive: true, force: true });
   });
 });

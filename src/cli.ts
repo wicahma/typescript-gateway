@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync, readFileSync, realpathSync } from 'fs';
 import { join, resolve } from 'path';
 import { pathToFileURL } from 'url';
 
@@ -131,7 +131,9 @@ async function main(): Promise<void> {
   }
 }
 
-if (pathToFileURL(process.argv[1] ?? '').href === import.meta.url) {
+// npm .bin shims invoke the real file via a symlink, so compare resolved
+// paths; a bare argv[1] === import.meta.url comparison exits silently.
+if (pathToFileURL(realpathSync(process.argv[1] ?? '')).href === import.meta.url) {
   main().catch(error => {
     console.error(error instanceof Error ? error.message : error);
     process.exit(1);
