@@ -21,6 +21,12 @@ import { SetUpStreamHeaderPolicy } from './identity/set-upstream-header-policy.j
 import { HmacSignPolicy } from './identity/hmac-sign-policy.js';
 import { WithIdentity } from './types/identity.js';
 import { UpstreamTarget, CircuitBreakerState } from './types/core.js';
+import { AuthJwtPlugin } from './plugins/builtin/auth-jwt.js';
+import { HeaderTransformerPlugin } from './plugins/builtin/header-transformer.js';
+import { RateLimitPlugin } from './plugins/builtin/rate-limit-plugin.js';
+import { RequestIdPlugin } from './plugins/builtin/request-id.js';
+import { RequestLoggerPlugin } from './plugins/builtin/request-logger.js';
+import { ResponseTimePlugin } from './plugins/builtin/response-time.js';
 
 export class Gateway {
   private server: Server | null = null;
@@ -196,6 +202,27 @@ export class Gateway {
         );
       }
       logger.info({ credentials: credentials.stats().credentials }, 'Upstream credential injection enabled');
+    }
+
+    // B5: load enabled plugins from config.plugins[] (builtin registry).
+    // Custom plugins still register via CLI registerPlugin or plugins.dir.
+    const builtinPlugins: Record<string, () => Plugin> = {
+      'auth-jwt': () => new AuthJwtPlugin(),
+      'header-transformer': () => new HeaderTransformerPlugin(),
+      'rate-limit': () => new RateLimitPlugin(),
+      'request-id': () => new RequestIdPlugin(),
+      'request-logger': () => new RequestLoggerPlugin(),
+      'response-time': () => new ResponseTimePlugin(),
+    };
+    for (const p of config.plugins ?? []) {
+      if (!p.enabled) continue;
+      const factory = builtinPlugins[p.name];
+      if (!factory) {
+        logger.warn({ name: p.name }, 'Unknown builtin plugin in config.plugins[] — ignoring');
+        continue;
+      }
+      this.registerPlugin(factory(), p.settings ?? {});
+      logger.info({ name: p.name }, 'Plugin loaded from config.plugins[]');
     }
   }
 
