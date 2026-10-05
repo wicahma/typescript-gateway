@@ -1,6 +1,6 @@
 import http from 'http';
 import { Socket } from 'net';
-import { RequestContext, UpstreamTarget } from '../types/core.js';
+import { RequestContext, UpstreamTarget, CircuitBreakerConfig, BodyParserConfig, LoadBalancerStrategy } from '../types/core.js';
 import { BodyParser, ParsedBody } from './body-parser.js';
 import { HttpClientPool } from './http-client-pool.js';
 import { UrlForwarder } from './url-forward.js';
@@ -57,6 +57,24 @@ export interface ProxyHandlerConfig {
    * client, then pipes both sockets. Default false (upgrade is rejected).
    */
   enableWebSocket?: boolean;
+
+  /** Body parser configuration (limits per content type, timeout, pooling). */
+  bodyParserConfig?: Partial<BodyParserConfig>;
+
+  /** Load balancer strategy (default 'round-robin'). */
+  loadBalancerStrategy?: LoadBalancerStrategy;
+
+  /** Route around unhealthy upstreams (default true). */
+  loadBalancerHealthAware?: boolean;
+
+  /** Per-upstream circuit breaker thresholds (defaults: 5/2/60000/10). */
+  circuitBreakerConfig?: Partial<CircuitBreakerConfig>;
+
+  /** Request transformations applied by the proxy (enabled when non-empty). */
+  requestTransformations?: RequestTransformation[];
+
+  /** Response transformations applied by the proxy (enabled when non-empty). */
+  responseTransformations?: ResponseTransformation[];
 }
 
 /**
@@ -110,13 +128,19 @@ export class ProxyHandler {
     this.config = { ...DEFAULT_CONFIG, ...config };
 
     // Initialize components
-    this.bodyParser = new BodyParser();
+    this.bodyParser = new BodyParser(config?.bodyParserConfig);
     this.clientPool = new HttpClientPool();
     this.urlForwarder = new UrlForwarder(this.clientPool);
-    this.loadBalancer = new LoadBalancer();
+    this.loadBalancer = new LoadBalancer(config?.loadBalancerStrategy, config?.loadBalancerHealthAware);
     this.healthChecker = new HealthChecker();
     this.requestTransformer = new RequestTransformer();
     this.responseTransformer = new ResponseTransformer();
+    if (config?.requestTransformations?.length) {
+      this.requestTransformer.setTransformations(config.requestTransformations);
+    }
+    if (config?.responseTransformations?.length) {
+      this.responseTransformer.setTransformations(config.responseTransformations);
+    }
     this.compressionHandler = new CompressionHandler();
     this.advancedMetrics = new AdvancedMetrics();
   }
@@ -133,7 +157,7 @@ export class ProxyHandler {
     // Initialize circuit breakers
     for (const upstream of this.upstreams) {
       if (this.config.enableCircuitBreaker) {
-        const breaker = new CircuitBreaker(upstream.id);
+        const breaker = new CircuitBreaker(upstream.id, this.config.circuitBreakerConfig);
         this.circuitBreakers.set(upstream.id, breaker);
       }
     }

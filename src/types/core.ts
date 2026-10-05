@@ -4,6 +4,10 @@
  */
 
 import { IncomingMessage, ServerResponse } from 'http';
+import type { AuthJwtPolicyConfig } from '../plugins/builtin/auth-jwt-policy.js';
+import type { RequestTransformation } from '../core/request-transformer.js';
+import type { ResponseTransformation } from '../core/response-transformer.js';
+import type { RetryConfig } from '../core/retry-manager.js';
 
 /**
  * HTTP methods supported by the gateway
@@ -282,6 +286,29 @@ export interface GatewayConfig {
   circuitBreaker?: CircuitBreakerConfig;
   /** Monitoring configuration */
   monitoring?: MonitoringConfig;
+  /** JWT auth policy configuration */
+  auth?: AuthJwtPolicyConfig;
+  /** Proxy settings */
+  proxy?: {
+    /** Enable WebSocket/SSE upgrade tunneling */
+    enableWebSocket?: boolean;
+    /** Enable response compression */
+    enableCompression?: boolean;
+  };
+  /** Retry configuration for the proxy request path */
+  retries?: Partial<RetryConfig>;
+  /** Response caching */
+  responseCache?: {
+    /** Enable response caching */
+    enabled?: boolean;
+  };
+  /** Responses with Content-Length >= this many bytes stream directly */
+  streamingThreshold?: number;
+  /** Request/response transformations applied by the proxy */
+  transforms?: {
+    request?: RequestTransformation[];
+    response?: ResponseTransformation[];
+  };
 }
 
 /**

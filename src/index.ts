@@ -226,10 +226,25 @@ export class Gateway {
     }));
 
     if (upstreams.length > 0) {
-      const proxyCfg = (config as unknown as Record<string, unknown>)['proxy'] as { enableWebSocket?: boolean } | undefined;
+      const proxyCfg = config.proxy;
       const wsEnabled = proxyCfg?.enableWebSocket === true;
 
-      this.proxyHandler = new ProxyHandler(wsEnabled ? { enableWebSocket: true } : undefined);
+      this.proxyHandler = new ProxyHandler({
+        enableWebSocket: proxyCfg?.enableWebSocket,
+        enableCompression: proxyCfg?.enableCompression,
+        enableBodyParsing: config.bodyParser?.enabled,
+        bodyParserConfig: config.bodyParser,
+        loadBalancerStrategy: config.loadBalancer?.strategy,
+        loadBalancerHealthAware: config.loadBalancer?.healthAware,
+        enableCircuitBreaker: true,
+        circuitBreakerConfig: config.circuitBreaker,
+        enableAdvancedMetrics: config.monitoring?.metrics?.enabled,
+        streamingThreshold: config.streamingThreshold,
+        requestTransformations: config.transforms?.request,
+        responseTransformations: config.transforms?.response,
+        enableRequestTransformations: !!config.transforms?.request?.length,
+        enableResponseTransformations: !!config.transforms?.response?.length,
+      });
       this.proxyHandler.initialize(upstreams);
       this.proxyHandler.setPipeline(this.pipeline);
 
