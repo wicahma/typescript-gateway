@@ -1,6 +1,7 @@
 import { OutgoingHttpHeaders } from 'node:http';
 import { RequestContext } from '../types/core.js';
 import { Plugin } from '../types/plugin.js';
+import { pluginContextManager } from '../plugins/context-manager.js';
 
 export interface OutboundResponse {
   statusCode: number;
@@ -28,7 +29,15 @@ export class PluginPolicy implements GatewayPolicy {
     this.name = `plugin:${plugin.name}`;
   }
 
+  /** Ensure the plugin's context namespace exists before hooks touch it. */
+  private ensureContext(ctx: RequestContext): void {
+    if (!ctx.state['__plugins']) {
+      pluginContextManager.initializeContext(ctx, [this.plugin.name]);
+    }
+  }
+
   async executeInbound(ctx: RequestContext): Promise<Response | void> {
+    this.ensureContext(ctx);
     if (this.plugin.preRoute) await this.plugin.preRoute(ctx);
     if (this.plugin.preHandler) await this.plugin.preHandler(ctx);
     if (ctx.responded) {
@@ -40,6 +49,7 @@ export class PluginPolicy implements GatewayPolicy {
     ctx: RequestContext,
     response: OutboundResponse,
   ): Promise<OutboundResponse | void> {
+    this.ensureContext(ctx);
     if (this.plugin.postHandler) await this.plugin.postHandler(ctx);
     if (this.plugin.postResponse) await this.plugin.postResponse(ctx);
     const extra = ctx.state['pluginHeaders'] as Record<string, string> | undefined;

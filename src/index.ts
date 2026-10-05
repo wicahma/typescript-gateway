@@ -41,8 +41,6 @@ export class Gateway {
   async start(): Promise<void> {
     const config = await this.configLoader.load();
     this.registerSystemRoutes();
-    this.setupProxyRouting(config);
-    this.configurePipeline(config);
 
     const serverConfig = {
       ...config.server,
@@ -52,6 +50,12 @@ export class Gateway {
 
     this.server = new Server(serverConfig, this.router);
     this.server.setPipeline(this.pipeline);
+
+    // Server must exist before proxy routing is wired: setupProxyRouting
+    // only registers WS upgrade handling when this.server is set.
+    this.setupProxyRouting(config);
+    this.configurePipeline(config);
+
     await this.server.start();
 
     this.setupMetricsReporting();

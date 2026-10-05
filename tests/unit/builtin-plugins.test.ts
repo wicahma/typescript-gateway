@@ -7,6 +7,8 @@ import { createRequestIdPlugin } from '../../src/plugins/builtin/request-id.js';
 import { createResponseTimePlugin } from '../../src/plugins/builtin/response-time.js';
 import { createRequestLoggerPlugin } from '../../src/plugins/builtin/request-logger.js';
 import { createHeaderTransformerPlugin } from '../../src/plugins/builtin/header-transformer.js';
+import { PluginPolicy } from '../../src/pipeline/policy.js';
+import { RequestPipeline } from '../../src/pipeline/request-pipeline.js';
 import { RequestContext, HttpMethod } from '../../src/types/core.js';
 import { IncomingMessage, ServerResponse } from 'http';
 import { Socket } from 'net';
@@ -479,6 +481,41 @@ describe('Built-in Plugins', () => {
 
       // Should complete 1000 executions in less than 100ms
       expect(duration).toBeLessThan(100);
+    });
+  });
+
+  describe('PluginPolicy regression (context init)', () => {
+    it('initializes plugin context when running through PluginPolicy without manual init', async () => {
+      const policy = new PluginPolicy(createRequestIdPlugin());
+      const ctx = createMockContext();
+      // Deliberately NOT initializing ctx.state['__plugins'] — PluginPolicy must do it.
+
+      await policy.executeInbound(ctx);
+      expect(ctx.requestId).toBeTruthy();
+      expect(ctx.res.getHeader('x-request-id')).toBe(ctx.requestId);
+
+      await policy.executeOutbound(ctx, {
+        statusCode: 200,
+        headers: { 'content-type': 'text/plain' },
+        body: Buffer.from('ok'),
+      });
+      expect(ctx.res.getHeader('x-request-id')).toBe(ctx.requestId);
+    });
+
+    it('runs RequestIdPlugin through RequestPipeline without throwing', async () => {
+      const pipeline = new RequestPipeline([new PluginPolicy(createRequestIdPlugin())]);
+      const ctx = createMockContext();
+
+      await pipeline.runInbound(ctx);
+      expect(ctx.requestId).toBeTruthy();
+
+      const out = await pipeline.runOutbound(ctx, {
+        statusCode: 200,
+        headers: { 'content-type': 'text/plain' },
+        body: Buffer.from('ok'),
+      });
+      expect(out).toBeDefined();
+      expect(ctx.res.getHeader('x-request-id')).toBe(ctx.requestId);
     });
   });
 });

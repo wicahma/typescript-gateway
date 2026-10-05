@@ -48,27 +48,32 @@ export class ResponseCachePolicy implements GatewayPolicy {
     const key = this.cache.generateKey(ctx.method, ctx.path, ctx.headers);
     // Vary-aware: entry may live under a vary-sensitive key derived from
     // the response Vary header. Probe the request key first (zero cost when
-    // the response never varied), re-key only on miss with stored vary.
+    // the response never varied), re-key on miss with the stored vary names
+    // (indexed under the request key by executeOutbound).
+    let resolvedKey = key;
     let probe = this.cache.lookup(key);
     if (probe.state === 'miss') {
-      const varyNames = this.cache.varyOf(key);
+      // Vary names are indexed under the vary-name-only anchor key
+      // H(method|path), which is stable across non-varying request headers.
+      const varyNames = this.cache.varyOf(this.cache.generateKey(ctx.method, ctx.path));
       if (varyNames.length > 0) {
         const varyHeaders: Record<string, string | string[] | undefined> = {};
         for (const name of varyNames) varyHeaders[name] = ctx.headers[name];
-        probe = this.cache.lookup(this.cache.generateKey(ctx.method, ctx.path, varyHeaders));
+        resolvedKey = this.cache.generateKey(ctx.method, ctx.path, varyHeaders);
+        probe = this.cache.lookup(resolvedKey);
       }
     }
     const { response: hit, state } = probe;
     if (!hit) return;
     ctx.state['cacheHit'] = true;
 
-    if (state === 'stale' && this.onStaleRevalidate && !this.revalidating.has(key)) {
-      this.revalidating.add(key);
+    if (state === 'stale' && this.onStaleRevalidate && !this.revalidating.has(resolvedKey)) {
+      this.revalidating.add(resolvedKey);
       setImmediate(() => {
         try {
-          this.onStaleRevalidate?.(key, ctx);
+          this.onStaleRevalidate?.(resolvedKey, ctx);
         } catch {
-          this.revalidating.delete(key);
+          this.revalidating.delete(resolvedKey);
         }
       });
     }
@@ -90,16 +95,23 @@ export class ResponseCachePolicy implements GatewayPolicy {
     if (!response.body) return;
     const headerRecord = toRecord(response.headers);
     if (!ResponseCache.isCacheable(response.statusCode, headerRecord, ctx.method)) return;
-    // Re-key with Vary headers when the upstream response declares Vary.
+    // Canonical entry key: when the upstream response declares Vary, store
+    // under a vary-only key so non-varying request headers (User-Agent, ...)
+    // do not cause misses. Anchor the vary names under the full request key
+    // so the inbound probe can discover and resolve them.
+    const fullKey = this.cache.generateKey(ctx.method, ctx.path, ctx.headers);
     const varyRaw = headerRecord['vary'];
     const varyStr = Array.isArray(varyRaw) ? varyRaw.join(',') : varyRaw;
-    let key = this.cache.generateKey(ctx.method, ctx.path, ctx.headers);
+    let key = fullKey;
     if (typeof varyStr === 'string') {
       const names = varyStr.split(',').map((v) => v.trim().toLowerCase()).filter(Boolean);
       if (names.length > 0) {
         const varyHeaders: Record<string, string | string[] | undefined> = {};
         for (const name of names) varyHeaders[name] = ctx.headers[name];
         key = this.cache.generateKey(ctx.method, ctx.path, varyHeaders);
+        // Anchor the vary-names under H(method|path) so the inbound probe can
+        // discover them regardless of the specific non-varying headers.
+        this.cache.noteVary(this.cache.generateKey(ctx.method, ctx.path), names);
       }
     }
     this.revalidating.delete(key); // refresh landed: next SWR window may revalidate

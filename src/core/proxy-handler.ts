@@ -594,6 +594,11 @@ export class ProxyHandler {
         clientSocket.pipe(upstreamSocket);
 
         const closeBoth = (): void => {
+          // Pipe's end-handler calls dest.end() (graceful FIN) which leaves
+          // the peer half-open; detach pipes so a terminal event on either
+          // side really destroys both sockets.
+          clientSocket.unpipe(upstreamSocket);
+          upstreamSocket.unpipe(clientSocket);
           if (!clientSocket.destroyed) clientSocket.destroy();
           if (!upstreamSocket.destroyed) upstreamSocket.destroy();
         };
@@ -601,6 +606,10 @@ export class ProxyHandler {
         upstreamSocket.on('error', closeBoth);
         clientSocket.on('close', closeBoth);
         upstreamSocket.on('close', closeBoth);
+        // Half-closed peer (FIN without destroy) leaves the tunneled socket
+        // open and blocks graceful shutdown; tear both sides down.
+        clientSocket.on('end', closeBoth);
+        upstreamSocket.on('end', closeBoth);
 
         logger.info({ path, upstream: upstream.id }, 'WebSocket tunnel established');
         resolve(true);

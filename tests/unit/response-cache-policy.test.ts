@@ -138,6 +138,40 @@ describe('ResponseCachePolicy', () => {
     expect(await policy.executeInbound?.(other)).toBeUndefined();
   });
 
+  it('regression: Vary entries HIT when the request carries extra non-varying headers', async () => {
+    // Real requests carry headers beyond the vary-named ones (user-agent,
+    // host, ...). The stored entry lives under a vary-only key, so the probe
+    // must resolve it via the full request key — otherwise every Vary
+    // response is a permanent miss.
+    const policy = new ResponseCachePolicy(cache);
+
+    const first = makeCtx();
+    first.headers = { 'accept-encoding': 'gzip', 'user-agent': 'curl/8' };
+    const gzipResp = out(200, 'gzip-body');
+    gzipResp.headers['vary'] = 'Accept-Encoding';
+    await policy.executeOutbound?.(first, gzipResp);
+
+    // Same vary value, different non-varying headers → still a HIT
+    const hit = makeCtx();
+    hit.headers = { 'accept-encoding': 'gzip', 'user-agent': 'node/22' };
+    const second = await policy.executeInbound?.(hit);
+    expect(second).toBeDefined();
+    expect(second!.headers.get('x-cache')).toBe('HIT');
+    expect(await second!.text()).toBe('gzip-body');
+
+    // Different vary value → distinct entry (miss → stored separately)
+    const br = makeCtx();
+    br.headers = { 'accept-encoding': 'br', 'user-agent': 'curl/8' };
+    expect(await policy.executeInbound?.(br)).toBeUndefined();
+    const brResp = out(200, 'br-body');
+    brResp.headers['vary'] = 'Accept-Encoding';
+    await policy.executeOutbound?.(br, brResp);
+    const brHit = makeCtx();
+    brHit.headers = { 'accept-encoding': 'br', 'user-agent': 'node/22' };
+    const brSecond = await policy.executeInbound?.(brHit);
+    expect(await brSecond!.text()).toBe('br-body');
+  });
+
   it('exposes validators (If-None-Match) for conditional revalidation and refresh() restarts freshness', async () => {
     const policy = new ResponseCachePolicy(cache);
     const ctx = makeCtx();

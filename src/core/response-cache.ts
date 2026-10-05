@@ -234,6 +234,18 @@ export class ResponseCache {
   }
 
   /**
+   * Record which Vary header names a response stored under `key` declared.
+   * The probe path looks up vary-names under the full request-header key, so
+   * the policy anchors the index there while the canonical entry lives under
+   * the vary-only key (see ResponseCachePolicy). Also recorded by set() under
+   * the entry's own key.
+   */
+  public noteVary(key: string, names: string[]): void {
+    if (names.length > 0) this.varyIndex.set(key, names);
+    else this.varyIndex.delete(key);
+  }
+
+  /**
    * Merge validators from an upstream 304 response into a stale entry and
    * restart its freshness lifetime. Returns true when the entry was
    * refreshed (i.e. it existed).
