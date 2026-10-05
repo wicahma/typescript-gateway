@@ -104,8 +104,9 @@ export class Server {
     });
   }
 
-  /** Attach a proxy handler capable of tunnelUpgrade. Optional. */
-  setProxyHandler(handler: { tunnelUpgrade(req: IncomingMessage, socket: Socket, head: Buffer): Promise<boolean> }): void {
+  /** Attach a proxy handler capable of tunnelUpgrade. Optional; pass undefined
+   * to detach (used when a hot reload removes all upstreams/WS support). */
+  setProxyHandler(handler: { tunnelUpgrade(req: IncomingMessage, socket: Socket, head: Buffer): Promise<boolean> } | undefined): void {
     this.proxyHandler = handler;
   }
 

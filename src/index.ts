@@ -29,14 +29,17 @@ export class Gateway {
   private configLoader;
   private metricsInterval: NodeJS.Timeout | null = null;
   private pipeline = new RequestPipeline();
+  private boundPort = 0;
+  private boundHost = '';
 
   constructor(configPath: string) {
     this.router = new Router();
     this.configLoader = createConfigLoader({
       configPath,
-      hotReload: false,
+      hotReload: false, // enabled after first load when the file says so
       reloadInterval: 5000,
       validate: true,
+      interpolate: true,
     });
   }
 
@@ -44,10 +47,12 @@ export class Gateway {
     const config = await this.configLoader.load();
     this.registerSystemRoutes();
 
+    this.boundPort = Number(process.env['PORT']) || config.server.port;
+    this.boundHost = process.env['HOST'] || config.server.host;
     const serverConfig = {
       ...config.server,
-      port: Number(process.env['PORT']) || config.server.port,
-      host: process.env['HOST'] || config.server.host,
+      port: this.boundPort,
+      host: this.boundHost,
     };
 
     this.server = new Server(serverConfig, this.router);
@@ -62,6 +67,17 @@ export class Gateway {
 
     this.setupMetricsReporting();
     this.setupShutdownHandlers();
+
+    // Hot reload: rebuild routes/pipeline/upstreams on config change without
+    // touching the listening socket (v1 ceiling: server.port/host changes
+    // need stop()+start()).
+    this.configLoader.setReloadHandler(cfg => this.applyConfig(cfg));
+    const reloadKeys = config as unknown as Record<string, unknown>;
+    if (reloadKeys['hotReload'] === true) {
+      const interval = reloadKeys['reloadInterval'];
+      this.configLoader.startWatching(typeof interval === 'number' ? interval : 5000);
+    }
+
     logger.info({ port: serverConfig.port, host: serverConfig.host }, 'Gateway started');
   }
   async stop(): Promise<void> {
@@ -229,7 +245,43 @@ export class Gateway {
           await this.proxyHandler!.handle(ctx);
         });
       }
+    } else if (this.proxyHandler) {
+      // Reloaded config with no upstreams: drop the handler; the caller
+      // (applyConfig) shuts the old instance down.
+      this.proxyHandler = null;
+      this.server?.setProxyHandler(undefined);
     }
+  }
+
+  /**
+   * Apply a reloaded config without restarting the listening socket: system
+   * and proxy routes plus the pipeline are rebuilt in place. v1 ceiling —
+   * server.port/host changes need stop()+start() and are warned, not applied.
+   */
+  private async applyConfig(cfg: ConfigFile): Promise<void> {
+    if (cfg.server?.port !== this.boundPort || cfg.server?.host !== this.boundHost) {
+      logger.warn(
+        { port: this.boundPort, host: this.boundHost },
+        'server.port/host change requires restart — keeping current bind settings'
+      );
+    }
+
+    const oldProxy = this.proxyHandler;
+
+    // Router and pipeline are registered additively, so a fresh Router and
+    // RequestPipeline avoid duplicates on reload. The Server reads both via
+    // the same object references (router) or setPipeline (pipeline).
+    this.router.clear();
+    this.registerSystemRoutes();
+    this.pipeline = new RequestPipeline();
+    if (this.server) this.server.setPipeline(this.pipeline);
+    this.setupProxyRouting(cfg);
+    this.configurePipeline(cfg);
+
+    if (oldProxy && oldProxy !== this.proxyHandler) {
+      await oldProxy.shutdown();
+    }
+    logger.info('Config reloaded');
   }
 
   private setupMetricsReporting(): void {
