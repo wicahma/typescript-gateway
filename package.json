@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Production-grade HTTP API gateway in pure TypeScript with zero framework dependencies",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts",
@@ -33,10 +34,11 @@
     "router",
     "typescript"
   ],
-  "author": "",
+  "author": "Teguh Dwi Cahya Kusuma <teguh.dc.kusuma@gmail.com>",
   "license": "MIT",
-  "dependencies": {
-    "tsx": "^4.19.0"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wicahma/typescript-gateway.git"
   },
   "devDependencies": {
     "@types/node": "^22.20.2",
