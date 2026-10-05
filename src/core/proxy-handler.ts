@@ -11,6 +11,7 @@ import { RequestTransformer, RequestTransformation } from './request-transformer
 import { ResponseTransformer, ResponseTransformation } from './response-transformer.js';
 import { CompressionHandler } from './compression-handler.js';
 import { AdvancedMetrics } from './advanced-metrics.js';
+import { RetryManager, RetryConfig } from './retry-manager.js';
 import { logger } from '../utils/logger.js';
 import { RequestPipeline } from '../pipeline/request-pipeline.js';
 import { OutboundResponse } from '../pipeline/policy.js';
@@ -75,6 +76,12 @@ export interface ProxyHandlerConfig {
 
   /** Response transformations applied by the proxy (enabled when non-empty). */
   responseTransformations?: ResponseTransformation[];
+
+  /** Retry idempotent upstream calls on retryable thrown errors (default false). */
+  enableRetries?: boolean;
+
+  /** Retry manager configuration (maxAttempts, backoff, retryableStatuses, ...). */
+  retryConfig?: Partial<RetryConfig>;
 }
 
 /**
@@ -108,6 +115,7 @@ export class ProxyHandler {
   private responseTransformer: ResponseTransformer;
   private compressionHandler: CompressionHandler;
   private advancedMetrics: AdvancedMetrics;
+  private retryManager: RetryManager;
   private config: ProxyHandlerConfig;
   private upstreams: UpstreamTarget[] = [];
   private router?: { match(method: string, path: string): { route: { path: string; handler: unknown } } | null };
@@ -143,6 +151,7 @@ export class ProxyHandler {
     }
     this.compressionHandler = new CompressionHandler();
     this.advancedMetrics = new AdvancedMetrics();
+    this.retryManager = new RetryManager(config?.retryConfig);
   }
   /**
    * Initialize with upstreams
@@ -266,14 +275,30 @@ export class ProxyHandler {
       const breaker = this.circuitBreakers.get(upstream.id);
       let responseData: { statusCode: number; headers: http.IncomingHttpHeaders; body?: Buffer } | null = null;
 
+      const doProxy = (): Promise<{ statusCode: number; headers: http.IncomingHttpHeaders; body?: Buffer }> =>
+        this.proxyRequest(ctx, upstream, transformedHeaders, transformedPath, finalBody);
+
       if (breaker && this.config.enableCircuitBreaker) {
         responseData = await breaker.execute(
-          () => this.proxyRequest(ctx, upstream, transformedHeaders, transformedPath, finalBody),
+          async () => {
+            // B4: retry idempotent upstream calls on retryable thrown errors
+            // (timeout, ECONNREFUSED, ...). 5xx responses are results, not
+            // throws, so they pass through untouched — no double-retry.
+            if (!this.config.enableRetries) return doProxy();
+            const r = await this.retryManager.execute(doProxy, {
+              method: ctx.method,
+              path: transformedPath,
+              upstreamId: upstream.id,
+              circuitBreaker: breaker,
+            });
+            if (r.error) throw r.error;
+            return r.value!;
+          },
           // 5xx from upstream counts as a breaker failure (still forwarded to client).
           result => result.statusCode >= 500
         );
       } else {
-        responseData = await this.proxyRequest(ctx, upstream, transformedHeaders, transformedPath, finalBody);
+        responseData = await doProxy();
       }
 
       if (!responseData) {

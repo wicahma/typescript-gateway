@@ -244,6 +244,8 @@ export class Gateway {
         responseTransformations: config.transforms?.response,
         enableRequestTransformations: !!config.transforms?.request?.length,
         enableResponseTransformations: !!config.transforms?.response?.length,
+        enableRetries: !!config.retries,
+        retryConfig: config.retries,
       });
       this.proxyHandler.initialize(upstreams);
       this.proxyHandler.setPipeline(this.pipeline);

@@ -279,6 +279,7 @@ export class RetryManager {
       message.includes('timeout') ||
       message.includes('econnrefused') ||
       message.includes('econnreset') ||
+      message.includes('socket hang up') ||
       message.includes('ehostunreach') ||
       message.includes('enetunreach') ||
       message.includes('unavailable')
