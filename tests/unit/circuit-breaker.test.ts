@@ -25,8 +25,8 @@ describe('CircuitBreaker', () => {
     });
 
     it('should transition to OPEN after failure threshold', async () => {
-      // Cause failures
-      for (let i = 0; i < 5; i++) {
+      // Opens at exactly `failureThreshold` (3) — no full window required.
+      for (let i = 0; i < 3; i++) {
         await expect(
           breaker.execute(async () => {
             throw new Error('Upstream failure');
@@ -37,9 +37,62 @@ describe('CircuitBreaker', () => {
       expect(breaker.getState()).toBe(CircuitBreakerState.OPEN);
     });
 
+    it('should open at failureThreshold with the default config (window not full)', async () => {
+      // Default config: failureThreshold 5, windowSize 10. Five consecutive
+      // failures must open the circuit — previously this needed a full
+      // window (10 requests) and stayed CLOSED after 5.
+      const def = new CircuitBreaker('default-upstream');
+      for (let i = 0; i < 4; i++) {
+        await expect(
+          def.execute(async () => {
+            throw new Error('boom');
+          })
+        ).rejects.toThrow('boom');
+        expect(def.getState()).toBe(CircuitBreakerState.CLOSED);
+      }
+      await expect(
+        def.execute(async () => {
+          throw new Error('boom');
+        })
+      ).rejects.toThrow('boom');
+      expect(def.getState()).toBe(CircuitBreakerState.OPEN);
+    });
+
+    it('counts a resolved 5xx result as failure when isFailure says so', async () => {
+      const cb = new CircuitBreaker('http-upstream', {
+        failureThreshold: 3,
+        successThreshold: 2,
+        timeout: 1000,
+        windowSize: 5,
+      });
+      for (let i = 0; i < 3; i++) {
+        const res = await cb.execute(async () => ({ statusCode: 500 }), r => r.statusCode >= 500);
+        // The response is still returned — only breaker bookkeeping differs.
+        expect(res.statusCode).toBe(500);
+      }
+      expect(cb.getState()).toBe(CircuitBreakerState.OPEN);
+      const metrics = cb.getMetrics();
+      expect(metrics.failedRequests).toBe(3);
+      expect(metrics.successfulRequests).toBe(0);
+      expect(metrics.totalRequests).toBe(3);
+    });
+
+    it('treats a resolved 2xx result as success when isFailure says so', async () => {
+      const cb = new CircuitBreaker('http-upstream', {
+        failureThreshold: 3,
+        successThreshold: 2,
+        timeout: 1000,
+        windowSize: 5,
+      });
+      const res = await cb.execute(async () => ({ statusCode: 200 }), r => r.statusCode >= 500);
+      expect(res.statusCode).toBe(200);
+      expect(cb.getState()).toBe(CircuitBreakerState.CLOSED);
+      expect(cb.getMetrics().successfulRequests).toBe(1);
+    });
+
     it('should transition to HALF_OPEN after timeout', async () => {
-      // Open the circuit
-      for (let i = 0; i < 5; i++) {
+      // Open the circuit (3 failures = failureThreshold)
+      for (let i = 0; i < 3; i++) {
         await expect(
           breaker.execute(async () => {
             throw new Error('Failure');
@@ -57,7 +110,7 @@ describe('CircuitBreaker', () => {
         windowSize: 5,
       });
 
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 3; i++) {
         await expect(
           shortBreaker.execute(async () => {
             throw new Error('Failure');

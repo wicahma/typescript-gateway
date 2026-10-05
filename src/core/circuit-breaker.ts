@@ -77,14 +77,21 @@ export class CircuitBreaker {
   }
 
   /**
-   * Execute request with circuit breaker protection
+   * Execute request with circuit breaker protection.
+   * `isFailure` lets callers treat a resolved result as a failure (e.g. an
+   * upstream 5xx response) without throwing — it is then recorded exactly
+   * once via recordFailure instead of recordSuccess.
    */
-  async execute<T>(fn: () => Promise<T>): Promise<T> {
+  async execute<T>(fn: () => Promise<T>, isFailure?: (result: T) => boolean): Promise<T> {
     if (this.state !== CircuitBreakerState.CLOSED) {
-      return this.executeSlow(fn);
+      return this.executeSlow(fn, isFailure);
     }
     try {
       const result = await fn();
+      if (isFailure && isFailure(result)) {
+        this.recordFailure();
+        return result;
+      }
       this.metrics.totalRequests++;
       this.metrics.successfulRequests++;
       this.consecutiveSuccesses++;
@@ -98,7 +105,7 @@ export class CircuitBreaker {
     }
   }
 
-  private async executeSlow<T>(fn: () => Promise<T>): Promise<T> {
+  private async executeSlow<T>(fn: () => Promise<T>, isFailure?: (result: T) => boolean): Promise<T> {
     const startTime = process.hrtime.bigint();
 
     // Check if request should be allowed
@@ -114,6 +121,14 @@ export class CircuitBreaker {
 
     try {
       const result = await fn();
+      if (isFailure && isFailure(result)) {
+        this.recordFailure();
+
+        const duration = Number(process.hrtime.bigint() - startTime) / 1_000_000;
+        logger.debug(`Circuit breaker request recorded as failure in ${duration.toFixed(3)}ms`);
+
+        return result;
+      }
       this.recordSuccess();
 
       const duration = Number(process.hrtime.bigint() - startTime) / 1_000_000;
@@ -223,12 +238,9 @@ export class CircuitBreaker {
    * Check if circuit should open
    */
   private shouldOpen(): boolean {
-    // Need enough requests in window
-    if (this.window.length < this.config.windowSize) {
-      return false;
-    }
-
-    // Count failures in window
+    // Open as soon as the window holds failureThreshold failures. A full
+    // window is NOT required: consecutive failures open at exactly the
+    // threshold (5 by default), not after windowSize (10) requests.
     const failures = this.window.filter((e) => !e.success).length;
     return failures >= this.config.failureThreshold;
   }

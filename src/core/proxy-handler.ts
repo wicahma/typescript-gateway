@@ -243,9 +243,11 @@ export class ProxyHandler {
       let responseData: { statusCode: number; headers: http.IncomingHttpHeaders; body?: Buffer } | null = null;
 
       if (breaker && this.config.enableCircuitBreaker) {
-        await breaker.execute(async () => {
-          responseData = await this.proxyRequest(ctx, upstream, transformedHeaders, transformedPath, finalBody);
-        });
+        responseData = await breaker.execute(
+          () => this.proxyRequest(ctx, upstream, transformedHeaders, transformedPath, finalBody),
+          // 5xx from upstream counts as a breaker failure (still forwarded to client).
+          result => result.statusCode >= 500
+        );
       } else {
         responseData = await this.proxyRequest(ctx, upstream, transformedHeaders, transformedPath, finalBody);
       }
