@@ -26,6 +26,15 @@ describe('B3 ProxyHandler built from full config (in-process gateway)', () => {
 
   beforeAll(async () => {
     upstream = createServer((req, res) => {
+      if (req.method === 'POST') {
+        const chunks: Buffer[] = [];
+        req.on('data', (c: Buffer) => chunks.push(c));
+        req.on('end', () => {
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ got: Buffer.concat(chunks).length }));
+        });
+        return;
+      }
       if (req.url?.endsWith('/oops')) {
         badHits++;
         res.writeHead(500, { 'content-type': 'text/plain' });
@@ -49,7 +58,10 @@ describe('B3 ProxyHandler built from full config (in-process gateway)', () => {
       version: '1.0.0',
       environment: 'development',
       server: { port: 3998, host: '127.0.0.1' },
-      routes: [{ method: 'GET', path: '/api/*', priority: 0 }],
+      routes: [
+        { method: 'GET', path: '/api/*', priority: 0 },
+        { method: 'POST', path: '/api/*', priority: 0 },
+      ],
       upstreams: [{
         id: 'backend', protocol: 'http', host: '127.0.0.1', port: upstreamPort,
         basePath: '', poolSize: 10, timeout: 30000,
@@ -105,6 +117,21 @@ describe('B3 ProxyHandler built from full config (in-process gateway)', () => {
     expect(r.body).toBe(big);
   });
 
+  // Regression: this config has no `bodyParser` block, so the Gateway passes
+  // enableBodyParsing: undefined. That must not clobber the default true, or
+  // the request body is dropped while content-length is still forwarded —
+  // the upstream then blocks forever waiting for bytes that never arrive.
+  it('buffers and forwards the POST body when no bodyParser block is configured', async () => {
+    const payload = JSON.stringify({ hello: 'world' });
+    const res = await fetch(`http://127.0.0.1:${port}/api/echo`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: payload,
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ got: Buffer.byteLength(payload) });
+  }, 20000);
+
   // Must run last: it leaves the breaker OPEN (timeout 60s).
   it('applies circuit breaker thresholds from config (opens at 2, not 5)', async () => {
     const a = await get('/api/oops');
@@ -120,4 +147,13 @@ describe('B3 ProxyHandler built from full config (in-process gateway)', () => {
     expect(rejected.status).toBe(502);
     expect(badHits).toBe(2); // breaker opened before the third request touched the upstream
   }, 20000);
+});
+
+describe('ProxyHandler config merge', () => {
+  it('keeps defaults when a key is passed as explicitly undefined', () => {
+    const ph = new ProxyHandler({ enableBodyParsing: undefined, enableCompression: undefined });
+    const cfg = (ph as unknown as { config: { enableBodyParsing?: boolean; enableCompression?: boolean } }).config;
+    expect(cfg.enableBodyParsing).toBe(true);
+    expect(cfg.enableCompression).toBe(false);
+  });
 });

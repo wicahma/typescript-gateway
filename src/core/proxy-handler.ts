@@ -133,7 +133,14 @@ export class ProxyHandler {
   }
 
   constructor(config?: Partial<ProxyHandlerConfig>) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+    // Drop undefined entries before merging: a key the caller passed as
+    // undefined (e.g. bodyParser absent from the config file) must not
+    // clobber the DEFAULT_CONFIG value, or bodies silently stop being
+    // buffered while content-length is still forwarded upstream.
+    const overrides = Object.fromEntries(
+      Object.entries(config ?? {}).filter(([, value]) => value !== undefined)
+    );
+    this.config = { ...DEFAULT_CONFIG, ...overrides } as ProxyHandlerConfig;
 
     // Initialize components
     this.bodyParser = new BodyParser(config?.bodyParserConfig);
