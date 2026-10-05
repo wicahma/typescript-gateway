@@ -37,10 +37,16 @@ describe('B4 retries wired into proxy request path (in-process gateway)', () => 
     await new Promise<void>(resolve => upstream.listen(0, '127.0.0.1', resolve));
     const upstreamPort = (upstream.address() as AddressInfo).port;
 
+    // Pick a free gateway port so parallel test files never collide on a fixed one.
+    const probe = createServer();
+    await new Promise<void>(resolve => probe.listen(0, '127.0.0.1', resolve));
+    const gwPort = (probe.address() as AddressInfo).port;
+    await new Promise<void>(resolve => probe.close(() => resolve()));
+
     const config = {
       version: '1.0.0',
       environment: 'development',
-      server: { port: 3999, host: '127.0.0.1' },
+      server: { port: gwPort, host: '127.0.0.1' },
       routes: [
         { method: 'GET', path: '/api/*', priority: 0 },
         { method: 'POST', path: '/api/*', priority: 0 },

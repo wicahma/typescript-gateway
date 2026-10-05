@@ -12,7 +12,7 @@ import { Plugin } from './types/plugin.js';
 import { logger } from './utils/logger.js';
 import { metrics } from './utils/metrics.js';
 import { ConfigFile } from './types/config.js';
-import { AuthJwtPolicy, AuthJwtPolicyConfig } from './plugins/builtin/auth-jwt-policy.js';
+import { AuthJwtPolicy } from './plugins/builtin/auth-jwt-policy.js';
 import { ConsumerStore } from './identity/consumer-store.js';
 import { ApiKeyPolicy } from './identity/api-key-policy.js';
 import { ConsumerRateLimitPolicy } from './identity/consumer-rate-limit-policy.js';
@@ -173,7 +173,7 @@ export class Gateway {
 
   private configurePipeline(config: ConfigFile): void {
     const cfg = config as unknown as WithIdentity;
-    const authConfig = (config as unknown as Record<string, unknown>)['auth'] as AuthJwtPolicyConfig | undefined;
+    const authConfig = config.auth;
     if (authConfig && authConfig.enabled !== false) {
       this.pipeline.register(new AuthJwtPolicy(authConfig));
     }
@@ -197,7 +197,7 @@ export class Gateway {
       this.pipeline.register(new ConsumerRateLimitPolicy());
       logger.info({ consumers: store.stats().consumers, keys: store.stats().keys }, 'API key auth enabled');
     }
-    const cacheConfig = (config as unknown as Record<string, unknown>)['responseCache'] as { enabled?: boolean } | undefined;
+    const cacheConfig = config.responseCache;
     if (cacheConfig?.enabled) {
       this.pipeline.register(new ResponseCachePolicy(new ResponseCache()));
     }
