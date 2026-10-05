@@ -37,6 +37,43 @@ describe('Configuration Interpolation', () => {
       expect(result).toBe('default');
     });
 
+    it('should use default with :- separator when variable is missing', () => {
+      const result = interpolateString('${MISSING_VAR:-default}', {
+        strict: true,
+        env: {},
+      });
+      expect(result).toBe('default');
+    });
+
+    it('should use default with :- separator when variable is empty', () => {
+      const result = interpolateString('${EMPTY_VAR:-default}', {
+        strict: true,
+        env: { EMPTY_VAR: '' },
+      });
+      expect(result).toBe('default');
+    });
+
+    it('should keep empty value with plain : when variable is empty', () => {
+      const result = interpolateString('${EMPTY_VAR:default}', {
+        strict: true,
+        env: { EMPTY_VAR: '' },
+      });
+      expect(result).toBe('');
+    });
+
+    it('should prefer env value over :- default', () => {
+      const result = interpolateString('${SET_VAR:-default}', {
+        strict: true,
+        env: { SET_VAR: 'real' },
+      });
+      expect(result).toBe('real');
+    });
+
+    it('should parse negative-number default after :- (bash word semantics)', () => {
+      expect(interpolateString('${TIMEOUT:-5}', { strict: true, env: {} })).toBe('5');
+      expect(interpolateString('${TIMEOUT:--5}', { strict: true, env: {} })).toBe('-5');
+    });
+
     it('should throw error in strict mode when required variable is missing', () => {
       expect(() => {
         interpolateString('${MISSING_VAR}', {
@@ -249,6 +286,16 @@ describe('Configuration Interpolation', () => {
 
       const missing = validateEnvVars(config, {});
 
+      expect(missing).toEqual(['PORT']);
+    });
+
+    it('should treat :- defaults as present (not missing)', () => {
+      const config = {
+        host: '${HOST:-localhost}',
+        port: '${PORT}',
+      };
+
+      const missing = validateEnvVars(config, {});
       expect(missing).toEqual(['PORT']);
     });
 

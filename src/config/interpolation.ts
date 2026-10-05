@@ -28,9 +28,11 @@ export interface InterpolationOptions {
 }
 
 /**
- * Pattern for matching environment variables: ${VAR} or ${VAR:default}
+ * Pattern for matching environment variables: ${VAR}, ${VAR:default} or
+ * ${VAR:-default} (bash-style: `:-` also falls back when the var is empty).
+ * Group 1 = var name, group 2 = the `-` of `:-` (or empty), group 3 = default.
  */
-const ENV_VAR_PATTERN = /\$\{([A-Z_][A-Z0-9_]*?)(?::([^}]*))?\}/g;
+const ENV_VAR_PATTERN = /\$\{([A-Z_][A-Z0-9_]*?)(?::(-?)([^}]*))?\}/g;
 
 /**
  * Interpolate environment variables in a string value
@@ -47,13 +49,15 @@ export function interpolateString(
 ): string {
   const env = options.env ?? process.env;
   
-  return value.replace(ENV_VAR_PATTERN, (match, varName: string, defaultValue: string | undefined) => {
+  return value.replace(ENV_VAR_PATTERN, (match, varName: string, dash: string | undefined, defaultValue: string | undefined) => {
     const envValue = env[varName];
-    
-    if (envValue !== undefined) {
+
+    // Bash semantics: `${VAR:-default}` falls back when unset OR empty,
+    // `${VAR:default}` only when unset.
+    if (envValue !== undefined && (envValue !== '' || !dash)) {
       return envValue;
     }
-    
+
     if (defaultValue !== undefined) {
       return defaultValue;
     }
@@ -153,7 +157,7 @@ export function validateEnvVars(
       const matches = value.matchAll(ENV_VAR_PATTERN);
       for (const match of matches) {
         const varName = match[1] as string;
-        const hasDefault = match[2] !== undefined;
+        const hasDefault = match[3] !== undefined;
         
         if (!hasDefault && env[varName] === undefined) {
           missing.push(varName);
