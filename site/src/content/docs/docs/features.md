@@ -1,12 +1,13 @@
 ---
 title: "Feature Matrix"
-description: "Semua 30 fitur di 7 grup, dengan cakupan spek (FSD + ERD) dan status implementasi."
+description: "All 30 features across 7 groups, with spec coverage (FSD + ERD) and implementation status."
 order: 11
 section: "Features"
 track: "reference"
 ---
 
-Semua 30 fitur di 7 grup. Setiap fitur yang diimplementasikan dikirim dengan pasangan FSD (spek fungsional) dan ERD (model data), plus coverage tes unit dan integration. 918/918 tes hijau saat penulisan.
+
+All 30 features in 7 groups. Every implemented feature ships with an FSD (functional spec) and ERD (data model) pair, plus unit and integration test coverage. 950/950 tests green at time of writing.
 
 | Group | Feature | FSD | ERD | Status |
 |---|---|---|---|---|
@@ -44,9 +45,9 @@ Semua 30 fitur di 7 grup. Setiap fitur yang diimplementasikan dikirim dengan pas
 | Identity & Security | Upstream Credential Injection | ✓ | ✓ | implemented |
 | Identity & Security | RFC 7807 Problem Details | ✓ | — | implemented |
 
-## Benchmark
+## Benchmarks
 
-Diukur di target homelab (4-core i5-6500T, Node 22):
+Measured on the homelab target (4-core i5-6500T, Node 22):
 
 | Scenario | Result | Target |
 |---|---|---|
@@ -55,4 +56,4 @@ Diukur di target homelab (4-core i5-6500T, Node 22):
 | Circuit breaker CLOSED fast-path | ~1.1 µs/req saved | — |
 | Full proxy path @ 100 conn | ~3.2k RPS · P99 ~40ms | hardware-bound ceiling* |
 
-\* Plafon full-proxy terikat round-trip loopback di mesin 4-core bersama (hop url-forward mentah saja terukur 223 µs/op), bukan overhead kode — kode gateway di atas hop mentah itu ~28%. Didokumentasikan jujur; tidak dikejar lebih lanjut.
+\* The full-proxy ceiling is loopback round-trip bound on a shared 4-core box (raw url-forward hop alone measures 223 µs/op), not code overhead — gateway code above the raw hop is ~28%. Documented honestly; not chased further.

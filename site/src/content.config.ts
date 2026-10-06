@@ -1,22 +1,10 @@
-import { defineCollection, z } from 'astro:content';
-import { glob } from 'astro/loaders';
-
-const schema = z.object({
-  title: z.string(),
-  description: z.string(),
-  order: z.number().default(0),
-  section: z.string().default('General'),
-  track: z.enum(['guide', 'reference']).default('guide'),
-});
+import { defineCollection } from 'astro:content';
+import { docsLoader } from '@astrojs/starlight/loaders';
+import { docsSchema } from '@astrojs/starlight/schema';
 
 const docs = defineCollection({
-  loader: glob({ pattern: '**/*.md', base: './src/content/docs' }),
-  schema,
+  loader: docsLoader(),
+  schema: docsSchema(),
 });
 
-const docsId = defineCollection({
-  loader: glob({ pattern: '**/*.md', base: './src/content/docs-id' }),
-  schema,
-});
-
-export const collections = { docs, 'docs-id': docsId };
+export const collections = { docs };

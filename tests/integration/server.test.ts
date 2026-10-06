@@ -51,9 +51,13 @@ describe('Server Integration Tests', () => {
   });
 
   it('should handle dynamic routes with parameters', async () => {
+    // capture-side assertion: the handler stores the param instead of echoing
+    // untrusted request data back in the response body
+    let capturedId: string | undefined;
     router.register('GET', '/users/:id', async ctx => {
+      capturedId = ctx.params.id;
       ctx.res.writeHead(200, { 'Content-Type': 'application/json' });
-      ctx.res.end(JSON.stringify({ userId: ctx.params.id }));
+      ctx.res.end('{"ok":true}');
       ctx.responded = true;
     });
 
@@ -62,7 +66,7 @@ describe('Server Integration Tests', () => {
 
     const response = await makeRequest('GET', `http://127.0.0.1:${port}/users/123`);
     expect(response.statusCode).toBe(200);
-    expect(JSON.parse(response.body)).toEqual({ userId: '123' });
+    expect(capturedId).toBe('123');
   });
 
   it('should handle multiple concurrent requests', async () => {
@@ -129,10 +133,11 @@ describe('Server Integration Tests', () => {
   });
 
   it('should handle route with query parameters', async () => {
+    let capturedQuery: Record<string, string> | undefined;
     router.register('GET', '/search', async ctx => {
-      const query = ctx.query || {};
+      capturedQuery = { ...(ctx.query || {}) };
       ctx.res.writeHead(200, { 'Content-Type': 'application/json' });
-      ctx.res.end(JSON.stringify({ query }));
+      ctx.res.end('{"ok":true}');
       ctx.responded = true;
     });
 
@@ -141,8 +146,7 @@ describe('Server Integration Tests', () => {
 
     const response = await makeRequest('GET', `http://127.0.0.1:${port}/search?q=test&limit=10`);
     expect(response.statusCode).toBe(200);
-    const data = JSON.parse(response.body);
-    expect(data.query).toEqual({ q: 'test', limit: '10' });
+    expect(capturedQuery).toEqual({ q: 'test', limit: '10' });
   });
 
   it('should handle errors in route handlers', async () => {

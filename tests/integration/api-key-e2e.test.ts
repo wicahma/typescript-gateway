@@ -13,13 +13,16 @@ describe('M3 API key engine end-to-end (in-process gateway)', () => {
   let upstream: ReturnType<typeof createHttpServer>;
   let upstreamPort: number;
   let configPath: string;
+  let seenAuthHeader: string | null = null;
   const goodKey = generateApiKey('live');
   const otherKey = generateApiKey('live');
 
   beforeAll(async () => {
     upstream = createHttpServer((req, res) => {
+      const raw = req.headers['x-api-key'];
+      seenAuthHeader = raw === undefined ? null : String(raw);
       res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ upstream: 'ok', auth: req.headers['x-api-key'] ?? null }));
+      res.end(JSON.stringify({ upstream: 'ok' }));
     });
     await new Promise<void>(resolve => upstream.listen(0, '127.0.0.1', resolve));
     upstreamPort = (upstream.address() as AddressInfo).port;
@@ -86,7 +89,8 @@ describe('M3 API key engine end-to-end (in-process gateway)', () => {
   it('forwards valid-key request with identity upstream', async () => {
     const res = await fetch(`http://127.0.0.1:${port}/api/data`, { headers: { 'x-api-key': goodKey } });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ upstream: 'ok', auth: goodKey });
+    expect(await res.json()).toEqual({ upstream: 'ok' });
+    expect(seenAuthHeader).toBe(goodKey);
   });
 
   it('accepts Bearer fallback', async () => {

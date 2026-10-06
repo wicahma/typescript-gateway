@@ -1,15 +1,28 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import pkg from '../../package.json';
 
 const quickstart = `git clone https://github.com/wicahma/typescript-gateway
 cd typescript-gateway && npm install
-
 PORT=8088 npm start
-
 curl http://localhost:8088/health`;
 
-// Hyperframe frames: request lifecycle, scrubbed by scroll (CSS animation-timeline)
-const frames = [
+const config = `{
+  "server": { "port": 8088 },
+  "routes": [{ "method": "GET", "path": "/api/*" }],
+  "upstreams": [
+    { "id": "backend", "host": "localhost", "port": 3000 }
+  ]
+}`;
+
+const terminal = `$ curl http://localhost:8088/api/test
+{"id":"test"}          # 200 OK — proxied to localhost:3000
+$ curl http://localhost:8088/health
+{"status":"ok"}`;
+
+const version = pkg.version;
+
+const steps = [
   { n: '01', title: 'ACCEPT', body: 'request hits the socket. zero allocations on the way in.' },
   { n: '02', title: 'MATCH', body: 'radix tree resolves method + path in O(log n).' },
   { n: '03', title: 'POLICIES', body: 'inbound chain: auth, cache, rate limit. first Response wins.' },
@@ -18,16 +31,38 @@ const frames = [
   { n: '06', title: 'RESPOND', body: 'transform, compress, write. context returns to the pool.' },
 ];
 
-const groups = [
-  { href: '/docs/core-routing', label: 'Core Routing & Proxy', desc: 'Radix router, proxy pipeline, context pooling.' },
-  { href: '/docs/resilience', label: 'Resilience', desc: 'Circuit breaker, retries, health checks, fallbacks.' },
-  { href: '/docs/traffic-control', label: 'Traffic Control', desc: 'Rate limiting, response cache, load balancing.' },
-  { href: '/docs/payload', label: 'Payload Handling', desc: 'Body parsing, transformation, compression.' },
-  { href: '/docs/observability', label: 'Observability', desc: 'Lock-free metrics, logging, live dashboard.' },
-  { href: '/docs/operations', label: 'Operations', desc: 'Config validation, plugin chain, auto-tuner.' },
-  { href: '/docs/identity-security', label: 'Identity & Security', desc: 'JWT, API keys, upstream credentials, RFC 7807.' },
-  { href: '/docs/usage', label: 'Usage Guide', desc: 'Recipes: proxying, auth, caching, plugins.' },
-  { href: '/docs/features', label: 'Feature Matrix', desc: 'All 30 features, specs, and benchmarks.' },
+const caps = [
+  { group: 'core routing', items: ['Radix Router', 'Reverse Proxy', 'Request Pipeline', 'Context Pool', 'WebSocket Tunneling', 'OpenAPI Generator', 'Disconnect Propagation', 'Request Coalescing', 'Streaming Path'] },
+  { group: 'resilience', items: ['Circuit Breaker', 'Retry Manager', 'Health Checker', 'Fallback Handler', 'Timeout Manager'] },
+  { group: 'traffic control', items: ['Rate Limiter', 'Response Cache', 'Load Balancer'] },
+  { group: 'payload', items: ['Body Parser', 'Request Transformer', 'Response Transformer', 'Compression'] },
+  { group: 'observability', items: ['Metrics Histogram', 'Structured Logger', 'Performance Dashboard', 'Access Log Sampling', 'CPU & Memory Profiler'] },
+  { group: 'operations', items: ['Config Loader & Validator', 'Plugin Execution Chain', 'Auto Tuner'] },
+  { group: 'identity & security', items: ['JWT Auth', 'API Keys', 'Upstream Credential Injection', 'RFC 7807 Problem Details'] },
+];
+
+const bench = [
+  { s: 'Sustained 100 conn × 60 s', direct: '55,369 req/s', gw: '53,081 req/s', d: '−4.1%' },
+  { s: 'Plain GET /api/bench', direct: '78,498 req/s', gw: '50,323 req/s', d: '−35.9%' },
+  { s: 'Large body, gzip', direct: '20,068 req/s', gw: '12,903 req/s', d: '−35.7%' },
+  { s: 'Slow upstream, 200 ms', direct: '49 req/s', gw: '49 req/s', d: '−0%' },
+  { s: 'Slow 100 ms + cacheable', direct: '98 req/s', gw: '30,677 req/s', d: '~313×' },
+  { s: 'Failing upstream (500)', direct: '77,120 req/s', gw: '28,178 req/s', d: '−63.5% fail-fast' },
+];
+
+const docs = [
+  { href: '/docs/getting-started', label: 'Getting Started', desc: 'install, first config, first plugin' },
+  { href: '/docs/architecture', label: 'Architecture & Pipeline', desc: 'request lifecycle, socket to upstream' },
+  { href: '/docs/configuration', label: 'Configuration Reference', desc: 'every option in gateway.config.json' },
+  { href: '/docs/usage', label: 'Usage Guide', desc: 'recipes: proxying, auth, caching, plugins' },
+  { href: '/docs/core-routing', label: 'Core Routing & Proxy', desc: 'radix router, proxy pipeline, pooling' },
+  { href: '/docs/resilience', label: 'Resilience', desc: 'breaker, retries, health, fallbacks' },
+  { href: '/docs/traffic-control', label: 'Traffic Control', desc: 'rate limits, cache, load balancing' },
+  { href: '/docs/payload', label: 'Payload Handling', desc: 'parsing, transformation, compression' },
+  { href: '/docs/observability', label: 'Observability', desc: 'metrics, logging, live dashboard' },
+  { href: '/docs/operations', label: 'Operations', desc: 'config validation, plugin chain, tuner' },
+  { href: '/docs/identity-security', label: 'Identity & Security', desc: 'JWT, API keys, RFC 7807' },
+  { href: '/docs/features', label: 'Feature Matrix', desc: 'every feature, spec, and benchmark' },
 ];
 ---
 
@@ -37,30 +72,59 @@ const groups = [
   canonical="https://tsgate.diama.dev/"
 >
   <main>
-    <canvas id="packet-field" aria-hidden="true"></canvas>
     <section class="hero">
-      <p class="mono-eyebrow">0 runtime dependencies</p>
-      <h1>
-        <span class="hl-line"><span>A simple gateway,</span></span>
-        <span class="hl-line"><em>it's all you need.</em></span>
-      </h1>
+      <div class="hero-copy">
+        <p class="eyebrow">MIT · 0 runtime dependencies · node &ge; 20 · v{version}</p>
+        <h1>
+          <span class="hl-line"><span>The API gateway</span></span>
+          <span class="hl-line"><em>for Node.js.</em></span>
+        </h1>
 
-      <p class="lede">
-        Pure TypeScript on native <code>node:http</code>. 30 features,
-        one process, zero frameworks.
-      </p>
+        <p class="lede">
+          Pure TypeScript on native <code>node:http</code>. No framework, no runtime
+          dependencies &mdash; just a radix tree and a keep-alive pool. 30 features
+          in one process: routing, auth, caching, rate limits, circuit breaking, metrics.
+        </p>
 
-      <div class="actions">
-        <a href="/docs/getting-started" class="btn-primary">Read the docs</a>
-        <a href="/docs/id/getting-started" class="btn-ghost" lang="id">Baca dalam Bahasa Indonesia</a>
-        <a
-          href="https://github.com/wicahma/typescript-gateway"
-          class="btn-ghost"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          GitHub ↗
-        </a>
+        <div class="install">
+          <div class="install-head">
+            <span class="file">quickstart</span>
+            <button type="button" class="copy-btn" data-copy aria-label="Copy quick start commands">copy</button>
+          </div>
+          <pre><code>{quickstart}</code></pre>
+        </div>
+
+        <div class="actions">
+          <a href="/docs/getting-started" class="btn-primary">Get started</a>
+          <a
+            href="https://github.com/wicahma/typescript-gateway"
+            class="btn-ghost"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub ↗
+          </a>
+          <a href="/id/docs/getting-started" class="lang-link" lang="id">Bahasa Indonesia</a>
+        </div>
+      </div>
+
+      <div class="hero-panel" aria-label="A minimal gateway config and its result">
+        <div class="panel-card">
+          <div class="panel-head">
+            <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="file">gateway.config.json</span>
+            <button type="button" class="copy-btn" data-copy aria-label="Copy example config">copy</button>
+          </div>
+          <pre><code>{config}</code></pre>
+        </div>
+        <div class="panel-card">
+          <div class="panel-head">
+            <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="file">terminal</span>
+          </div>
+          <pre><code>{terminal}</code></pre>
+        </div>
+        <p class="panel-note">the whole config. everything else has sensible defaults.</p>
       </div>
     </section>
 
@@ -70,31 +134,22 @@ const groups = [
       </div>
     </section>
 
-    <section class="hyperframe" aria-label="Request lifecycle, scrubbed by scroll">
-      <div class="hf-stage" aria-hidden="true">
-        {frames.map((f, i) => (
-          <pre
-            class="hf-frame"
-            style={`--i: ${i}; --total: ${frames.length};`}
-          ><code>{`  client ──▶ gateway ──▶ upstream
-
-  ${f.n}  ${f.title}
-  ${'─'.repeat(34)}
-  ${f.body}`}</code></pre>
+    <section class="lifecycle" aria-label="Request lifecycle in six steps">
+      <p class="sec-label">request lifecycle</p>
+      <ol class="steps">
+        {steps.map((s) => (
+          <li>
+            <span class="step-n">{s.n}</span>
+            <strong>{s.title}</strong>
+            <span class="step-body">{s.body}</span>
+          </li>
         ))}
-      </div>
-      <div class="hf-caption">
-        <span class="hf-label">request lifecycle</span>
-        <span class="hf-track" aria-hidden="true"><span class="hf-fill"></span></span>
-      </div>
+      </ol>
     </section>
 
-    <section class="terminal" aria-label="Quick start">
-      <pre><code>{quickstart}</code></pre>
-    </section>
     <section class="facts">
       <div class="fact">
-        <dt>dependencies</dt>
+        <dt>runtime deps</dt>
         <dd>0</dd>
       </div>
       <div class="fact">
@@ -107,33 +162,94 @@ const groups = [
       </div>
       <div class="fact">
         <dt>tests</dt>
-        <dd>918 ✓</dd>
+        <dd>950 ✓</dd>
       </div>
     </section>
 
-    <section class="latest">
-      <h2><span class="latest-tag">new</span> Latest additions</h2>
-      <ul>
-        <li><strong>WebSocket tunneling</strong><span>raw bidirectional pipe, opt-in</span></li>
-        <li><strong>OpenAPI generator</strong><span>spec from the live route table</span></li>
-        <li><strong>Single-flight coalescing</strong><span>stampede = 1 upstream call</span></li>
-        <li><strong>Conditional revalidation</strong><span>304 merge, no body transfer</span></li>
-        <li><strong>Vary-aware cache keys</strong><span>gzip / br / identity coexist</span></li>
-        <li><strong>Streaming responses</strong><span>large bodies pipe, no buffering</span></li>
-      </ul>
+    <section class="caps">
+      <p class="sec-label">capability index</p>
+      <h2>Everything a proxy needs</h2>
+      <div class="cap-ledger">
+        {caps.map((c) => (
+          <div class="cap-row">
+            <span class="cap-group">{c.group}</span>
+            <ul>
+              {c.items.map((it) => (
+                <li>{it}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <p class="caps-note">
+        Every capability ships with an FSD + ERD spec pair and unit/integration coverage
+        in the repo. Details in the <a href="/docs/features">feature matrix</a>.
+      </p>
+    </section>
+
+    <section class="bench">
+      <p class="sec-label">benchmarks</p>
+      <h2>Overhead, with the receipts</h2>
+      <div class="bench-scroll">
+        <table>
+          <thead>
+            <tr><th>Scenario</th><th>Direct upstream</th><th>Through tsgate</th><th>Δ</th></tr>
+          </thead>
+          <tbody>
+            {bench.map((b) => (
+              <tr>
+                <td>{b.s}</td>
+                <td>{b.direct}</td>
+                <td>{b.gw}</td>
+                <td class={b.d.startsWith('~') ? 'delta-win' : 'delta'}>{b.d}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p class="bench-note">
+        macOS arm64 · Node v22.21.1 · loopback · 2026-10-05. The fast-path tax is proxy
+        parse/socket cost in JavaScript; it disappears on latency-bound upstreams and
+        inverts with the response cache. Full method and caveats:
+        <a href="/docs/testing">testing &amp; benchmarks</a>.
+      </p>
     </section>
 
     <section class="docs-entry">
-      <h2>Documentation</h2>
+      <p class="sec-label">documentation</p>
+      <h2>Read the manual</h2>
       <nav class="doc-links">
-        {groups.map(g => (
-          <a href={g.href}>
-            <span class="label">{g.label}</span>
-            <span class="desc">{g.desc}</span>
+        {docs.map((d) => (
+          <a href={d.href}>
+            <span class="label">{d.label}</span>
+            <span class="desc">{d.desc}</span>
             <span class="arrow">→</span>
           </a>
         ))}
       </nav>
+      <p class="docs-note">
+        Seluruh panduan juga tersedia dalam
+        <a href="/id/docs/getting-started" lang="id">Bahasa Indonesia</a>.
+      </p>
+    </section>
+
+    <section class="closing">
+      <h2>Start routing.</h2>
+      <p>
+        One JSON file. One process. Nothing to install at runtime &mdash;
+        everything else has sensible defaults.
+      </p>
+      <div class="actions">
+        <a href="/docs/getting-started" class="btn-primary">Get started</a>
+        <a
+          href="https://github.com/wicahma/typescript-gateway"
+          class="btn-ghost"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          GitHub ↗
+        </a>
+      </div>
     </section>
   </main>
 </Layout>
@@ -145,38 +261,41 @@ const groups = [
     padding: 0 1.5rem;
     width: 100%;
   }
-  /* ---- hero: editorial typographic, staggered line reveal ---- */
-  .hero {
-    position: relative;
-    z-index: 1;
-    padding: 8rem 0 4.5rem;
-    max-width: 860px;
-  }
 
-  #packet-field {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    opacity: 0.85;
-  }
-
-  .mono-eyebrow {
+  .sec-label {
     font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     font-weight: 700;
     letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--accent);
+    margin-bottom: 0.7rem;
+  }
+
+  /* ---- hero: copy left, real product surface right ---- */
+  .hero {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 3rem;
+    align-items: center;
+    padding: 6.5rem 0 4.5rem;
+  }
+
+  .hero-copy {
+    min-width: 0;
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: var(--muted);
     margin-bottom: 1.4rem;
-    display: inline-block;
-    border: 1.5px solid var(--accent);
-    padding: 0.3rem 0.7rem;
-    border-radius: 4px;
   }
 
   h1 {
-    font-size: clamp(3rem, 8.5vw, 6rem);
+    font-size: clamp(2.8rem, 6.5vw, 4.6rem);
     font-weight: 800;
     letter-spacing: -0.05em;
     line-height: 0.98;
@@ -184,23 +303,6 @@ const groups = [
 
   .hl-line {
     display: block;
-    overflow: hidden;
-  }
-
-  .hl-line > span,
-  .hl-line > em {
-    display: inline-block;
-    transform: translateY(110%);
-    animation: hl-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-
-  .hl-line:nth-child(2) > span,
-  .hl-line:nth-child(2) > em {
-    animation-delay: 0.12s;
-  }
-
-  @keyframes hl-rise {
-    to { transform: translateY(0); }
   }
 
   h1 em {
@@ -225,8 +327,63 @@ const groups = [
     border-radius: 5px;
   }
 
+  .install {
+    margin-top: 2.2rem;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    max-width: 30rem;
+  }
+
+  .install-head {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.55rem 0.9rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .install-head .file {
+    flex: 1;
+  }
+
+  .install pre {
+    padding: 1rem 1.2rem;
+    font-size: 0.78rem;
+    line-height: 1.75;
+    overflow-x: auto;
+  }
+
+  .install code::before {
+    content: '$ ';
+    color: var(--accent);
+    white-space: pre;
+  }
+
+  .copy-btn {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.25rem 0.55rem;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .copy-btn:hover,
+  .copy-btn.copied {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
   .actions {
-    margin-top: 2.4rem;
+    margin-top: 2.2rem;
     display: flex;
     gap: 1rem;
     align-items: center;
@@ -234,7 +391,7 @@ const groups = [
 
   .btn-primary {
     background: var(--accent);
-    color: #fff;
+    color: #0b0b0d;
     font-weight: 700;
     font-size: 0.95rem;
     padding: 0.8rem 1.6rem;
@@ -243,7 +400,7 @@ const groups = [
   }
 
   .btn-primary:hover {
-    background: var(--ink);
+    background: #8aa3ff;
   }
 
   .btn-primary:active {
@@ -262,11 +419,84 @@ const groups = [
     color: var(--ink);
   }
 
+  .lang-link {
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: var(--line);
+    transition: color 0.15s ease, text-decoration-color 0.15s ease;
+  }
+
+  .lang-link:hover {
+    color: var(--accent);
+    text-decoration-color: var(--accent);
+  }
+
+  /* hero right: two stacked product cards */
+  .hero-panel {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  .panel-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .panel-head {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.55rem 0.9rem;
+    border-bottom: 1px solid var(--line);
+    position: relative;
+  }
+
+  .dots {
+    display: inline-flex;
+    gap: 5px;
+  }
+
+  .dots i {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #26262c;
+  }
+
+  .file {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    flex: 1;
+  }
+
+  .panel-card .copy-btn {
+    position: static;
+  }
+
+  .panel-card pre {
+    padding: 1rem 1.2rem;
+    font-size: 0.78rem;
+    line-height: 1.75;
+    overflow-x: auto;
+    color: var(--ink);
+  }
+
+  .panel-note {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+
   /* ---- ticker: request-log marquee ---- */
   .ticker {
-    position: relative;
-    z-index: 1;
-    background: var(--bg);
     border-top: 1px solid var(--line);
     border-bottom: 1px solid var(--line);
     overflow: hidden;
@@ -296,149 +526,63 @@ const groups = [
     .ticker-track { animation: none; }
   }
 
-  /* ---- hyperframe: scroll-scrubbed frame sequence ---- */
-  .hyperframe {
-    position: relative;
-    z-index: 1;
-    background: var(--bg);
-    margin: 4rem 0;
-    border-top: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
+  /* ---- lifecycle: six steps, always visible ---- */
+  .lifecycle {
+    padding: 3.2rem 0 3rem;
   }
 
-  .hf-stage {
-    position: relative;
-    height: 340px;
-    overflow: hidden;
+  .steps {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1.2rem;
   }
 
-  .hf-frame {
+  .steps li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding-top: 0.9rem;
+    border-top: 2px solid var(--line);
+    position: relative;
+  }
+
+  .steps li::before {
+    content: '';
     position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    padding: 0 1rem;
-    margin: 0;
-    font-family: var(--font-mono);
-    font-size: 0.92rem;
-    line-height: 1.9;
-    color: var(--ink);
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  @supports (animation-timeline: scroll()) {
-    .hyperframe {
-      height: 300vh;
-    }
-
-    .hf-stage {
-      position: sticky;
-      top: 70px;
-      height: calc(100vh - 70px);
-      max-height: 640px;
-    }
-
-    /* Per-frame cover-range slices over the section's own view timeline.
-       view-timeline lives on the tall section (the only element that
-       actually moves); frames are absolutely positioned in the sticky
-       stage, so their own view() progress would never change. */
-    .hyperframe {
-      view-timeline: --hf block;
-    }
-
-    .hf-frame {
-      animation: hf-cycle linear both;
-      animation-timeline: --hf;
-      animation-duration: 1ms; /* required by spec; timeline drives progress */
-      animation-range: contain calc(var(--i) / var(--total) * 100%) contain calc((var(--i) + 1) / var(--total) * 100%);
-    }
-
-    .hf-fill {
-      transform-origin: left;
-      animation: hf-progress linear both;
-      animation-timeline: --hf;
-      animation-duration: 1ms;
-      animation-range: contain 0% contain 100%;
-    }
-  }
-
-  @keyframes hf-cycle {
-    0%, 6% { opacity: 0; transform: translateY(14px); }
-    12%, 88% { opacity: 1; transform: translateY(0); }
-    94%, 100% { opacity: 0; transform: translateY(-14px); }
-  }
-
-  @keyframes hf-progress {
-    from { transform: scaleX(0); }
-    to { transform: scaleX(1); }
-  }
-
-  .hf-caption {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.9rem 0;
-  }
-
-  .hf-label {
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--muted);
-    white-space: nowrap;
-  }
-
-  .hf-track {
-    flex: 1;
+    top: -2px;
+    left: 0;
+    width: 2.2rem;
     height: 2px;
-    background: var(--line);
-    display: block;
-  }
-
-  .hf-fill {
-    display: block;
-    height: 100%;
     background: var(--accent);
-    transform: scaleX(0);
   }
 
-  /* JS fallback for browsers without scroll-driven animations */
-  .hyperframe.no-sda {
-    height: auto;
+  .step-n {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    color: var(--accent);
   }
 
-  .hyperframe.no-sda .hf-stage {
-    position: relative;
-    top: 0;
-    height: 340px;
+  .steps strong {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
   }
 
-  .hyperframe.no-sda .hf-frame {
-    animation: none;
-    opacity: 1;
-    display: none;
+  .step-body {
+    font-size: 0.76rem;
+    line-height: 1.55;
+    color: var(--muted);
   }
 
-  .hyperframe.no-sda .hf-frame.visible {
-    display: flex;
-    animation: hf-fallback-in 0.35s ease both;
-  }
-
-  @keyframes hf-fallback-in {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
   /* ---- facts: mono numerals, hairline row ---- */
   .facts {
-    position: relative;
-    z-index: 1;
-    background: var(--bg);
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 0;
     border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
     padding: 2.2rem 0 2.6rem;
   }
 
@@ -464,85 +608,147 @@ const groups = [
     font-variant-numeric: tabular-nums;
   }
 
-  /* ---- latest additions: bold list ---- */
-  .latest {
-    position: relative;
-    z-index: 1;
-    background: var(--bg);
+  /* ---- capability index: ledger, no cards ---- */
+  .caps {
     padding: 3.5rem 0 3rem;
-    border-top: 1px solid var(--line);
   }
 
-  .latest h2 {
+  .caps h2,
+  .bench h2,
+  .docs-entry h2,
+  .closing h2 {
     font-size: 1.35rem;
     font-weight: 800;
     letter-spacing: -0.02em;
     margin-bottom: 1.6rem;
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
   }
 
-  .latest-tag {
-    font-family: var(--font-mono);
-    font-size: 0.62rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    background: var(--accent);
-    color: #fff;
-    padding: 0.2rem 0.55rem;
-    border-radius: 4px;
-  }
-
-  .latest ul {
-    list-style: none;
+  .cap-ledger {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1px;
-    background: var(--line);
-    border: 1px solid var(--line);
+    grid-template-columns: 1fr 1fr;
+    gap: 0 3rem;
   }
 
-  .latest li {
-    background: var(--bg);
-    padding: 1.2rem 1.3rem;
+  .cap-row {
     display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    transition: background 0.15s ease;
+    gap: 1.2rem;
+    padding: 0.95rem 0;
+    border-bottom: 1px solid var(--line);
+    align-items: baseline;
   }
 
-  .latest li:hover {
-    background: var(--panel);
-  }
-
-  .latest li strong {
-    font-size: 0.98rem;
+  .cap-group {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
     font-weight: 700;
-    letter-spacing: -0.01em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    white-space: nowrap;
+    width: 10.5rem;
+    flex-shrink: 0;
   }
 
-  .latest li span {
+  .cap-row ul {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.4rem;
+  }
+
+  .cap-row li {
     font-family: var(--font-mono);
     font-size: 0.74rem;
+    color: var(--ink);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 0.12rem 0.5rem;
+    white-space: nowrap;
+  }
+
+  .caps-note {
+    margin-top: 1.2rem;
+    font-size: 0.82rem;
     color: var(--muted);
+  }
+
+  .caps-note a,
+  .bench-note a,
+  .docs-note a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /* ---- benchmarks: table with receipts ---- */
+  .bench {
+    padding: 3rem 0 3rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .bench-scroll {
+    overflow-x: auto;
+  }
+
+  .bench table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bench th {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-align: left;
+    color: var(--muted);
+    padding: 0.55rem 1rem 0.55rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .bench td {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    padding: 0.65rem 1rem 0.65rem 0;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+
+  .bench td:first-child {
+    font-family: var(--font-sans);
+    color: var(--ink);
+    white-space: normal;
+  }
+
+  .bench td:nth-child(2),
+  .bench td:nth-child(3) {
+    color: var(--muted);
+  }
+
+  .delta {
+    color: var(--muted);
+  }
+
+  .delta-win {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .bench-note {
+    margin-top: 1.2rem;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: var(--muted);
+    max-width: 44rem;
   }
 
   /* ---- docs entry: 2-col list, hover slide ---- */
   .docs-entry {
-    position: relative;
-    z-index: 1;
-    background: var(--bg);
-    padding: 2rem 0 6rem;
+    padding: 3rem 0 3rem;
     border-top: 1px solid var(--line);
-  }
-
-  .docs-entry h2 {
-    font-size: 1.35rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    margin-bottom: 1.4rem;
   }
 
   .doc-links {
@@ -590,10 +796,54 @@ const groups = [
     color: var(--accent);
   }
 
+  .docs-note {
+    margin-top: 1.2rem;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+
+  /* ---- closing CTA ---- */
+  .closing {
+    padding: 4.5rem 0 6rem;
+    border-top: 1px solid var(--line);
+    text-align: center;
+  }
+
+  .closing h2 {
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    letter-spacing: -0.03em;
+    margin-bottom: 0.8rem;
+  }
+
+  .closing p {
+    color: var(--muted);
+    max-width: 34rem;
+    margin: 0 auto;
+  }
+
+  .closing .actions {
+    justify-content: center;
+    margin-top: 2rem;
+  }
+
   /* ---- responsive ---- */
-  @media (max-width: 768px) {
+  @media (max-width: 900px) {
     .hero {
+      grid-template-columns: 1fr;
+      gap: 2.5rem;
       padding: 4.5rem 0 3rem;
+    }
+    .steps {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .cap-ledger {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .steps {
+      grid-template-columns: 1fr 1fr;
     }
     .facts {
       grid-template-columns: 1fr 1fr;
@@ -603,27 +853,15 @@ const groups = [
       grid-template-columns: 1fr;
       gap: 0;
     }
-    .latest ul {
-      grid-template-columns: 1fr;
-    }
     .doc-links .desc {
       display: none;
     }
-    .hyperframe {
-      height: auto;
+    .cap-row {
+      flex-direction: column;
+      gap: 0.5rem;
     }
-    .hf-stage {
-      position: relative;
-      top: 0;
-      height: 320px;
-    }
-    .hf-frame {
-      animation: none !important;
-      opacity: 1 !important;
-      display: none;
-    }
-    .hf-frame.visible {
-      display: flex;
+    .cap-group {
+      width: auto;
     }
   }
 
@@ -633,152 +871,27 @@ const groups = [
       animation: none;
       transform: none;
     }
-    .hf-frame,
-    .hf-fill {
-      animation: none !important;
-      opacity: 1;
-      transform: none;
-    }
-    .hf-frame:not(:first-child) {
-      display: none;
-    }
   }
 </style>
 
 <script>
-  // Hyperframe scrub driver (JS, always-on). Continuous rAF loop with
-  // document.hidden + reduced-motion guards, no scroll listeners, no deps.
-  // (CSS scroll-driven path dropped: support signals lie; IO gating
-  // untestable in some engines. One rect read per frame is cheap.)
-  (function () {
-    const section = document.querySelector('.hyperframe');
-    if (!section) return;
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const frames = [...section.querySelectorAll('.hf-frame')];
-    const fill = section.querySelector('.hf-fill');
-    const total = frames.length;
-    let raf = 0;
-
-    function show(idx, progress) {
-      frames.forEach((f, j) => f.classList.toggle('visible', j === idx));
-      if (fill) fill.style.transform = `scaleX(${progress})`;
-    }
-
-    function jsScrub() {
-      section.classList.add('no-sda');
-      const tick = () => {
-        if (!document.hidden && !reduce) {
-          const rect = section.getBoundingClientRect();
-          const vh = window.innerHeight;
-          const onScreen = rect.bottom > 0 && rect.top < vh;
-          if (onScreen) {
-            // progress 0..1 as the section travels through the viewport
-            const p = Math.min(1, Math.max(0, (vh - rect.top) / (vh + rect.height)));
-            const idx = Math.min(total - 1, Math.floor(p * total));
-            show(idx, p);
-          }
-        }
-        raf = requestAnimationFrame(tick);
-      };
-      raf = requestAnimationFrame(tick);
-      show(0, 0);
-    }
-
-    if (reduce) {
-      show(0, 0);
-      return;
-    }
-    jsScrub();
-  })();
-</script>
-
-<script>
-  (function () {
-    const canvas = document.getElementById('packet-field');
-    if (!canvas) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const gl = canvas.getContext('webgl', { alpha: true, antialias: false });
-    if (!gl) return;
-
-    const vsrc = `
-      attribute vec2 aPos;
-      attribute float aSeed;
-      uniform float uTime;
-      uniform vec2 uRes;
-      varying float vSeed;
-      void main() {
-        float speed = 0.03 + fract(aSeed * 7.13) * 0.06;
-        float x = fract(aSeed + uTime * speed);
-        float y = aPos.y + sin(uTime * 0.6 + aSeed * 40.0) * 0.015;
-        vSeed = aSeed;
-        gl_Position = vec4(x * 2.0 - 1.0, y, 0.0, 1.0);
-        gl_PointSize = 3.0 + fract(aSeed * 3.7) * 4.0;
-      }`;
-    const fsrc = `
-      precision mediump float;
-      varying float vSeed;
-      void main() {
-        vec2 c = gl_PointCoord - 0.5;
-        if (dot(c, c) > 0.25) discard;
-        float a = 0.45 + fract(vSeed * 5.3) * 0.45;
-        gl_FragColor = vec4(0.16, 0.32, 1.0, a);
-      }`;
-
-    function compile(type, src) {
-      const s = gl.createShader(type);
-      gl.shaderSource(s, src);
-      gl.compileShader(s);
-      return gl.getShaderParameter(s, gl.COMPILE_STATUS) ? s : null;
-    }
-    const vs = compile(gl.VERTEX_SHADER, vsrc);
-    const fs = compile(gl.FRAGMENT_SHADER, fsrc);
-    if (!vs || !fs) return;
-    const prog = gl.createProgram();
-    gl.attachShader(prog, vs);
-    gl.attachShader(prog, fs);
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
-    gl.useProgram(prog);
-
-    const N = 340;
-    const data = new Float32Array(N * 3);
-    for (let i = 0; i < N; i++) {
-      data[i * 3] = 0;
-      data[i * 3 + 1] = Math.random() * 2 - 1;
-      data[i * 3 + 2] = Math.random();
-    }
-    const buf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
-    const aPos = gl.getAttribLocation(prog, 'aPos');
-    const aSeed = gl.getAttribLocation(prog, 'aSeed');
-    gl.enableVertexAttribArray(aPos);
-    gl.enableVertexAttribArray(aSeed);
-    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 12, 0);
-    gl.vertexAttribPointer(aSeed, 1, gl.FLOAT, false, 12, 8);
-
-    const uTime = gl.getUniformLocation(prog, 'uTime');
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
-    function resize() {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = window.innerWidth * dpr;
-      canvas.height = window.innerHeight * dpr;
-      gl.viewport(0, 0, canvas.width, canvas.height);
-    }
-    window.addEventListener('resize', resize);
-    resize();
-
-    const start = performance.now();
-    (function tick() {
-      if (!document.hidden) {
-        gl.clearColor(0, 0, 0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-        gl.uniform1f(uTime, (performance.now() - start) / 1000);
-        gl.drawArrays(gl.POINTS, 0, N);
+  // Copy-to-clipboard for the quickstart and the example config.
+  document.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const host = btn.closest('.install') ?? btn.closest('.panel-card');
+      const pre = host?.querySelector('pre');
+      if (!pre) return;
+      try {
+        await navigator.clipboard.writeText(pre.textContent ?? '');
+        btn.textContent = 'copied ✓';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'copy';
+          btn.classList.remove('copied');
+        }, 1600);
+      } catch {
+        /* clipboard unavailable — text stays selectable */
       }
-      requestAnimationFrame(tick);
-    })();
-  })();
+    });
+  });
 </script>

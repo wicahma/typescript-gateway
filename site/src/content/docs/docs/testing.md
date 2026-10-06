@@ -6,11 +6,10 @@ section: "Guide"
 track: "reference"
 ---
 
-# Testing & Benchmarks
 
 ## Test Suites
 
-Vitest, 918 tests across 59 files at last full run. Three lanes:
+Vitest, 950 tests across 59 files at last full run. Three lanes:
 
 ```bash
 npm test                      # all suites

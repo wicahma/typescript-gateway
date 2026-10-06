@@ -6,7 +6,6 @@ section: "Configuration"
 track: "guide"
 ---
 
-# Configuration Reference
 
 The gateway is configured via a declarative JSON file (default: `config/gateway.config.json`). Every string field supports environment variable interpolation.
 

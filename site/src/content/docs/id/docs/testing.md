@@ -8,7 +8,7 @@ track: "reference"
 
 ## Test Suite
 
-Vitest, 918 tes di 59 file pada full run terakhir. Tiga jalur:
+Vitest, 950 tes di 59 file pada full run terakhir. Tiga jalur:
 
 ```bash
 npm test                      # all suites

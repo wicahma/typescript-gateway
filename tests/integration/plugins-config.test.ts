@@ -19,12 +19,14 @@ describe('B5 config.plugins[] array loaded by the Gateway (in-process)', () => {
   let upstream: ReturnType<typeof createServer>;
   let configPath: string;
   let upstreamHits = 0;
+  let seenPluginHeader = 'MISSING';
 
   beforeAll(async () => {
     upstream = createServer((req, res) => {
       upstreamHits++;
+      seenPluginHeader = String(req.headers['x-gw-plugin'] ?? 'MISSING');
       res.writeHead(200, { 'content-type': 'text/plain' });
-      res.end(String(req.headers['x-gw-plugin'] ?? 'MISSING'));
+      res.end('ok');
     });
     await new Promise<void>(resolve => upstream.listen(0, '127.0.0.1', resolve));
     const upstreamPort = (upstream.address() as AddressInfo).port;
@@ -70,7 +72,8 @@ describe('B5 config.plugins[] array loaded by the Gateway (in-process)', () => {
   it('invokes the enabled builtin plugin (header injected upstream)', async () => {
     const res = await fetch(`http://127.0.0.1:${port}/api/thing`);
     expect(res.status).toBe(200);
-    expect(await res.text()).toBe('from-config-plugins');
+    expect(await res.text()).toBe('ok');
+    expect(seenPluginHeader).toBe('from-config-plugins');
     expect(upstreamHits).toBe(1);
   }, 20000);
 });

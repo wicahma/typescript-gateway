@@ -1,0 +1,63 @@
+/* tsgate docs theme — matches the landing page's dark design system.
+   Overrides Starlight's --sl-color-* tokens; scoped to the dark root
+   (Starlight's default theme here) so a user toggle to light keeps
+   Starlight's own readable light palette. */
+
+:root {
+  --sl-font: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --sl-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+:root.starlight {
+  /* surfaces */
+  --sl-color-black: #0b0b0d;
+  --sl-color-bg: #0b0b0d;
+  --sl-color-bg-nav: #0e0e11;
+  --sl-color-bg-sidebar: #0e0e11;
+  --sl-color-bg-accent: #16161a;
+  --sl-color-bg-inline-code: #1d1d23;
+  --sl-color-bg-code: #101013;
+  --sl-color-hairline-shade: #232329;
+
+  /* text */
+  --sl-color-white: #f2f2f4;
+  --sl-color-gray-1: #d6d6dc;
+  --sl-color-gray-2: #a6a6b0;
+  --sl-color-gray-3: #85858e;
+  --sl-color-gray-4: #5d5d66;
+  --sl-color-gray-5: #2e2e35;
+  --sl-color-gray-6: #1c1c21;
+
+  /* accent — the landing's blue, lifted for dark contrast */
+  --sl-color-accent-low: #1a1c2a;
+  --sl-color-accent-200: #d4dcff;
+  --sl-color-accent-300: #b8c4ff;
+  --sl-color-accent-400: #8aa3ff;
+  --sl-color-accent-500: #6d8cff;
+  --sl-color-accent-600: #4d6ef2;
+  --sl-color-accent-high: #c7d0ff;
+  --sl-color-text-accent: #8aa3ff;
+  --sl-color-static-text-accent: #8aa3ff;
+}
+
+/* sidebar section labels + site title in JetBrains Mono, like the landing */
+.sidebar-content .top-level-group > .group-label,
+.site-title span {
+  font-family: var(--sl-font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sl-color-gray-3);
+}
+
+.site-title {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--sl-color-white);
+}
+
+/* inline code readable on dark panels */
+:root.starlight .sl-markdown-content :not(a, h1, h2, h3, h4, h5, h6) > code,
+:root.starlight code {
+  border: 1px solid var(--sl-color-hairline-shade);
+}

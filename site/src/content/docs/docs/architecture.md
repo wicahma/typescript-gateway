@@ -1,21 +1,20 @@
 ---
-title: "Arsitektur & Pipeline"
-description: "Mengintip ke dalam request pipeline tanpa dependency dan tanpa alokasi."
+title: "Architecture & Pipeline"
+description: "Under the hood of the zero-dependency zero-allocation request pipeline."
 order: 2
 section: "Architecture"
 track: "guide"
 ---
 
-# Arsitektur & Request Pipeline
 
-## Filosofi Inti
+## Core Philosophy
 
-1. **Tanpa Runtime Dependency**: Tidak ada Express, Fastify, Pino, atau Ajv. Semua logging, routing, validasi, dan proxy streaming hanya mengandalkan library standar Node.
-2. **Hot Path Tanpa Alokasi**: Context, buffer parameter, dan metadata response didaur ulang pakai **Object Pool** di memori supaya V8 Garbage Collector tidak jeda.
-3. **Resilience Dulu**: Circuit breaker, retry manager dengan exponential jitter, connection pooling, dan active health check adalah tahapan bawaan pipeline.
-4. **Overhead Internal Sub-milidetik**: Dispatch route statis O(1), pencarian radix tree O(log n).
+1. **Zero Runtime Dependencies**: No Express, Fastify, Pino, or Ajv. All logging, routing, validation, and proxy streaming rely solely on Node standard libraries.
+2. **Zero-Allocation Hot Path**: Contexts, parameter buffers, and response metadata are recycled using an in-memory **Object Pool** to prevent V8 Garbage Collector pauses.
+3. **Resilience First**: Circuit breaker, retry manager with exponential jitter, connection pooling, and active health checks are native pipeline stages.
+4. **Sub-millisecond Internal Overhead**: O(1) static route dispatch, O(log n) radix tree lookup.
 
-## Alur Request Lifecycle
+## Request Lifecycle Flow
 
 ```
 Incoming Client Request
@@ -78,16 +77,16 @@ Direct Response                     │
 [ Metrics Aggregator: Record Latency ]
 ```
 
-## Komponen Utama
+## Key Components
 
 ### 1. Radix Router (`src/core/router.ts`)
-Menggabungkan hash table statis untuk hit langsung O(1) dan radix prefix tree terkompresi untuk route wildcard dinamis (`/users/:id`).
+Combines a static hash table for O(1) direct hits and a compressed radix prefix tree for dynamic wildcard routes (`/users/:id`).
 
 ### 2. Upstream Connection Pool (`src/core/http-client-pool.ts`)
-Menjaga koneksi socket tetap terbuka pakai `http.Agent` dengan TCP keep-alive yang dioptimalkan, mencapai tingkat pemakaian ulang socket 99,99% saat konkurensi tinggi.
+Keeps socket connections open using `http.Agent` with optimized TCP keep-alive, achieving a 99.99% socket reuse rate under high concurrency.
 
 ### 3. Circuit Breaker (`src/core/circuit-breaker.ts`)
-Mengimplementasikan state machine circuit breaker ala Michael Nygard / Martin Fowler per target upstream. Otomatis menghentikan traffic ke service yang gagal sebelum terjadi cascading outage.
+Implements the Michael Nygard / Martin Fowler circuit breaker state machine per upstream target. Automatically halts traffic to failing services before cascading outages occur.
 
 ### 4. Native Structured Logger (`src/utils/logger.ts`)
-Structured JSON logger non-blocking yang menulis langsung ke `process.stdout.write` tanpa overhead logger pihak ketiga yang berat.
+Non-blocking structured JSON logger writing directly to `process.stdout.write` without the overhead of heavy third-party loggers.

@@ -6,7 +6,6 @@ section: "Guide"
 track: "guide"
 ---
 
-# Usage Guide
 
 End-to-end recipes for the most common gateway setups. All examples use the real config schema from `src/types/config.ts` and `src/types/identity.ts` — nothing here is aspirational.
 

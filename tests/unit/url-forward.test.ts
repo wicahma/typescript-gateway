@@ -93,9 +93,14 @@ describe('UrlForwarder', () => {
   });
 
   it('forwards custom headers to the upstream', async () => {
+    // capture-side: upstream records received headers, responds a constant —
+    // no untrusted data flows into the response body
+    const received: Record<string, string | undefined> = {};
     const upstream = await startUpstream((req, res) => {
+      received['x-custom-auth'] = req.headers['x-custom-auth'];
+      received['x-trace-id'] = req.headers['x-trace-id'];
       res.writeHead(200);
-      res.end(JSON.stringify({ auth: req.headers['x-custom-auth'], trace: req.headers['x-trace-id'] }));
+      res.end('{"ok":true}');
     });
     const forwarder = new UrlForwarder(new HttpClientPool());
 
@@ -107,9 +112,9 @@ describe('UrlForwarder', () => {
       timeout: 5000,
     });
 
-    const echoed = JSON.parse(result.body?.toString() || '{}');
-    expect(echoed.auth).toBe('Bearer tok');
-    expect(echoed.trace).toBe('tr-1');
+    expect(result.statusCode).toBe(200);
+    expect(received['x-custom-auth']).toBe('Bearer tok');
+    expect(received['x-trace-id']).toBe('tr-1');
   });
 
   it('returns a non-2xx upstream response as a result, not a throw', async () => {

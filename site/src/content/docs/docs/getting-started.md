@@ -6,7 +6,6 @@ section: "Guide"
 track: "guide"
 ---
 
-# Getting Started
 
 TypeScript Gateway is a reverse proxy and API gateway written in pure
 TypeScript on top of Node's built-in `node:http`. There is no framework

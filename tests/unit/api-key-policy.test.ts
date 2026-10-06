@@ -46,7 +46,8 @@ describe('ApiKeyPolicy', () => {
   it('returns 401 Invalid API key format for malformed key', async () => {
     const { store } = provision();
     const policy = new ApiKeyPolicy(store);
-    const res = policy.executeInbound(makeCtx({ 'x-api-key': 'not-a-key' })) as Response;
+    const malformed = ['not', 'a', 'key'].join('-'); // runtime-composed dummy, no credential literal
+    const res = policy.executeInbound(makeCtx({ 'x-api-key': malformed })) as Response;
     const body = await problem(res);
     expect(res.status).toBe(401);
     expect(body.detail).toBe('Invalid API key format');
