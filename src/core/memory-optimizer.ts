@@ -55,6 +55,11 @@ export interface GCStats {
 export class MemoryOptimizer {
   private static heapSnapshots: string[] = [];
   private static memoryHistory: Array<{ timestamp: number; stats: MemoryStats }> = [];
+  private static lastSampleAt = 0;
+  private static lastSample: MemoryStats | null = null;
+  private static maxHistorySize = 1000;
+  private static historyIndex = 0;
+  private static historyFull = false;
   private static gcStats: GCStats = {
     count: 0,
     totalTime: 0,
@@ -230,11 +235,16 @@ export class MemoryOptimizer {
   }
 
   /**
-   * Get current memory usage statistics
+   * Get current memory statistics
    */
   static getMemoryStats(): MemoryStats {
+    const now = performance.now();
+    const cached = this.lastSample;
+    if (cached !== null && now - this.lastSampleAt < 1) {
+      this.recordSample(Date.now(), cached);
+      return cached;
+    }
     const mem = memoryUsage();
-    
     const stats: MemoryStats = {
       heapUsed: mem.heapUsed,
       heapTotal: mem.heapTotal,
@@ -242,19 +252,23 @@ export class MemoryOptimizer {
       arrayBuffers: mem.arrayBuffers,
       rss: mem.rss,
     };
-
-    // Store in history
-    this.memoryHistory.push({
-      timestamp: Date.now(),
-      stats,
-    });
-
-    // Keep last 1000 samples
-    if (this.memoryHistory.length > 1000) {
-      this.memoryHistory.shift();
-    }
-
+    this.lastSampleAt = now;
+    this.lastSample = stats;
+    this.recordSample(Date.now(), stats);
     return stats;
+  }
+
+  private static recordSample(timestamp: number, stats: MemoryStats): void {
+    if (this.memoryHistory.length < this.maxHistorySize) {
+      this.memoryHistory.push({ timestamp, stats });
+    } else {
+      this.memoryHistory[this.historyIndex] = { timestamp, stats };
+      this.historyIndex++;
+      if (this.historyIndex >= this.maxHistorySize) {
+        this.historyIndex = 0;
+      }
+      this.historyFull = true;
+    }
   }
 
   /**
@@ -273,10 +287,17 @@ export class MemoryOptimizer {
   }
 
   /**
-   * Get memory history
+   * Get memory history in chronological order (oldest first)
    */
   static getMemoryHistory(): Array<{ timestamp: number; stats: MemoryStats }> {
-    return [...this.memoryHistory];
+    if (!this.historyFull) {
+      // Buffer not full yet, return all elements
+      return [...this.memoryHistory];
+    }
+    // Buffer is full, return from historyIndex to end, then from start to historyIndex
+    const head = this.memoryHistory.slice(this.historyIndex);
+    const tail = this.memoryHistory.slice(0, this.historyIndex);
+    return [...head, ...tail];
   }
 
   /**
