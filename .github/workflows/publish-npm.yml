@@ -25,15 +25,12 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
-        working-directory: ./gateway
         run: npm ci
 
       - name: Build
-        working-directory: ./gateway
         run: npm run build
 
       - name: Publish to npm
-        working-directory: ./gateway
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
