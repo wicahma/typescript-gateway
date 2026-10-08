@@ -57,6 +57,7 @@ interface ExecutionRecord {
 export class PluginMetricsCollector {
   private metrics: Map<string, PluginMetrics> = new Map();
   private executionHistory: Map<string, ExecutionRecord[]> = new Map();
+  private percentilesDirty: Map<string, boolean> = new Map();
   private readonly historyLimit = 1000; // Keep last 1000 executions for percentiles
   
   /**
@@ -148,8 +149,8 @@ export class PluginMetricsCollector {
         history.shift();
       }
       
-      // Recalculate percentiles
-      this.updatePercentiles(pluginName);
+      // Percentiles calculated lazily on getMetrics() to avoid O(n log n) on hot path
+      this.percentilesDirty.set(pluginName, true);
     }
   }
   
@@ -189,6 +190,10 @@ export class PluginMetricsCollector {
    * Get metrics for a plugin
    */
   getMetrics(pluginName: string): PluginMetrics | undefined {
+    if (this.percentilesDirty.get(pluginName)) {
+      this.updatePercentiles(pluginName);
+      this.percentilesDirty.set(pluginName, false);
+    }
     return this.metrics.get(pluginName);
   }
   
@@ -203,6 +208,13 @@ export class PluginMetricsCollector {
    * Get metrics as array
    */
   getMetricsArray(): PluginMetrics[] {
+    // Recalculate dirty percentiles before returning
+    for (const [pluginName, dirty] of this.percentilesDirty) {
+      if (dirty) {
+        this.updatePercentiles(pluginName);
+        this.percentilesDirty.set(pluginName, false);
+      }
+    }
     return Array.from(this.metrics.values());
   }
   
