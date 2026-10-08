@@ -156,3 +156,4 @@ dist/
 
 # Mimosa security-scanner hook state (local, regenerable)
 .mimosa/
+.DS_Store
