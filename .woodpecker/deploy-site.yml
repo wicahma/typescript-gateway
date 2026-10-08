@@ -9,28 +9,30 @@ labels:
 
 steps:
   - name: build-site
-    image: node:lts
+    image: bash
     commands:
+      - export PATH="/home/diama/.nvm/versions/node/v22.23.2/bin:/home/diama/.local/bin:$PATH"
       - node -v && npm -v
       - cd site
-      - npm ci
+      - npm ci || npm install
       - npm run build
 
   - name: deploy-cloudflare
-    image: node:lts
+    image: bash
     depends_on:
       - build-site
+    environment:
+      CLOUDFLARE_ACCOUNT_ID:
+        from_secret: cf_account_id
+      CLOUDFLARE_API_TOKEN:
+        from_secret: cf_api_token
     commands:
-      - if [ -f /home/diama/.woodpecker-secrets/aeris-cf.env ]; then source /home/diama/.woodpecker-secrets/aeris-cf.env; fi
+      - export PATH="/home/diama/.nvm/versions/node/v22.23.2/bin:/home/diama/.local/bin:$PATH"
       - cd site
       - npx wrangler pages deploy dist --project-name=tsgate --branch=main --commit-dirty=true
-    environment:
-      CF_ACCOUNT_ID:
-        from_secret: cf_account_id
-      CF_API_TOKEN:
-        from_secret: cf_api_token
 
 when:
-  event: [push, tag]
-  branch: main
-  ref: refs/tags/v*
+  - event: push
+    branch: main
+  - event: tag
+    ref: refs/tags/v*

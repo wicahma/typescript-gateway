@@ -9,10 +9,11 @@ labels:
 
 steps:
   - name: ci
-    image: node:lts
+    image: bash
     commands:
+      - export PATH="/home/diama/.nvm/versions/node/v22.23.2/bin:/home/diama/.local/bin:$PATH"
       - node -v && npm -v
-      - npm ci
+      - npm ci || npm install
       - npm run typecheck
       - npm test
       - npm run build
