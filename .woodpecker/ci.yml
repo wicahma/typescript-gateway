@@ -1,0 +1,22 @@
+clone:
+  git:
+    image: bash
+    settings:
+      lfs: false
+
+labels:
+  backend: local
+
+steps:
+  - name: ci
+    image: node:lts
+    commands:
+      - node -v && npm -v
+      - npm ci
+      - npm run typecheck
+      - npm test
+      - npm run build
+
+when:
+  event: push
+  branch: [main, develop]

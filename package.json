@@ -72,5 +72,10 @@
       "import": "./dist/plugins/builtin/index.js"
     }
   },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "registry": "https://registry.npmjs.org/"
+  },
   "prepublishOnly": "npm run build"
 }
