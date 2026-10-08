@@ -20,9 +20,13 @@ steps:
 
   - name: deploy-landing-and-docs
     image: bash
+    environment:
+      CLOUDFLARE_ACCOUNT_ID:
+        from_secret: cf_account_id
+      CLOUDFLARE_API_TOKEN:
+        from_secret: cf_api_token
     commands:
       - export PATH="/home/diama/.nvm/versions/node/v22.23.2/bin:/home/diama/.local/bin:$PATH"
-      - if [ -f /home/diama/.woodpecker-secrets/aeris-cf.env ]; then source /home/diama/.woodpecker-secrets/aeris-cf.env; fi
       - cd site
       - npm ci || npm install
       - npm run build
