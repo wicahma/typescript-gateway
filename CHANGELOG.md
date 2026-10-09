@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.2]
+
+### Changed
+- Added `homepage` (`https://tsgate.diama.dev`) and `bugs` metadata to `package.json`.
+- Homepage quickstart now uses `npm install typescript-gateway`.
+
 ## [1.2.1]
 
 ### Added

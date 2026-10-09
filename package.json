@@ -1,6 +1,6 @@
 {
   "name": "typescript-gateway",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Production-grade HTTP API gateway in pure TypeScript with zero framework dependencies",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -39,6 +39,10 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/wicahma/typescript-gateway.git"
+  },
+  "homepage": "https://tsgate.diama.dev",
+  "bugs": {
+    "url": "https://github.com/wicahma/typescript-gateway/issues"
   },
   "devDependencies": {
     "@types/node": "^22.20.2",

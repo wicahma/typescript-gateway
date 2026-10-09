@@ -2,9 +2,9 @@
 import Layout from '../layouts/Layout.astro';
 import pkg from '../../package.json';
 
-const quickstart = `git clone https://github.com/wicahma/typescript-gateway
-cd typescript-gateway && npm install
-PORT=8088 npm start
+const quickstart = `npm install typescript-gateway
+npx tsgate init .
+npx tsgate start
 curl http://localhost:8088/health`;
 
 const config = `{
