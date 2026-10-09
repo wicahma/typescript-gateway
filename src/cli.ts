@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, writeFileSync, readFileSync, realpathSync } from 'fs';
-import { join, resolve } from 'path';
+import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync, realpathSync } from 'fs';
+import { join, resolve, dirname } from 'path';
 import { pathToFileURL } from 'url';
 
 const USAGE = `tsgate - TypeScript Gateway CLI
@@ -20,7 +20,7 @@ const STARTER_CONFIG = {
   upstreams: [
     { id: 'backend', protocol: 'http', host: 'localhost', port: 3000, poolSize: 10 },
   ],
-  plugins: { dir: './plugins' },
+  plugins: [],
 };
 
 const STARTER_PLUGIN = `import type { Plugin } from 'typescript-gateway';
@@ -43,6 +43,7 @@ const STARTER_PKG = {
   private: true,
   type: 'module',
   dependencies: { 'typescript-gateway': 'latest' },
+  devDependencies: { tsx: '^4.0.0' },
   scripts: { start: 'tsgate start' },
 };
 
@@ -83,20 +84,28 @@ async function validate(configPath: string): Promise<void> {
 }
 
 async function start(configPath: string): Promise<void> {
-  const tsxApi = (await import('tsx/esm/api').catch(() => null)) as
-    | { register?: (o?: { namespace?: string }) => () => void }
-    | null;
-  if (!tsxApi?.register) {
-    console.error('tsx is required for TypeScript plugins: npm install tsx');
-    process.exit(1);
+  const pluginDir = resolve(dirname(configPath), 'plugins');
+  const hasTsPlugins =
+    existsSync(pluginDir) && readdirSync(pluginDir).some(f => f.endsWith('.ts'));
+
+  let unregister = (): void => {};
+  if (hasTsPlugins) {
+    const tsxApi = (await import('tsx/esm/api').catch(() => null)) as
+      | { register?: (o?: { namespace?: string }) => () => void }
+      | null;
+    if (!tsxApi?.register) {
+      console.error(
+        'TypeScript plugins found in ' + pluginDir + ' but tsx is not installed. Run: npm install tsx'
+      );
+      process.exit(1);
+    }
+    unregister = tsxApi.register({ namespace: 'tsgate-plugins' });
   }
-  const unregister = tsxApi.register({ namespace: 'tsgate-plugins' });
+
   try {
-    const config = JSON.parse(readFileSync(configPath, 'utf-8'));
-    const pluginDir = config?.plugins?.dir ? resolve(config.plugins.dir) : null;
     const { Gateway } = await import('./index.js');
     const gateway = new Gateway(configPath);
-    if (pluginDir && existsSync(pluginDir)) {
+    if (existsSync(pluginDir)) {
       const { PluginLoader } = await import('./plugins/loader.js');
       const loader = new PluginLoader({ pluginDir, autoLoad: false, loadTimeout: 10000, hotReload: false });
       const plugins = await loader.loadFromDirectory();

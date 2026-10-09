@@ -21,28 +21,33 @@ That's the whole list.
 
 ## Install
 
+Install it as a dependency of your project:
+
 ```bash
-npm install -g typescript-gateway
+npm install typescript-gateway
 ```
 
-Or straight from source:
+That gives you the library and the `tsgate` CLI (via `npx`). If you'd rather
+have `tsgate` globally on your PATH:
 
 ```bash
-npm install -g github:wicahma/typescript-gateway
+npm install -g typescript-gateway
 ```
 
 ## Create your first gateway
 
 ```bash
 mkdir my-gateway && cd my-gateway
-tsgate init
+npm init -y
+npm install typescript-gateway tsx
+npx tsgate init .
 ```
 
 `init` scaffolds three things:
 
 ```
 my-gateway/
-├── package.json
+├── package.json          ← depends on typescript-gateway (+ tsx for TS plugins)
 ├── gateway.config.json   ← routes, upstreams, plugins
 └── plugins/
     └── hello.ts          ← an example plugin
@@ -72,7 +77,7 @@ python3 -m http.server 3000 &
 Then start the gateway:
 
 ```bash
-tsgate start
+npx tsgate start
 ```
 
 You should see `Gateway started` on port 8088. Try it:
@@ -120,7 +125,7 @@ they get merged into the final response.
 ## Check your config without starting
 
 ```bash
-tsgate validate
+npx tsgate validate
 ```
 
 Prints `OK: ... (N routes, M upstreams)` or tells you exactly what's wrong.

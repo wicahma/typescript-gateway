@@ -46,20 +46,20 @@ node dist/index.js               →   that's the whole runtime
 npm install typescript-gateway
 ```
 
-Or globally, to get the `tsgate` CLI:
+Or globally, to get the `tsgate` CLI on your PATH:
 
 ```bash
 npm install -g typescript-gateway
 ```
 
-<sub>Also installable straight from source: `npm install github:wicahma/typescript-gateway`.</sub>
-
 ## Quick start
 
 ```bash
 mkdir my-gateway && cd my-gateway
-npx tsgate init          # or: tsgate init (global install)
-tsgate start
+npm init -y
+npm install typescript-gateway tsx
+npx tsgate init .
+npx tsgate start
 curl http://localhost:8088/health
 ```
 

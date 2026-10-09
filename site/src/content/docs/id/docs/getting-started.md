@@ -20,28 +20,33 @@ Cuma itu.
 
 ## Install
 
+Install sebagai dependency project kamu:
+
 ```bash
-npm install -g typescript-gateway
+npm install typescript-gateway
 ```
 
-Atau langsung dari source:
+Itu memberi kamu library sekaligus CLI `tsgate` (lewat `npx`). Kalau mau
+`tsgate` tersedia global di PATH:
 
 ```bash
-npm install -g github:wicahma/typescript-gateway
+npm install -g typescript-gateway
 ```
 
 ## Bikin gateway pertamamu
 
 ```bash
 mkdir my-gateway && cd my-gateway
-tsgate init
+npm init -y
+npm install typescript-gateway tsx
+npx tsgate init .
 ```
 
 `init` akan membuat tiga hal:
 
 ```
 my-gateway/
-├── package.json
+├── package.json          ← depend ke typescript-gateway (+ tsx untuk plugin TS)
 ├── gateway.config.json   ← routes, upstreams, plugins
 └── plugins/
     └── hello.ts          ← an example plugin
@@ -71,7 +76,7 @@ python3 -m http.server 3000 &
 Terus nyalakan gateway-nya:
 
 ```bash
-tsgate start
+npx tsgate start
 ```
 
 Kamu bakal lihat `Gateway started` di port 8088. Coba:
@@ -119,7 +124,7 @@ nanti digabungkan ke response akhir.
 ## Cek konfigurasi tanpa menyalakan
 
 ```bash
-tsgate validate
+npx tsgate validate
 ```
 
 Mencetak `OK: ... (N routes, M upstreams)` atau memberi tahu persis apa yang salah.
