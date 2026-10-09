@@ -28,4 +28,16 @@ export interface UpstreamCredentialsConfig {
 export interface WithIdentity extends GatewayConfig {
   apiKeys?: ApiKeysConfig;
   upstreamCredentials?: UpstreamCredentialsConfig;
+  cors?: {
+    enabled?: boolean;
+    allowOrigins?: string[];
+    allowMethods?: string[];
+    allowHeaders?: string[];
+    allowCredentials?: boolean;
+    maxAgeSeconds?: number;
+  };
+  idempotency?: { enabled?: boolean; ttlMs?: number; maxEntries?: number };
+  secretMask?: { enabled?: boolean; replacement?: string };
+  traceContext?: { enabled?: boolean };
+  loadShedding?: { enabled?: boolean; min?: number; max?: number; targetP95Ms?: number };
 }

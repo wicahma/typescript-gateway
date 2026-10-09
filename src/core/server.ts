@@ -21,12 +21,17 @@ export class Server {
   private activeSockets = new Set<Socket>();
   private isShuttingDown = false;
   private pipeline?: RequestPipeline;
-  private proxyHandler?: { tunnelUpgrade(req: IncomingMessage, socket: Socket, head: Buffer): Promise<boolean> };
+  private proxyHandler?: {
+    tunnelUpgrade(req: IncomingMessage, socket: Socket, head: Buffer): Promise<boolean>;
+  };
 
   constructor(config: ServerConfig, router: Router) {
     this.config = config;
     this.router = router;
-    this.accessLogSampleRate = Math.max(1, (config as unknown as Record<string, unknown>)['accessLogSampleRate'] as number ?? 1);
+    this.accessLogSampleRate = Math.max(
+      1,
+      ((config as unknown as Record<string, unknown>)['accessLogSampleRate'] as number) ?? 1
+    );
 
     // Initialize request context pool with configurable size
     this.contextPool = new ContextPool(1000);
@@ -96,7 +101,7 @@ export class Server {
       socket.destroy();
       return;
     }
-    void this.proxyHandler.tunnelUpgrade(req, socket, head).then((tunneled) => {
+    void this.proxyHandler.tunnelUpgrade(req, socket, head).then(tunneled => {
       if (!tunneled && !socket.destroyed) {
         logger.debug({ path: req.url }, 'WebSocket upgrade rejected (no matching route/upstream)');
         socket.destroy();
@@ -106,7 +111,11 @@ export class Server {
 
   /** Attach a proxy handler capable of tunnelUpgrade. Optional; pass undefined
    * to detach (used when a hot reload removes all upstreams/WS support). */
-  setProxyHandler(handler: { tunnelUpgrade(req: IncomingMessage, socket: Socket, head: Buffer): Promise<boolean> } | undefined): void {
+  setProxyHandler(
+    handler:
+      | { tunnelUpgrade(req: IncomingMessage, socket: Socket, head: Buffer): Promise<boolean> }
+      | undefined
+  ): void {
     this.proxyHandler = handler;
   }
 
@@ -162,6 +171,17 @@ export class Server {
         }
       }
 
+      // Run inbound policy pipeline (CORS, auth, rate limit, load shed) before
+      // route matching so pre-routing concerns can short-circuit uniformly.
+      if (this.pipeline) {
+        const problem = await this.pipeline.runInbound(ctx);
+        if (problem) {
+          await RequestPipeline.writeResponse(ctx.res, problem);
+          ctx.responded = true;
+          return;
+        }
+      }
+
       // Match route
       const match = this.router.match(ctx.method, ctx.path);
 
@@ -173,16 +193,6 @@ export class Server {
       // Set route params and match info
       ctx.params = match.params;
       ctx.route = match;
-
-      // Run inbound policy pipeline (short-circuits with a Response if a policy returns one)
-      if (this.pipeline) {
-        const problem = await this.pipeline.runInbound(ctx);
-        if (problem) {
-          await RequestPipeline.writeResponse(ctx.res, problem);
-          ctx.responded = true;
-          return;
-        }
-      }
 
       // Execute handler
       await match.handler(ctx);
@@ -203,8 +213,7 @@ export class Server {
 
       // Access logging
       const shouldLog =
-        ctx.res.statusCode >= 500 ||
-        this.requestIdCounter % this.accessLogSampleRate === 0;
+        ctx.res.statusCode >= 500 || this.requestIdCounter % this.accessLogSampleRate === 0;
       if (shouldLog) {
         logger.info(
           {

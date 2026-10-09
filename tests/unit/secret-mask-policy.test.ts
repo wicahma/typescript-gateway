@@ -36,7 +36,11 @@ describe('SecretMaskPolicy', () => {
   it('leaves non-text responses untouched', () => {
     const p = new SecretMaskPolicy();
     const body = Buffer.from([0, 1, 2, 3]);
-    const out = p.executeOutbound(ctx(), { statusCode: 200, headers: { 'content-type': 'image/png' }, body });
+    const out = p.executeOutbound(ctx(), {
+      statusCode: 200,
+      headers: { 'content-type': 'image/png' },
+      body,
+    });
     expect(out).toBeUndefined();
   });
 

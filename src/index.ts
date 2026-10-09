@@ -19,6 +19,12 @@ import { ConsumerRateLimitPolicy } from './identity/consumer-rate-limit-policy.j
 import { UpstreamCredentialStore } from './identity/upstream-credential-store.js';
 import { SetUpStreamHeaderPolicy } from './identity/set-upstream-header-policy.js';
 import { HmacSignPolicy } from './identity/hmac-sign-policy.js';
+import { CorsPolicy } from './pipeline/cors-policy.js';
+import { TraceContextPolicy } from './pipeline/trace-context-policy.js';
+import { IdempotencyPolicy } from './pipeline/idempotency-policy.js';
+import { SecretMaskPolicy } from './pipeline/secret-mask-policy.js';
+import { LoadShedPolicy } from './pipeline/load-shed-policy.js';
+import { ConcurrencyLimiter } from './core/concurrency-limiter.js';
 import { WithIdentity } from './types/identity.js';
 import { UpstreamTarget, CircuitBreakerState, RequestContext } from './types/core.js';
 import { AuthJwtPlugin } from './plugins/builtin/auth-jwt.js';
@@ -173,6 +179,42 @@ export class Gateway {
 
   private configurePipeline(config: ConfigFile): void {
     const cfg = config as unknown as WithIdentity;
+    if (cfg.loadShedding?.enabled) {
+      this.pipeline.register(
+        new LoadShedPolicy(
+          new ConcurrencyLimiter({
+            min: cfg.loadShedding.min ?? 16,
+            max: cfg.loadShedding.max ?? 1024,
+            targetP95Ms: cfg.loadShedding.targetP95Ms ?? 250,
+          })
+        )
+      );
+    }
+    if (cfg.cors?.enabled) {
+      this.pipeline.register(
+        new CorsPolicy({
+          allowOrigins: cfg.cors.allowOrigins,
+          allowMethods: cfg.cors.allowMethods,
+          allowHeaders: cfg.cors.allowHeaders,
+          allowCredentials: cfg.cors.allowCredentials,
+          maxAgeSeconds: cfg.cors.maxAgeSeconds,
+        })
+      );
+    }
+    if (cfg.traceContext?.enabled) {
+      this.pipeline.register(new TraceContextPolicy());
+    }
+    if (cfg.idempotency?.enabled) {
+      this.pipeline.register(
+        new IdempotencyPolicy({
+          ttlMs: cfg.idempotency.ttlMs,
+          maxEntries: cfg.idempotency.maxEntries,
+        })
+      );
+    }
+    if (cfg.secretMask?.enabled) {
+      this.pipeline.register(new SecretMaskPolicy({ replacement: cfg.secretMask.replacement }));
+    }
     const authConfig = config.auth;
     if (authConfig && authConfig.enabled !== false) {
       this.pipeline.register(new AuthJwtPolicy(authConfig));
@@ -192,10 +234,13 @@ export class Gateway {
           headerName: apiKeyConfig.headerName,
           cacheTtlSeconds: apiKeyConfig.cacheTtlSeconds,
           cacheMaxEntries: apiKeyConfig.cacheMaxEntries,
-        }),
+        })
       );
       this.pipeline.register(new ConsumerRateLimitPolicy());
-      logger.info({ consumers: store.stats().consumers, keys: store.stats().keys }, 'API key auth enabled');
+      logger.info(
+        { consumers: store.stats().consumers, keys: store.stats().keys },
+        'API key auth enabled'
+      );
     }
     const cacheConfig = config.responseCache;
     if (cacheConfig?.enabled) {
@@ -204,14 +249,18 @@ export class Gateway {
     const upstreamConfig = cfg.upstreamCredentials;
     if (upstreamConfig?.enabled && upstreamConfig.credentials?.length) {
       const credentials = new UpstreamCredentialStore(
-        upstreamConfig.credentials.map(c => ({ name: c.name, headers: c.headers ?? {}, hmac: c.hmac })),
+        upstreamConfig.credentials.map(c => ({
+          name: c.name,
+          headers: c.headers ?? {},
+          hmac: c.hmac,
+        }))
       );
       if (upstreamConfig.injection) {
         this.pipeline.register(
           new SetUpStreamHeaderPolicy(credentials, {
             credentialName: upstreamConfig.injection.credentialName,
             publicRoutes: upstreamConfig.injection.publicRoutes,
-          }),
+          })
         );
       }
       if (upstreamConfig.signing) {
@@ -219,10 +268,13 @@ export class Gateway {
           new HmacSignPolicy(credentials, {
             credentialName: upstreamConfig.signing.credentialName,
             publicRoutes: upstreamConfig.signing.publicRoutes,
-          }),
+          })
         );
       }
-      logger.info({ credentials: credentials.stats().credentials }, 'Upstream credential injection enabled');
+      logger.info(
+        { credentials: credentials.stats().credentials },
+        'Upstream credential injection enabled'
+      );
     }
 
     // B5: load enabled plugins from config.plugins[] (builtin registry).
@@ -303,7 +355,12 @@ export class Gateway {
         this.server.setProxyHandler(this.proxyHandler);
       }
 
-      const reserved = new Set(['/', '/health', '/metrics', config.monitoring?.export?.prometheus?.path ?? '']);
+      const reserved = new Set([
+        '/',
+        '/health',
+        '/metrics',
+        config.monitoring?.export?.prometheus?.path ?? '',
+      ]);
       for (const route of config.routes || []) {
         if (reserved.has(route.path)) continue;
         this.router.register(route.method, route.path, async ctx => {

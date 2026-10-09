@@ -14,7 +14,7 @@ export interface GatewayPolicy {
   executeInbound?(ctx: RequestContext): Promise<Response | void> | Response | void;
   executeOutbound?(
     ctx: RequestContext,
-    response: OutboundResponse,
+    response: OutboundResponse
   ): Promise<OutboundResponse | void> | OutboundResponse | void;
   onComplete?(ctx: RequestContext): void;
 }
@@ -48,7 +48,7 @@ export class PluginPolicy implements GatewayPolicy {
 
   async executeOutbound(
     ctx: RequestContext,
-    response: OutboundResponse,
+    response: OutboundResponse
   ): Promise<OutboundResponse | void> {
     this.ensureContext(ctx);
     if (this.plugin.postHandler) await this.plugin.postHandler(ctx);

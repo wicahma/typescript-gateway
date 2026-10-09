@@ -13,7 +13,7 @@ export class RequestPipeline {
   }
 
   register(policy: GatewayPolicy): void {
-    if (this.policies.some((existing) => existing.name === policy.name)) {
+    if (this.policies.some(existing => existing.name === policy.name)) {
       throw new Error(`Duplicate policy name: ${policy.name}`);
     }
     this.policies.push(policy);

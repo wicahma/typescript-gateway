@@ -32,10 +32,12 @@ export class ConcurrencyLimiter {
     this.inflight = Math.max(0, this.inflight - 1);
     const now = Date.now();
     this.samples.push({ at: now, latency: latencyMs });
-    while (this.samples.length > 0 && now - this.samples[0].at > 1000) this.samples.shift();
+    while (this.samples.length > 0 && now - (this.samples[0]?.at ?? now) > 1000)
+      this.samples.shift();
     if (this.samples.length < this.minSamples) return;
-    const sorted = this.samples.map((s) => s.latency).sort((a, b) => a - b);
-    const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))];
+    const sorted = this.samples.map(s => s.latency).sort((a, b) => a - b);
+    const idx = Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95));
+    const p95 = sorted[idx] ?? this.targetP95Ms;
     if (p95 > this.targetP95Ms) this.limit = Math.max(this.min, Math.floor(this.limit * 0.9));
     else this.limit = Math.min(this.max, this.limit + 1);
   }

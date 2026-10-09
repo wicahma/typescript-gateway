@@ -23,7 +23,12 @@ export class CorsPolicy implements GatewayPolicy {
   constructor(config: CorsConfig = {}) {
     this.origins = config.allowOrigins ?? ['*'];
     this.methods = config.allowMethods ?? ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
-    this.headers = config.allowHeaders ?? ['content-type', 'authorization', 'x-api-key', 'idempotency-key'];
+    this.headers = config.allowHeaders ?? [
+      'content-type',
+      'authorization',
+      'x-api-key',
+      'idempotency-key',
+    ];
     this.expose = config.exposeHeaders ?? [];
     this.credentials = config.allowCredentials ?? false;
     this.maxAge = config.maxAgeSeconds ?? 600;
@@ -39,7 +44,8 @@ export class CorsPolicy implements GatewayPolicy {
     const raw = ctx.headers['origin'];
     const origin = Array.isArray(raw) ? raw[0] : raw;
     const allowed = this.resolveOrigin(origin);
-    const isPreflight = ctx.method === 'OPTIONS' && Boolean(ctx.headers['access-control-request-method']);
+    const isPreflight =
+      ctx.method === 'OPTIONS' && Boolean(ctx.headers['access-control-request-method']);
 
     if (isPreflight) {
       if (!allowed) {
@@ -58,7 +64,8 @@ export class CorsPolicy implements GatewayPolicy {
     if (allowed) {
       ctx.res.setHeader('access-control-allow-origin', allowed);
       if (this.credentials) ctx.res.setHeader('access-control-allow-credentials', 'true');
-      if (this.expose.length) ctx.res.setHeader('access-control-expose-headers', this.expose.join(', '));
+      if (this.expose.length)
+        ctx.res.setHeader('access-control-expose-headers', this.expose.join(', '));
       ctx.res.setHeader('vary', 'origin');
     }
   }

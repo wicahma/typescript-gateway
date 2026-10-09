@@ -30,13 +30,18 @@ function ctx(headers: Record<string, string> = {}, method = 'GET') {
 
 describe('CorsPolicy', () => {
   it('answers preflight with 204 and allow headers', async () => {
-    const p = new CorsPolicy({ allowOrigins: ['https://app.example.com'], allowMethods: ['GET', 'POST'] });
+    const p = new CorsPolicy({
+      allowOrigins: ['https://app.example.com'],
+      allowMethods: ['GET', 'POST'],
+    });
     const res = p.executeInbound(
-      ctx({ origin: 'https://app.example.com', 'access-control-request-method': 'POST' }, 'OPTIONS'),
+      ctx({ origin: 'https://app.example.com', 'access-control-request-method': 'POST' }, 'OPTIONS')
     );
     expect(res).toBeInstanceOf(Response);
     expect((res as Response).status).toBe(204);
-    expect((res as Response).headers.get('access-control-allow-origin')).toBe('https://app.example.com');
+    expect((res as Response).headers.get('access-control-allow-origin')).toBe(
+      'https://app.example.com'
+    );
     expect((res as Response).headers.get('access-control-allow-methods')).toContain('POST');
   });
 
@@ -51,7 +56,7 @@ describe('CorsPolicy', () => {
   it('rejects a disallowed origin preflight with 403 problem+json', () => {
     const p = new CorsPolicy({ allowOrigins: ['https://app.example.com'] });
     const res = p.executeInbound(
-      ctx({ origin: 'https://evil.example', 'access-control-request-method': 'POST' }, 'OPTIONS'),
+      ctx({ origin: 'https://evil.example', 'access-control-request-method': 'POST' }, 'OPTIONS')
     );
     expect((res as Response).status).toBe(403);
     expect((res as Response).headers.get('content-type')).toBe('application/problem+json');

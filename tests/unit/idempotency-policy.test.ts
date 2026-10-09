@@ -38,7 +38,9 @@ describe('IdempotencyPolicy', () => {
   it('returns 400 when the same key is reused with a different body', () => {
     const p = new IdempotencyPolicy();
     p.executeInbound(ctx({ 'idempotency-key': 'k2' }, Buffer.from('{"a":1}')));
-    const res = p.executeInbound(ctx({ 'idempotency-key': 'k2' }, Buffer.from('{"a":2}'))) as Response;
+    const res = p.executeInbound(
+      ctx({ 'idempotency-key': 'k2' }, Buffer.from('{"a":2}'))
+    ) as Response;
     expect(res.status).toBe(400);
   });
 

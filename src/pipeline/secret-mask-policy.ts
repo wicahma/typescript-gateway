@@ -29,7 +29,7 @@ export class SecretMaskPolicy implements GatewayPolicy {
     if (!response.body || response.body.length === 0) return;
     const headerRecord = response.headers as Record<string, unknown>;
     const contentType = String(headerRecord['content-type'] ?? '');
-    if (!this.contentTypes.some((type) => contentType.includes(type))) return;
+    if (!this.contentTypes.some(type => contentType.includes(type))) return;
 
     let text = response.body.toString('utf8');
     let changed = false;
@@ -45,8 +45,13 @@ export class SecretMaskPolicy implements GatewayPolicy {
     const body = Buffer.from(text, 'utf8');
     const headers = { ...headerRecord };
     headers['content-length'] = String(body.length);
+    delete headers['transfer-encoding'];
     headers['x-secret-masked'] = 'true';
     headers['x-masked-request-id'] = ctx.requestId;
-    return { statusCode: response.statusCode, headers: headers as OutboundResponse['headers'], body };
+    return {
+      statusCode: response.statusCode,
+      headers: headers as OutboundResponse['headers'],
+      body,
+    };
   }
 }
