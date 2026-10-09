@@ -16,6 +16,7 @@ interface CacheEntry {
   consumerId: string;
   plan: string;
   rateLimit: number;
+  dailyLimit?: number;
   expiresAt: number;
 }
 
@@ -61,7 +62,12 @@ export class ApiKeyPolicy implements GatewayPolicy {
     if (record === EXPIRED) return HttpProblems.unauthorized('API key has expired');
     if (!record) return HttpProblems.unauthorized('API key not found');
 
-    ctx.state['user'] = { sub: record.consumerId, data: { plan: record.plan, rateLimit: record.rateLimit } };
+    const data: { plan: string; rateLimit: number; dailyLimit?: number } = {
+      plan: record.plan,
+      rateLimit: record.rateLimit,
+    };
+    if (record.dailyLimit !== undefined) data.dailyLimit = record.dailyLimit;
+    ctx.state['user'] = { sub: record.consumerId, data };
     logger.info({ requestId: ctx.requestId, sub: record.consumerId, plan: record.plan }, 'API key auth succeeded');
   }
 
@@ -90,7 +96,7 @@ export class ApiKeyPolicy implements GatewayPolicy {
     if (cached) this.cache.delete(cacheKey);
 
     this.misses++;
-    let record: { consumerId: string; plan: string; rateLimit: number } | null;
+    let record: { consumerId: string; plan: string; rateLimit: number; dailyLimit?: number } | null;
     try {
       record = this.store.resolveKey(key);
     } catch (err) {
@@ -105,6 +111,7 @@ export class ApiKeyPolicy implements GatewayPolicy {
       rateLimit: record.rateLimit,
       expiresAt: now + this.cacheTtlSeconds * 1000,
     };
+    if (record.dailyLimit !== undefined) entry.dailyLimit = record.dailyLimit;
     this.cache.set(cacheKey, entry);
     if (this.cache.size > this.cacheMaxEntries) {
       const oldest = this.cache.keys().next().value;

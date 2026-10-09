@@ -9,13 +9,21 @@ export interface ConsumerRateLimitPolicyConfig {
 
 interface ConsumerIdentity {
   sub: string;
-  data: { plan: string; rateLimit: number };
+  data: { plan: string; rateLimit: number; dailyLimit?: number };
 }
+
+interface DailyCounter {
+  count: number;
+  resetAt: number;
+}
+
+const DAY_MS = 86_400_000;
 
 export class ConsumerRateLimitPolicy implements GatewayPolicy {
   readonly name = 'consumer-rate-limit';
 
   private buckets = new Map<string, { limiter: TokenBucketRateLimiter; capacity: number }>();
+  private daily = new Map<string, DailyCounter>();
 
   constructor(private config: ConsumerRateLimitPolicyConfig = {}) {}
 
@@ -53,5 +61,37 @@ export class ConsumerRateLimitPolicy implements GatewayPolicy {
       problem.headers.set('x-ratelimit-remaining', String(result.remaining));
       return problem;
     }
+
+    const dailyLimit = user.data?.dailyLimit;
+    if (typeof dailyLimit === 'number' && dailyLimit > 0) {
+      const counter = this.dailyCounter(user.sub);
+      counter.count++;
+      const remaining = Math.max(0, dailyLimit - counter.count);
+      ctx.res.setHeader('X-RateLimit-Daily-Limit', String(dailyLimit));
+      ctx.res.setHeader('X-RateLimit-Daily-Remaining', String(remaining));
+      if (counter.count > dailyLimit) {
+        const retryAfter = Math.max(1, Math.ceil((counter.resetAt - Date.now()) / 1000));
+        const problem = HttpProblems.rateLimited({
+          detail: `Daily quota of ${dailyLimit} requests exceeded.`,
+          limit: dailyLimit,
+          window: 'day',
+          retryAfterSeconds: retryAfter,
+          requestId: ctx.requestId,
+        });
+        problem.headers.set('x-ratelimit-daily-limit', String(dailyLimit));
+        problem.headers.set('x-ratelimit-daily-remaining', '0');
+        return problem;
+      }
+    }
+  }
+
+  private dailyCounter(sub: string): DailyCounter {
+    const now = Date.now();
+    let counter = this.daily.get(sub);
+    if (!counter || counter.resetAt <= now) {
+      counter = { count: 0, resetAt: now + DAY_MS };
+      this.daily.set(sub, counter);
+    }
+    return counter;
   }
 }

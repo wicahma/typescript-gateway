@@ -88,7 +88,8 @@ export class StickySessionPolicy implements GatewayPolicy {
   }
 
   private pickUpstream(key: string): string {
-    return this.upstreams[this.hash(key) % this.upstreams.length];
+    const index = this.hash(key) % this.upstreams.length;
+    return this.upstreams[index] ?? this.upstreams[0] ?? '';
   }
 
   private hash(value: string): number {

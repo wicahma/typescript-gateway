@@ -9,7 +9,6 @@ export interface SsrfGuardConfig {
 }
 
 const LOOPBACK_V6 = '::1';
-const UNSET_V4 = '0.0.0.0';
 
 function stripBrackets(host: string): string {
   if (host.startsWith('[') && host.endsWith(']')) return host.slice(1, -1);
@@ -22,7 +21,8 @@ function isPrivateIpv4(host: string, blockLinkLocal: boolean): boolean {
   if (!parts.every((p) => /^\d{1,3}$/.test(p))) return false;
   const octets = parts.map(Number);
   if (octets.some((n) => n > 255)) return false;
-  const [a, b] = octets;
+  const a = octets[0] ?? -1;
+  const b = octets[1] ?? -1;
   if (a === 127) return true;
   if (a === 10) return true;
   if (a === 192 && b === 168) return true;

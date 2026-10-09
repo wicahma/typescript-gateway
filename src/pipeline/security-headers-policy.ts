@@ -28,7 +28,7 @@ export class SecurityHeadersPolicy implements GatewayPolicy {
     this.extra = config.extra ?? {};
   }
 
-  executeOutbound(ctx: RequestContext, response: OutboundResponse): OutboundResponse {
+  executeOutbound(_ctx: RequestContext, response: OutboundResponse): OutboundResponse {
     const headers: Record<string, unknown> = { ...response.headers };
 
     if (this.stripServer) {

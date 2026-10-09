@@ -4,6 +4,7 @@ export interface ConsumerRecord {
   consumerId: string;
   plan: string;
   rateLimit: number;
+  dailyLimit?: number;
 }
 
 export interface ApiKeyRecord {
@@ -18,9 +19,10 @@ export class ConsumerStore {
   private consumers = new Map<string, ConsumerRecord>();
   private keys = new Map<string, ApiKeyRecord>();
 
-  createConsumer(consumerId: string, plan = 'free', rateLimit = 1000): ConsumerRecord {
+  createConsumer(consumerId: string, plan = 'free', rateLimit = 1000, dailyLimit?: number): ConsumerRecord {
     if (this.consumers.has(consumerId)) throw new Error('ERR_CONSUMER_EXISTS');
     const record: ConsumerRecord = { consumerId, plan, rateLimit };
+    if (dailyLimit !== undefined) record.dailyLimit = dailyLimit;
     this.consumers.set(consumerId, record);
     return record;
   }

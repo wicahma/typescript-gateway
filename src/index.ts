@@ -223,7 +223,7 @@ export class Gateway {
     if (apiKeyConfig?.enabled && apiKeyConfig.consumers?.length) {
       const store = new ConsumerStore();
       for (const consumer of apiKeyConfig.consumers) {
-        store.createConsumer(consumer.consumerId, consumer.plan, consumer.rateLimit);
+        store.createConsumer(consumer.consumerId, consumer.plan, consumer.rateLimit, consumer.dailyLimit);
         for (const key of consumer.keys ?? []) {
           store.issueKey(consumer.consumerId, key.key, { expiresAt: key.expiresAt });
         }

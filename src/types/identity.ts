@@ -10,6 +10,7 @@ export interface ApiKeysConfig {
     consumerId: string;
     plan: string;
     rateLimit: number;
+    dailyLimit?: number;
     keys: Array<{ key: string; expiresAt?: number }>;
   }>;
 }
