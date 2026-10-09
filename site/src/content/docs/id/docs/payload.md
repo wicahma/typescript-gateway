@@ -6,11 +6,11 @@ section: "Features"
 track: "reference"
 ---
 
-Semua 4 fitur di grup ini sudah **terimplementasi dan terverifikasi** , masing-masing dengan cakupan unit dan integration di test suite repo.
+Setiap fitur di grup ini sudah **terimplementasi dan terverifikasi**, masing-masing dengan cakupan unit dan integration test di test suite repo.
 
 ## Body Parser
 
-- **Spek:** Parser body request berbasis stream untuk gateway zero-dependency. Menerima `IncomingMessage` Node.js dan mengembalikan `ParsedBody` terstruktur per Content-Type: JSON, URL-encoded, multipart, text, dan binary mentah (fallback `application/octet-stream`).
+- **Ringkasan:** Parser body request berbasis stream untuk gateway zero-dependency. Menerima `IncomingMessage` Node.js dan mengembalikan `ParsedBody` terstruktur per Content-Type: JSON, URL-encoded, multipart, text, dan binary mentah (fallback `application/octet-stream`).
 - **Tujuan:** Menjadi trust boundary pertama untuk payload masuk — menegakkan batas ukuran per content-type, membatasi waktu baca stream, dan menormalisasi body sebelum diteruskan ke request transformer, plugin, dan upstream.
 
 ### Cara kerjanya
@@ -42,7 +42,7 @@ Semua 4 fitur di grup ini sudah **terimplementasi dan terverifikasi** , masing-m
 
 ## Compression Handler
 
-- **Spek:** Kompresor HTTP response berbasis `node:zlib` — gzip, Brotli (`br`), dan deflate — dengan negosiasi `Accept-Encoding` (dukungan q-value dan wildcard `*`), filter content-type, threshold ukuran minimum, dan penulisan header `Content-Encoding` / `Content-Length` / `Vary: Accept-Encoding`.
+- **Ringkasan:** Kompresor HTTP response berbasis `node:zlib` — gzip, Brotli (`br`), dan deflate — dengan negosiasi `Accept-Encoding` (dukungan q-value dan wildcard `*`), filter content-type, threshold ukuran minimum, dan penulisan header `Content-Encoding` / `Content-Length` / `Vary: Accept-Encoding`.
 - **Tujuan:** Hemat bandwidth tanpa dependensi eksternal (stdlib `node:zlib`), dengan urutan preferensi yang bisa dikonfigurasi (Brotli pertama secara default karena ratio terbaik untuk JSON/text).
 
 ### Cara kerjanya
@@ -77,7 +77,7 @@ Semua 4 fitur di grup ini sudah **terimplementasi dan terverifikasi** , masing-m
 
 ## Request Transformer
 
-- **Spek:** Mesin transformasi request deklaratif yang berjalan di pipeline gateway (langkah 2, sebelum body parsing dan pemilihan upstream). Bisa menulis ulang header, parameter query, path, dan body (JSON/form) berdasarkan aturan per-rute dengan kondisi (header, path, method, query param) dan prioritas.
+- **Ringkasan:** Mesin transformasi request deklaratif yang berjalan di pipeline gateway (langkah 2, sebelum body parsing dan pemilihan upstream). Bisa menulis ulang header, parameter query, path, dan body (JSON/form) berdasarkan aturan per-rute dengan kondisi (header, path, method, query param) dan prioritas.
 - **Tujuan:** Menghapus kebutuhan upstream menangani variasi client — normalisasi header, pembuangan parameter internal, rewrite path legacy, injeksi field body — semua di edge, tanpa dependensi eksternal.
 
 ### Cara kerjanya
@@ -109,7 +109,7 @@ Semua 4 fitur di grup ini sudah **terimplementasi dan terverifikasi** , masing-m
 
 ## Response Transformer
 
-- **Spek:** Mesin transformasi response deklaratif di pipeline gateway (langkah 6, setelah proxying upstream selesai, sebelum compression). Mengubah status code (mapping), header, body JSON (wrap/set/remove), CORS, dan mengganti body error dengan template per status code — berdasarkan aturan per-rute dengan kondisi dan prioritas.
+- **Ringkasan:** Mesin transformasi response deklaratif di pipeline gateway (langkah 6, setelah proxying upstream selesai, sebelum compression). Mengubah status code (mapping), header, body JSON (wrap/set/remove), CORS, dan mengganti body error dengan template per status code — berdasarkan aturan per-rute dengan kondisi dan prioritas.
 - **Tujuan:** Menyembunyikan keanehan upstream dari client: normalisasi status code, injeksi header security/CORS, bungkus response dalam envelope yang konsisten, dan ganti halaman error mentah upstream dengan template gateway.
 
 ### Cara kerjanya

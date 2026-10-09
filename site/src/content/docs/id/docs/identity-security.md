@@ -6,12 +6,12 @@ section: "Features"
 track: "reference"
 ---
 
-Keempat fitur di grup ini sudah **implemented dan terverifikasi** , masing-masing dengan cakupan unit dan integration di test suite repo.
+Setiap fitur di grup ini sudah **terimplementasi dan terverifikasi**, masing-masing dengan cakupan unit dan integration test di test suite repo.
 
 ## API Key Engine
 
-- **Spek:** API-key engine bawaan bergaya Zuplo tapi dengan 0 dependency, dibangun di atas `node:crypto`: generator key dengan format `tsgk_<bucket>_<random32>_<checksum4>`, validasi berjenjang (format → checksum → cache), dan injeksi state consumer ke request context.
-- **Kenapa penting:** Menutup celah "Authentication & Identity" vs Zuplo — tanpa ini gateway tidak punya model identitas consumer, dan rate limiter tidak bisa dinamis per tier/plan. Ini fondasi untuk per-customer rate limiting (M3, selesai) dan injeksi upstream (M4).
+- **Ringkasan:** API-key engine bawaan bergaya Zuplo tapi dengan 0 dependency, dibangun di atas `node:crypto`: generator key dengan format `tsgk_<bucket>_<random32>_<checksum4>`, validasi berjenjang (format → checksum → cache), dan injeksi state consumer ke request context.
+- **Kenapa penting:** Menutup celah "Authentication & Identity" vs Zuplo — tanpa ini gateway tidak punya model identitas consumer, dan rate limiter tidak bisa dinamis per tier/plan. Ini fondasi untuk per-customer rate limiting dan injeksi kredensial upstream.
 
 ### Cara kerja
 
@@ -96,9 +96,9 @@ Keempat fitur di grup ini sudah **implemented dan terverifikasi** , masing-masin
 
 ## JWT Auth Plugin
 
-- **Spek:** Plugin inbound bawaan `auth-jwt` yang bertindak sebagai OAuth2/JWT Resource Server: memverifikasi Bearer token terhadap JWKS lokal (inline di `gateway.config.json`) tanpa dependency eksternal — hanya `node:crypto` (`createPublicKey`, `verify`).
-- **Kenapa penting:** Gateway saat ini tidak punya auth policy bawaan. Plugin ini adalah lapisan identity & security pertama sebelum API key dan injeksi kredensial upstream menyusul.
-- **Status:** Implemented. Plugin berbasis hook `auth-jwt.ts` (8 tes) + pipeline policy `auth-jwt-policy.ts` (5 tes), keduanya committed dan terverifikasi di suite 790/790.
+- **Ringkasan:** Plugin inbound bawaan `auth-jwt` yang bertindak sebagai OAuth2/JWT Resource Server: memverifikasi Bearer token terhadap JWKS lokal (inline di `gateway.config.json`) tanpa dependency eksternal — hanya `node:crypto` (`createPublicKey`, `verify`).
+- **Kenapa penting:** Lapisan auth bawaan tanpa dependency eksternal, berdiri di depan API key dan injeksi kredensial upstream.
+- **Status:** Implemented — plugin berbasis hook `auth-jwt.ts` plus pipeline policy `auth-jwt-policy.ts`.
 
 ### Cara kerja
 
@@ -154,8 +154,6 @@ via helper `HttpProblems` + `createProblem`. Menggantikan hierarki `GatewayError
 Implementasi: `src/pipeline/http-problems.ts` (111 baris) — zero dependency
 (`JSON.stringify` + `Response` global, `Content-Type: application/problem+json`).
 
-(dan `npm test` 790/790 passing, commit `99fd7d5`, M2).
-
 ### Cara kerja
 
 1. `CATALOG` internal: 10 kelas error — tuple konstan
@@ -167,7 +165,7 @@ Implementasi: `src/pipeline/http-problems.ts` (111 baris) — zero dependency
    `{ type, title, status, detail?, instance?, requestId? }` — field opsional
    dihilangkan, bukan `null` — dan mengembalikan `Response` siap kirim.
    `type` = `https://gateway.internal/errors/<slug>`.
-3. Helper `HttpProblems` (as-built): `badRequest`, `unauthorized`, `forbidden`,
+3. Helper `HttpProblems`: `badRequest`, `unauthorized`, `forbidden`,
    `notFound`, `payloadTooLarge`, `rateLimited`, `internal`, `badGateway`,
    `serviceUnavailable`, `gatewayTimeout` — masing-masing satu panggilan.
 4. `rateLimited({ detail, limit, window, retryAfterSeconds })`: `detail` default-nya
@@ -195,7 +193,7 @@ adalah konstanta modul — bukan config.
 
 ## Upstream Credential Injection
 
-- **Spek:** Inbound policy yang melakukan injeksi kredensial upstream SETELAH caller terautentikasi dan SEBELUM request diteruskan ke origin. Dua policy 0-dep: `set-upstream-header` (melampirkan token internal statis, mis. `Authorization: Bearer <token>` dan `upstream-hmac-signature` (menandatangani body request dengan shared secret sebelum dikirim ke microservice internal).
+- **Ringkasan:** Inbound policy yang melakukan injeksi kredensial upstream SETELAH caller terautentikasi dan SEBELUM request diteruskan ke origin. Dua policy 0-dep: `set-upstream-header` (melampirkan token internal statis, mis. `Authorization: Bearer <token>` dan `upstream-hmac-signature` (menandatangani body request dengan shared secret sebelum dikirim ke microservice internal).
 - **Kenapa penting:** Menutup celah "Caller Auth vs Upstream Auth" vs Zuplo — kredensial upstream (token statis, secret HMAC) tidak boleh dipegang caller; gateway adalah satu-satunya pemegang. Krusial untuk BFF / microservice enterprise.
 
 ### Cara kerja

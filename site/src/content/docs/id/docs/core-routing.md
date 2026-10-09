@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-Semua fitur di grup ini sudah **terimplementasi dan terverifikasi** , masing-masing dengan cakupan unit dan integration di test suite repo.
+Setiap fitur di grup ini sudah **terimplementasi dan terverifikasi**, masing-masing dengan cakupan unit dan integration test di test suite repo.
 
 ## Radix Router
 
@@ -122,7 +122,7 @@ yang aktif > `leakDetectionThreshold` (default 60 s, aktif di `NODE_ENV=developm
 
 ## Request Pipeline
 
-Request Pipeline adalah lapisan policy-chaining milik gateway (migrasi M2). Tujuannya:
+Request Pipeline adalah lapisan policy-chaining milik gateway. Tujuannya:
 menyediakan satu titik eksekusi untuk **inbound policy** (auth, cache, rate limit —
 boleh short-circuit request sebelum sampai ke backend) dan **outbound policy**
 (transformasi response sebelum dikirim ke client), menggantikan `preRouteHook`
@@ -138,8 +138,7 @@ Implementasi:
 | `src/core/response-cache-policy.ts` (79 baris) | `ResponseCachePolicy` — konsumen nyata pertama dari `ResponseCache` (sebelumnya dead code) |
 | `src/plugins/builtin/auth-jwt-policy.ts` (150 baris) | `AuthJwtPolicy` — verifikasi JWT sebagai policy; mengembalikan problem `Response`, identitas masuk ke `ctx.state.user` |
 
-Tanpa dependensi eksternal. **Status: terimplementasi** — commit `99fd7d5` (M2),
-`npm test` 790/790 passing.
+Tanpa dependensi eksternal. **Status: terimplementasi**.
 
 ### Cara kerjanya
 
@@ -181,7 +180,7 @@ di `src/index.ts`:
 - `Server.setPipeline(pipeline)` — menggantikan `preRouteHook` (dihapus).
 
 Registrasi policy bersifat programatik (TypeScript), bukan deklaratif —
-array policy deklaratif tetap YAGNI (lihat index).
+array policy deklaratif tetap di luar cakupan (YAGNI).
 
 ### Edge cases
 
@@ -202,11 +201,9 @@ menemukan rute, handler ini meneruskan request ke upstream, mengembalikan
 response ke client, dan memasang pelindung resilience di sepanjang jalan (circuit
 breaker, health check, load balancing, transformasi, compression).
 
-Implementasi: `src/core/proxy-handler.ts` (560 baris, class `ProxyHandler`) —
-
-modularisasi adalah rencana **M2** dan didokumentasikan di
-[Out of Scope (YAGNI)](#out-of-scope-yagni), bukan sebagai sesuatu yang sudah ada.
-Zero-dependency: `node:http`, `node:https`, tanpa undici/axios/http-proxy.
+Implementasi: `src/core/proxy-handler.ts` (560 baris, class `ProxyHandler`),
+zero-dependency: `node:http`, `node:https`, tanpa undici/axios/http-proxy. Memecah
+monolith menjadi modul-modul kecil sengaja di luar cakupan (YAGNI).
 
 ### Cara kerjanya
 

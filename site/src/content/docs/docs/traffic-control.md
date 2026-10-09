@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-All 3 features in this group are **implemented and verified** , each with unit and integration coverage in the repo test suite.
+Every feature in this group is **implemented and verified**, each with unit and integration coverage in the repo test suite.
 
 ## Load Balancer
 
@@ -205,8 +205,8 @@ zero-config defaults (the same pattern as the observability features):
 | `enableStats` | `true` | collect hits/misses/evictions |
 
 Planned as a `cache-control` plugin via `plugins[]`
-(PLUGIN_CONFIG) — wiring into the plugin chain
-doesn't exist in the code yet (see Status).
+(`PLUGIN_CONFIG`) — wiring into the plugin chain doesn't
+exist in the code yet.
 
 ### Edge cases
 

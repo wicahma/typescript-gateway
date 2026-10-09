@@ -6,12 +6,12 @@ section: "Features"
 track: "reference"
 ---
 
-All 4 features in this group are **implemented and verified** , each with unit and integration coverage in the repo test suite.
+Every feature in this group is **implemented and verified**, each with unit and integration coverage in the repo test suite.
 
 ## API Key Engine
 
-- **Spec:** A built-in API-key engine in the Zuplo style but with 0 dependencies, built on `node:crypto`: a key generator with the format `tsgk_<bucket>_<random32>_<checksum4>`, tiered validation (format → checksum → cache), and consumer-state injection into the request context.
-- **Why it matters:** Closes the "Authentication & Identity" gap vs Zuplo — without it the gateway has no consumer identity model, and the rate limiter can't be dynamic per tier/plan. It is the basis for per-customer rate limiting (M3, done) and upstream injection (M4).
+- **Overview:** A built-in API-key engine in the Zuplo style but with 0 dependencies, built on `node:crypto`: a key generator with the format `tsgk_<bucket>_<random32>_<checksum4>`, tiered validation (format → checksum → cache), and consumer-state injection into the request context.
+- **Why it matters:** Closes the "Authentication & Identity" gap vs Zuplo — without it the gateway has no consumer identity model, and the rate limiter can't be dynamic per tier/plan. It is the basis for per-customer rate limiting and upstream credential injection.
 
 ### How it works
 
@@ -96,9 +96,9 @@ All 4 features in this group are **implemented and verified** , each with unit a
 
 ## JWT Auth Plugin
 
-- **Spec:** The built-in inbound plugin `auth-jwt` acting as an OAuth2/JWT Resource Server: verifies Bearer tokens against a local JWKS (inline in `gateway.config.json`) without external dependencies — only `node:crypto` (`createPublicKey`, `verify`).
-- **Why it matters:** The gateway currently has no built-in auth policy. This plugin is the first identity & security layer before API keys and upstream credential injection followed.
-- **Status:** Implemented. The hook-based plugin `auth-jwt.ts` (8 tests) + the policy pipeline `auth-jwt-policy.ts` (5 tests), both committed and verified in the 790/790 suite.
+- **Overview:** The built-in inbound plugin `auth-jwt` acting as an OAuth2/JWT Resource Server: verifies Bearer tokens against a local JWKS (inline in `gateway.config.json`) without external dependencies — only `node:crypto` (`createPublicKey`, `verify`).
+- **Why it matters:** A built-in auth layer with no external dependencies, sitting in front of API keys and upstream credential injection.
+- **Status:** Implemented — the hook-based plugin `auth-jwt.ts` plus the policy pipeline `auth-jwt-policy.ts`.
 
 ### How it works
 
@@ -154,8 +154,6 @@ hierarchy + ad-hoc JSON serialization with a standard structure: `type`, `title`
 Implementation: `src/pipeline/http-problems.ts` (111 lines) — zero dependencies
 (`JSON.stringify` + the global `Response`, `Content-Type: application/problem+json`).
 
-(and `npm test` 790/790 passing, commit `99fd7d5`, M2).
-
 ### How it works
 
 1. Internal `CATALOG`: 10 error classes — constant tuples
@@ -167,7 +165,7 @@ Implementation: `src/pipeline/http-problems.ts` (111 lines) — zero dependencie
    `{ type, title, status, detail?, instance?, requestId? }` — optional fields
    are omitted, not `null` — and returns a sendable `Response`.
    `type` = `https://gateway.internal/errors/<slug>`.
-3. The `HttpProblems` helpers (as-built): `badRequest`, `unauthorized`, `forbidden`,
+3. The `HttpProblems` helpers: `badRequest`, `unauthorized`, `forbidden`,
    `notFound`, `payloadTooLarge`, `rateLimited`, `internal`, `badGateway`,
    `serviceUnavailable`, `gatewayTimeout` — each a single call.
 4. `rateLimited({ detail, limit, window, retryAfterSeconds })`: the default `detail`
@@ -195,7 +193,7 @@ is a module constant — not config.
 
 ## Upstream Credential Injection
 
-- **Spec:** An inbound policy that performs upstream credential injection AFTER the caller is authenticated and BEFORE the request is forwarded to the origin. Two 0-dep policies: `set-upstream-header` (attaches a static internal token, e.g. `Authorization: Bearer <token>`) and `upstream-hmac-signature` (signs the request body with a shared secret before it is sent to internal microservices).
+- **Overview:** An inbound policy that performs upstream credential injection AFTER the caller is authenticated and BEFORE the request is forwarded to the origin. Two 0-dep policies: `set-upstream-header` (attaches a static internal token, e.g. `Authorization: Bearer <token>`) and `upstream-hmac-signature` (signs the request body with a shared secret before it is sent to internal microservices).
 - **Why it matters:** Closes the "Caller Auth vs Upstream Auth" gap vs Zuplo — upstream credentials (static tokens, HMAC secrets) must never be held by the caller; the gateway is the sole holder. Crucial for BFF / enterprise microservices.
 
 ### How it works

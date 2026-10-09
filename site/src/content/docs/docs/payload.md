@@ -6,11 +6,11 @@ section: "Features"
 track: "reference"
 ---
 
-All 4 features in this group are **implemented and verified** , each with unit and integration coverage in the repo test suite.
+Every feature in this group is **implemented and verified**, each with unit and integration coverage in the repo test suite.
 
 ## Body Parser
 
-- **Spec:** A stream-based request body parser for a zero-dependency gateway. Accepts a Node.js `IncomingMessage` and returns a structured `ParsedBody` per Content-Type: JSON, URL-encoded, multipart, text, and raw binary (fallback `application/octet-stream`).
+- **Overview:** A stream-based request body parser for a zero-dependency gateway. Accepts a Node.js `IncomingMessage` and returns a structured `ParsedBody` per Content-Type: JSON, URL-encoded, multipart, text, and raw binary (fallback `application/octet-stream`).
 - **Purpose:** Act as the first trust boundary for inbound payloads — enforcing per-content-type size limits, bounding stream read time, and normalizing the body before it is passed to the request transformer, plugins, and upstream.
 
 ### How it works
@@ -42,7 +42,7 @@ All 4 features in this group are **implemented and verified** , each with unit a
 
 ## Compression Handler
 
-- **Spec:** A response HTTP compressor based on `node:zlib` — gzip, Brotli (`br`), and deflate — with `Accept-Encoding` negotiation (q-value and wildcard `*` support), content-type filtering, a minimum size threshold, and writing the `Content-Encoding` / `Content-Length` / `Vary: Accept-Encoding` headers.
+- **Overview:** A response HTTP compressor based on `node:zlib` — gzip, Brotli (`br`), and deflate — with `Accept-Encoding` negotiation (q-value and wildcard `*` support), content-type filtering, a minimum size threshold, and writing the `Content-Encoding` / `Content-Length` / `Vary: Accept-Encoding` headers.
 - **Purpose:** Save bandwidth without an external dependency (stdlib `node:zlib`), with a configurable preference order (Brotli first by default because of its best ratio for JSON/text).
 
 ### How it works
@@ -77,7 +77,7 @@ All 4 features in this group are **implemented and verified** , each with unit a
 
 ## Request Transformer
 
-- **Spec:** A declarative request transformation engine running in the gateway pipeline (Step 2, before body parsing and upstream selection). It can rewrite headers, query parameters, path, and body (JSON/form) based on per-route rules with conditions (header, path, method, query param) and priority.
+- **Overview:** A declarative request transformation engine running in the gateway pipeline (Step 2, before body parsing and upstream selection). It can rewrite headers, query parameters, path, and body (JSON/form) based on per-route rules with conditions (header, path, method, query param) and priority.
 - **Purpose:** Remove the need for upstreams to handle client variation — header normalization, stripping internal parameters, legacy path rewrites, body field injection — all at the edge, without external dependencies.
 
 ### How it works
@@ -109,7 +109,7 @@ All 4 features in this group are **implemented and verified** , each with unit a
 
 ## Response Transformer
 
-- **Spec:** A declarative response transformation engine in the gateway pipeline (Step 6, after upstream proxying completes, before compression). It changes the status code (mapping), headers, JSON body (wrap/set/remove), CORS, and replaces error bodies with per-status-code templates — based on per-route rules with conditions and priority.
+- **Overview:** A declarative response transformation engine in the gateway pipeline (Step 6, after upstream proxying completes, before compression). It changes the status code (mapping), headers, JSON body (wrap/set/remove), CORS, and replaces error bodies with per-status-code templates — based on per-route rules with conditions and priority.
 - **Purpose:** Hide upstream quirks from clients: normalize status codes, inject security/CORS headers, wrap responses in a consistent envelope, and replace raw upstream error pages with gateway templates.
 
 ### How it works

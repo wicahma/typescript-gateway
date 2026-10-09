@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-Semua 3 fitur di grup ini sudah **terimplementasi dan terverifikasi** , masing-masing dengan cakupan unit dan integration di test suite repo.
+Setiap fitur di grup ini sudah **terimplementasi dan terverifikasi**, masing-masing dengan cakupan unit dan integration test di test suite repo.
 
 ## Load Balancer
 
@@ -205,8 +205,8 @@ default zero-config (pola yang sama seperti fitur observability):
 | `enableStats` | `true` | kumpulkan hits/misses/evictions |
 
 Direncanakan sebagai plugin `cache-control` via `plugins[]`
-(PLUGIN_CONFIG) — wiring ke plugin chain
-belum ada di kode (lihat Status).
+(`PLUGIN_CONFIG`) — wiring ke plugin chain belum
+ada di kode.
 
 ### Edge cases
 

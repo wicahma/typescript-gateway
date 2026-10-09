@@ -7,7 +7,7 @@ track: "reference"
 ---
 
 
-Five governance and safety policies that ship in the core gateway. All are
+Governance and safety policies that ship in the core gateway. All are
 disabled by default — enable them by adding a block to `gateway.config.json`.
 
 ## CORS
@@ -92,11 +92,13 @@ completes, including when a later policy short-circuits the request.
 ## Ordering
 
 Policies run in a fixed order regardless of the config order: load shedding →
-CORS → trace context → idempotency → (auth, API keys, cache, upstream
-credentials). Secret masking runs on the outbound path.
+CORS → trace context → idempotency → SSRF guard → inbound HMAC → sticky
+sessions → traffic shadowing → security headers → auth → API keys → consumer
+rate limit → audit → replay → record → response cache → upstream credential
+injection. Secret masking runs on the outbound path.
 
 
-## Milestone B additions
+## Traffic & identity policies
 
 ### Traffic shadowing
 
@@ -186,6 +188,8 @@ Declare every route from an OpenAPI 3.1 document instead of hand-listing them.
 ```json
 { "openapi": { "enabled": true, "basePath": "/api", "spec": { "openapi": "3.1.0", "paths": { "/users/{id}": { "get": {} } } } } }
 ```
+
+## Operations policies
 
 ### Request record & replay
 

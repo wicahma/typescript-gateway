@@ -7,7 +7,7 @@ track: "reference"
 ---
 
 
-Lima policy governance dan keamanan yang sudah ada di gateway inti. Semuanya
+Policy governance dan keamanan yang sudah ada di gateway inti. Semuanya
 nonaktif secara default — aktifkan dengan menambah block di
 `gateway.config.json`.
 
@@ -92,11 +92,13 @@ termasuk ketika policy lain men-short-circuit request.
 ## Urutan
 
 Policy berjalan dengan urutan tetap terlepas dari urutan di config: load
-shedding → CORS → trace context → idempotency → (auth, API key, cache, upstream
-credential). Secret masking berjalan di jalur outbound.
+shedding → CORS → trace context → idempotency → SSRF guard → HMAC inbound →
+sticky session → traffic shadowing → security headers → auth → API key →
+consumer rate limit → audit → replay → record → response cache → injeksi
+kredensial upstream. Secret masking berjalan di jalur outbound.
 
 
-## Tambahan Milestone B
+## Policy traffic & identitas
 
 ### Traffic shadowing
 
@@ -186,6 +188,8 @@ Deklarasikan seluruh route dari dokumen OpenAPI 3.1, bukan daftar manual.
 ```json
 { "openapi": { "enabled": true, "basePath": "/api", "spec": { "openapi": "3.1.0", "paths": { "/users/{id}": { "get": {} } } } } }
 ```
+
+## Policy operasional
 
 ### Rekam & replay request
 

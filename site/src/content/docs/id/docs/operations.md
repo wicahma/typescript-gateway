@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-Ketiga fitur di grup ini sudah **implemented dan terverifikasi** , masing-masing dengan cakupan unit dan integration di test suite repo.
+Setiap fitur di grup ini sudah **terimplementasi dan terverifikasi**, masing-masing dengan cakupan unit dan integration test di test suite repo.
 
 ## Auto Tuner
 

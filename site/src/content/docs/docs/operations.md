@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-All 3 features in this group are **implemented and verified** , each with unit and integration coverage in the repo test suite.
+Every feature in this group is **implemented and verified**, each with unit and integration coverage in the repo test suite.
 
 ## Auto Tuner
 

@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-All features in this group are **implemented and verified** , each with unit and integration coverage in the repo test suite.
+Every feature in this group is **implemented and verified**, each with unit and integration coverage in the repo test suite.
 
 ## Radix Router
 
@@ -122,7 +122,7 @@ active for > `leakDetectionThreshold` (default 60 s, enabled in `NODE_ENV=develo
 
 ## Request Pipeline
 
-The Request Pipeline is the gateway's policy-chaining layer (M2 migration). Its goal:
+The Request Pipeline is the gateway's policy-chaining layer. Its goal:
 provide a single execution point for **inbound policies** (auth, cache, rate limit —
 may short-circuit a request before it reaches the backend) and **outbound policies**
 (response transformation before it is sent to the client), replacing the ad-hoc
@@ -138,8 +138,7 @@ Implementation:
 | `src/core/response-cache-policy.ts` (79 lines) | `ResponseCachePolicy` — first real consumer of `ResponseCache` (previously dead code) |
 | `src/plugins/builtin/auth-jwt-policy.ts` (150 lines) | `AuthJwtPolicy` — JWT verification as a policy; returns a problem `Response`, identity into `ctx.state.user` |
 
-Zero external dependencies. **Status: implemented** — commit `99fd7d5` (M2),
-`npm test` 790/790 passing.
+Zero external dependencies. **Status: implemented**.
 
 ### How it works
 
@@ -181,7 +180,7 @@ in `src/index.ts`:
 - `Server.setPipeline(pipeline)` — replaces `preRouteHook` (removed).
 
 Policy registration is programmatic (TypeScript), not declarative —
-declarative policy arrays remain YAGNI (see index).
+declarative policy arrays remain out of scope (YAGNI).
 
 ### Edge cases
 
@@ -202,11 +201,9 @@ finds a route, this handler forwards the request to the upstream, returns the
 response to the client, and installs resilience guards along the way (circuit
 breaker, health checks, load balancing, transformation, compression).
 
-Implementation: `src/core/proxy-handler.ts` (560 lines, the `ProxyHandler` class) —
-
-modularization is the **M2** plan and is documented in
-[Out of Scope (YAGNI)]](#out-of-scope-yagni), not as something that already exists.
-Zero-dependency: `node:http`, `node:https`, no undici/axios/http-proxy.
+Implementation: `src/core/proxy-handler.ts` (560 lines, the `ProxyHandler` class),
+zero-dependency: `node:http`, `node:https`, no undici/axios/http-proxy. Splitting the
+monolith into smaller modules is deliberately out of scope (YAGNI).
 
 ### How it works
 

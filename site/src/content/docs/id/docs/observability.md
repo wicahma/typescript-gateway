@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-Keempat fitur di grup ini sudah **implemented dan terverifikasi** , masing-masing dengan cakupan unit dan integration di test suite repo.
+Setiap fitur di grup ini sudah **terimplementasi dan terverifikasi**, masing-masing dengan cakupan unit dan integration test di test suite repo.
 
 ## CPU Memory Profiler
 
@@ -266,8 +266,8 @@ Rule bawaan `PerformanceAlerter`:
 - **Data bawaan masih sintetis**: `startMetricsUpdate()` saat ini menghasilkan
   `MetricPoint` sintetis (`Math.random()`) — wiring ke metrik asli belum
   tersambung di `Gateway`. Endpoint dan pipeline broadcast sudah dites
-  (`tests/unit/phase9/performance-dashboard.test.ts`, 8 it passing); wiring data asli
-  adalah langkah integrasi berikutnya.
+  (sudah dites); wiring data asli adalah langkah
+  integrasi berikutnya.
 - **Client SSE disconnect**: handler `res.on('close')` menghapus client dari daftar;
   `broadcast` melewati client yang `destroyed`.
 - **Query range di luar retensi**: `from` yang lebih tua dari satu jam menghasilkan

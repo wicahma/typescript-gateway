@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-All 4 features in this group are **implemented and verified** , each with unit and integration coverage in the repo test suite.
+Every feature in this group is **implemented and verified**, each with unit and integration coverage in the repo test suite.
 
 ## CPU Memory Profiler
 
@@ -266,8 +266,8 @@ Built-in `PerformanceAlerter` rules:
 - **Built-in data is still synthetic**: `startMetricsUpdate()` currently produces
   synthetic `MetricPoint`s (`Math.random()`) — wiring to real metrics is not
   yet connected in `Gateway`. The endpoints and broadcast pipeline are tested
-  (`tests/unit/phase9/performance-dashboard.test.ts`, 8 it passing); real data
-  wiring is the next integration step.
+  (covered by unit tests); real data wiring is the next
+  integration step.
 - **SSE client disconnect**: the `res.on('close')` handler removes the client from the list;
   `broadcast` skips `destroyed` clients.
 - **Range query outside retention**: a `from` older than one hour yields an
