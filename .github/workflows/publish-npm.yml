@@ -18,11 +18,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Node 22 bundles npm 10, which has no OIDC support at all (lib/utils/oidc.js
+      # is absent) — the registry then answers the PUT with a misleading 404.
+      # Trusted publishing needs npm >= 11.5.1, so use Node 24 and pin the CLI up.
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+
+      - name: Ensure npm supports OIDC trusted publishing
+        run: |
+          npm install -g npm@latest
+          node -v
+          npm -v
 
       - name: Install dependencies
         run: npm ci
@@ -30,5 +40,7 @@ jobs:
       - name: Build
         run: npm run build
 
+      # No NODE_AUTH_TOKEN: OIDC is detected automatically and takes precedence,
+      # and a stale token would silently override the trusted-publisher exchange.
       - name: Publish to npm
-        run: npm publish --provenance --access public
+        run: npm publish --access public

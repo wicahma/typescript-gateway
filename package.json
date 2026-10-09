@@ -1,6 +1,6 @@
 {
   "name": "typescript-gateway",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Production-grade HTTP API gateway in pure TypeScript with zero framework dependencies",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
