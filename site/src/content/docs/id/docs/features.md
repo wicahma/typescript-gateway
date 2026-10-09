@@ -1,12 +1,12 @@
 ---
 title: "Feature Matrix"
-description: "Semua 39 fitur di 7 grup, dengan status implementasi."
+description: "Semua 47 fitur di 7 grup, dengan status implementasi."
 order: 11
 section: "Features"
 track: "reference"
 ---
 
-Semua 39 fitur di 7 grup, masing-masing dengan cakupan unit dan integration test. 978/978 test hijau (model data), plus coverage tes unit dan integration. 950/950 tes hijau saat penulisan.
+Semua 47 fitur di 7 grup, masing-masing dengan cakupan unit dan integration test. 1029/1029 test hijau (model data), plus coverage tes unit dan integration. 950/950 tes hijau saat penulisan.
 
 | Group | Feature | Status |
 |---|---|---|
@@ -43,6 +43,14 @@ Semua 39 fitur di 7 grup, masing-masing dengan cakupan unit dan integration test
 | Identity & Security | API Key Engine | implemented |
 | Identity & Security | Upstream Credential Injection | implemented |
 | Identity & Security | RFC 7807 Problem Details | implemented |
+| Resilience | Traffic Shadowing | implemented |
+| Identity & Security | Inbound HMAC Verification | implemented |
+| Traffic Control | Daily Quota (per consumer) | implemented |
+| Identity & Security | SSRF Guard | implemented |
+| Identity & Security | Security Headers | implemented |
+| Operations | Admin Control Plane | implemented |
+| Traffic Control | Sticky Sessions | implemented |
+| Core Routing | OpenAPI {param} Syntax | implemented |
 | Traffic Control | CORS Policy | implemented |
 | Observability | W3C Trace Context | implemented |
 | Identity & Security | Outbound Secret Masking | implemented |

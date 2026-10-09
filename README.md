@@ -119,7 +119,7 @@ dashboard · CPU/memory profilers
 plugin chain with isolated async hooks · auto-tuner
 
 Full details: [Feature Matrix](https://tsgate.diama.dev/docs/features) —
-39 features across 7 groups.
+47 features across 7 groups.
 
 ## Performance
 

@@ -94,3 +94,86 @@ completes, including when a later policy short-circuits the request.
 Policies run in a fixed order regardless of the config order: load shedding →
 CORS → trace context → idempotency → (auth, API keys, cache, upstream
 credentials). Secret masking runs on the outbound path.
+
+
+## Milestone B additions
+
+### Traffic shadowing
+
+Mirror a sampled fraction of live traffic to a shadow upstream for safe
+validation. Fire-and-forget: a slow or failing shadow never affects the client.
+
+```json
+{ "shadow": { "enabled": true, "target": "http://127.0.0.1:9999", "sampleRate": 0.1 } }
+```
+
+Mirrored requests carry `x-shadow: true`; in-flight mirrors are bounded by
+`maxInflight`.
+
+### Inbound HMAC verification
+
+Verify a webhook signature over the raw request body before accepting it.
+
+```json
+{ "verifyInboundHmac": { "enabled": true, "secret": "${WEBHOOK_SECRET}" } }
+```
+
+Rejects with `401` problem+json on a missing, wrong, or expired signature.
+
+### Daily quota per consumer
+
+Adds a rolling daily request budget on top of the per-minute rate limit; the
+`429` carries the daily counters.
+
+```json
+{ "apiKeys": { "enabled": true, "consumers": [
+  { "consumerId": "c1", "plan": "pro", "rateLimit": 600, "dailyLimit": 100000, "keys": [{ "key": "..." }] }
+] } }
+```
+
+### SSRF guard
+
+Rejects requests whose target host resolves to a private/loopback/link-local
+address (or `localhost`/`.internal`), unless allowlisted.
+
+```json
+{ "ssrfGuard": { "enabled": true, "allowlist": ["internal.example.com"] } }
+```
+
+### Security headers
+
+Adds hardening headers and strips server banners from responses.
+
+```json
+{ "securityHeaders": { "enabled": true, "hsts": "max-age=31536000", "stripServer": true } }
+```
+
+### Sticky sessions
+
+Pins a caller (by header or cookie) to one upstream for cache locality.
+
+```json
+{ "stickySession": { "enabled": true, "upstreams": ["a", "b", "c"] } }
+```
+
+### Admin control plane
+
+Read-only operational state and cache purge, gated by the same identity as the
+rest of the gateway (`requireAuth`).
+
+```json
+{ "admin": { "enabled": true, "basePath": "/__admin", "requireAuth": true } }
+```
+
+- `GET /__admin/state` — uptime, breaker states, cache stats, load-shed info,
+  active policy names.
+- `POST /__admin/cache/purge` — body `{ "pattern": "<regex>" }`; returns the
+  purged entry count.
+
+### OpenAPI `{param}` route syntax
+
+Routes accept `{id}` (OpenAPI style) as well as `:id`.
+
+```json
+{ "routes": [{ "method": "GET", "path": "/users/{id}" }] }
+```

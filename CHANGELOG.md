@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.0]
+
+### Added
+- Traffic shadowing (mirror a sampled fraction of traffic to a shadow upstream).
+- Inbound HMAC verification for webhooks.
+- Per-consumer daily quota on top of the per-minute rate limit.
+- SSRF guard (blocks private/loopback/link-local targets).
+- Security headers + server-banner stripping.
+- Sticky sessions (pin a caller to one upstream).
+- Admin control plane: `GET /__admin/state`, `POST /__admin/cache/purge`.
+- OpenAPI-style `{param}` route syntax.
+
 ## [1.1.0]
 
 ### Added

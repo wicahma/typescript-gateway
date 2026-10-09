@@ -94,3 +94,86 @@ termasuk ketika policy lain men-short-circuit request.
 Policy berjalan dengan urutan tetap terlepas dari urutan di config: load
 shedding → CORS → trace context → idempotency → (auth, API key, cache, upstream
 credential). Secret masking berjalan di jalur outbound.
+
+
+## Tambahan Milestone B
+
+### Traffic shadowing
+
+Memirror sebagian trafik live (sampled) ke upstream shadow untuk validasi
+aman. Fire-and-forget: shadow yang lambat/gagal tidak memengaruhi client.
+
+```json
+{ "shadow": { "enabled": true, "target": "http://127.0.0.1:9999", "sampleRate": 0.1 } }
+```
+
+Request mirror membawa `x-shadow: true`; jumlah mirror in-flight dibatasi
+`maxInflight`.
+
+### Verifikasi HMAC inbound
+
+Memverifikasi signature webhook atas body request mentah sebelum diterima.
+
+```json
+{ "verifyInboundHmac": { "enabled": true, "secret": "${WEBHOOK_SECRET}" } }
+```
+
+Menolak dengan `401` problem+json saat signature hilang, salah, atau kedaluwarsa.
+
+### Kuota harian per consumer
+
+Menambah budget request harian di atas rate limit per menit; `429` membawa
+counter harian.
+
+```json
+{ "apiKeys": { "enabled": true, "consumers": [
+  { "consumerId": "c1", "plan": "pro", "rateLimit": 600, "dailyLimit": 100000, "keys": [{ "key": "..." }] }
+] } }
+```
+
+### SSRF guard
+
+Menolak request yang target host-nya alamat private/loopback/link-local (atau
+`localhost`/`.internal`), kecuali di-allowlist.
+
+```json
+{ "ssrfGuard": { "enabled": true, "allowlist": ["internal.example.com"] } }
+```
+
+### Security headers
+
+Menambah header hardening dan menghapus banner server dari response.
+
+```json
+{ "securityHeaders": { "enabled": true, "hsts": "max-age=31536000", "stripServer": true } }
+```
+
+### Sticky session
+
+Mem-pin caller (via header atau cookie) ke satu upstream untuk lokalitas cache.
+
+```json
+{ "stickySession": { "enabled": true, "upstreams": ["a", "b", "c"] } }
+```
+
+### Admin control plane
+
+State operasional read-only dan purge cache, digerbangi identitas yang sama
+(`requireAuth`).
+
+```json
+{ "admin": { "enabled": true, "basePath": "/__admin", "requireAuth": true } }
+```
+
+- `GET /__admin/state` — uptime, state breaker, stat cache, info load-shed,
+  nama policy aktif.
+- `POST /__admin/cache/purge` — body `{ "pattern": "<regex>" }`; mengembalikan
+  jumlah entri yang dipurge.
+
+### Sintaks route OpenAPI `{param}`
+
+Route menerima `{id}` (gaya OpenAPI) maupun `:id`.
+
+```json
+{ "routes": [{ "method": "GET", "path": "/users/{id}" }] }
+```
