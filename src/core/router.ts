@@ -9,6 +9,20 @@ function normalizePathSyntax(path: string): string {
   return path.replace(/\{([A-Za-z0-9_]+)\}/g, ':$1');
 }
 
+function parseParamSegment(segment: string): { name: string; regex: RegExp | null } {
+  const open = segment.indexOf('(');
+  if (open > 0 && segment.endsWith(')')) {
+    const name = segment.slice(1, open);
+    const pattern = segment.slice(open + 1, -1);
+    try {
+      return { name, regex: new RegExp(`^(?:${pattern})$`) };
+    } catch {
+      return { name, regex: null };
+    }
+  }
+  return { name: segment.slice(1), regex: null };
+}
+
 /**
  * Radix tree node for dynamic routes
  */
@@ -23,6 +37,8 @@ interface RadixNode {
   paramChild: RadixNode | null;
   /** Parameter name (if this is a param node) */
   paramName: string | null;
+  /** Regex constraint for the param (if any) */
+  paramRegex: RegExp | null;
   /** Wildcard node (for *) */
   wildcardChild: RadixNode | null;
   /** Route metadata */
@@ -68,6 +84,7 @@ export class Router {
       children: new Map(),
       paramChild: null,
       paramName: null,
+      paramRegex: null,
       wildcardChild: null,
       route: null,
     };
@@ -116,12 +133,12 @@ export class Router {
       if (!segment) continue;
 
       if (segment.startsWith(':')) {
-        // Parameter segment
-        const paramName = segment.slice(1);
+        const parsed = parseParamSegment(segment);
         if (!current.paramChild) {
           current.paramChild = this.createNode(segment);
-          current.paramChild.paramName = paramName;
         }
+        current.paramChild.paramName = parsed.name;
+        current.paramChild.paramRegex = parsed.regex;
         current = current.paramChild;
       } else if (segment === '*') {
         // Wildcard segment
@@ -207,7 +224,8 @@ export class Router {
     // Try parameter match
     if (node.paramChild) {
       const paramName = node.paramChild.paramName;
-      if (paramName) {
+      const paramRegex = node.paramChild.paramRegex;
+      if (paramName && (!paramRegex || paramRegex.test(segment))) {
         params[paramName] = segment;
         const result = this.matchRadix(node.paramChild, segments, index + 1, params);
         if (result) return result;
