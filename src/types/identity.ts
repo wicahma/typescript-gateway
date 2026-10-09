@@ -41,4 +41,41 @@ export interface WithIdentity extends GatewayConfig {
   secretMask?: { enabled?: boolean; replacement?: string };
   traceContext?: { enabled?: boolean };
   loadShedding?: { enabled?: boolean; min?: number; max?: number; targetP95Ms?: number };
+  shadow?: {
+    enabled?: boolean;
+    target: string;
+    sampleRate?: number;
+    methods?: string[];
+    maxInflight?: number;
+  };
+  ssrfGuard?: {
+    enabled?: boolean;
+    allowlist?: string[];
+    allowPrivate?: boolean;
+    blockLinkLocal?: boolean;
+  };
+  securityHeaders?: {
+    enabled?: boolean;
+    hsts?: string;
+    stripServer?: boolean;
+    frameOptions?: string | false;
+    referrerPolicy?: string | false;
+    contentTypeOptions?: string | false;
+  };
+  verifyInboundHmac?: {
+    enabled?: boolean;
+    secret: string;
+    headerName?: string;
+    timestampHeader?: string;
+    publicRoutes?: string[];
+    maxAgeSeconds?: number;
+  };
+  stickySession?: {
+    enabled?: boolean;
+    upstreams?: string[];
+    headerName?: string;
+    cookieName?: string;
+    ttlMs?: number;
+  };
+  admin?: { enabled?: boolean; basePath?: string; requireAuth?: boolean; requiredPlan?: string };
 }

@@ -41,7 +41,7 @@ export class ApiKeyPolicy implements GatewayPolicy {
 
   constructor(
     private store: ConsumerStore,
-    config: ApiKeyPolicyConfig = {},
+    config: ApiKeyPolicyConfig = {}
   ) {
     this.publicRoutes = new Set(config.publicRoutes ?? ['/', '/health', '/metrics']);
     this.headerName = config.headerName ?? 'x-api-key';
@@ -68,7 +68,10 @@ export class ApiKeyPolicy implements GatewayPolicy {
     };
     if (record.dailyLimit !== undefined) data.dailyLimit = record.dailyLimit;
     ctx.state['user'] = { sub: record.consumerId, data };
-    logger.info({ requestId: ctx.requestId, sub: record.consumerId, plan: record.plan }, 'API key auth succeeded');
+    logger.info(
+      { requestId: ctx.requestId, sub: record.consumerId, plan: record.plan },
+      'API key auth succeeded'
+    );
   }
 
   stats(): CacheStats {

@@ -25,6 +25,12 @@ import { IdempotencyPolicy } from './pipeline/idempotency-policy.js';
 import { SecretMaskPolicy } from './pipeline/secret-mask-policy.js';
 import { LoadShedPolicy } from './pipeline/load-shed-policy.js';
 import { ConcurrencyLimiter } from './core/concurrency-limiter.js';
+import { ShadowPolicy } from './pipeline/shadow-policy.js';
+import { SsrfGuardPolicy } from './pipeline/ssrf-guard-policy.js';
+import { SecurityHeadersPolicy } from './pipeline/security-headers-policy.js';
+import { VerifyInboundHmacPolicy } from './identity/verify-inbound-hmac-policy.js';
+import { StickySessionPolicy } from './pipeline/sticky-session-policy.js';
+import { AdminControlPlane } from './admin/control-plane.js';
 import { WithIdentity } from './types/identity.js';
 import { UpstreamTarget, CircuitBreakerState, RequestContext } from './types/core.js';
 import { AuthJwtPlugin } from './plugins/builtin/auth-jwt.js';
@@ -42,6 +48,8 @@ export class Gateway {
   private configLoader;
   private metricsInterval: NodeJS.Timeout | null = null;
   private pipeline = new RequestPipeline();
+  private cache: ResponseCache | null = null;
+  private loadShedInfo: Record<string, unknown> = {};
   private boundPort = 0;
   private boundHost = '';
 
@@ -128,6 +136,43 @@ export class Gateway {
   }
 
   private registerSystemRoutes(): void {
+    const adminConfig = (
+      this.currentConfig as unknown as {
+        admin?: {
+          enabled?: boolean;
+          basePath?: string;
+          requireAuth?: boolean;
+          requiredPlan?: string;
+        };
+      } | null
+    )?.admin;
+    if (adminConfig?.enabled) {
+      const plane = new AdminControlPlane(
+        {
+          getUptime: () => process.uptime(),
+          getBreakers: () => {
+            const out: Record<string, string> = {};
+            const upstreams = this.currentConfig?.upstreams ?? [];
+            for (const u of upstreams) {
+              const breaker = this.proxyHandler?.getCircuitBreaker(u.id);
+              out[u.id] = breaker ? String(breaker.getState()) : 'UNKNOWN';
+            }
+            return out;
+          },
+          getCacheStats: () => this.cache?.getStats() ?? {},
+          getLoadShed: () => this.loadShedInfo ?? {},
+          purgeCache: (pattern: RegExp) => this.cache?.purge(pattern) ?? 0,
+          getPolicies: () => this.pipeline.getPolicyNames(),
+        },
+        {
+          basePath: adminConfig.basePath,
+          requireAuth: adminConfig.requireAuth,
+          requiredPlan: adminConfig.requiredPlan,
+        }
+      );
+      plane.register(this.router);
+    }
+
     this.router.register('GET', '/health', async ctx => {
       let report: Record<string, unknown> = { status: 'ok', uptime: process.uptime() };
       try {
@@ -180,15 +225,13 @@ export class Gateway {
   private configurePipeline(config: ConfigFile): void {
     const cfg = config as unknown as WithIdentity;
     if (cfg.loadShedding?.enabled) {
-      this.pipeline.register(
-        new LoadShedPolicy(
-          new ConcurrencyLimiter({
-            min: cfg.loadShedding.min ?? 16,
-            max: cfg.loadShedding.max ?? 1024,
-            targetP95Ms: cfg.loadShedding.targetP95Ms ?? 250,
-          })
-        )
-      );
+      const limiter = new ConcurrencyLimiter({
+        min: cfg.loadShedding.min ?? 16,
+        max: cfg.loadShedding.max ?? 1024,
+        targetP95Ms: cfg.loadShedding.targetP95Ms ?? 250,
+      });
+      this.loadShedInfo = { limit: limiter.currentLimit(), inflight: limiter.inFlight() };
+      this.pipeline.register(new LoadShedPolicy(limiter));
     }
     if (cfg.cors?.enabled) {
       this.pipeline.register(
@@ -215,6 +258,57 @@ export class Gateway {
     if (cfg.secretMask?.enabled) {
       this.pipeline.register(new SecretMaskPolicy({ replacement: cfg.secretMask.replacement }));
     }
+    if (cfg.ssrfGuard?.enabled) {
+      this.pipeline.register(
+        new SsrfGuardPolicy({
+          allowlist: cfg.ssrfGuard.allowlist,
+          allowPrivate: cfg.ssrfGuard.allowPrivate,
+          blockLinkLocal: cfg.ssrfGuard.blockLinkLocal,
+        })
+      );
+    }
+    if (cfg.verifyInboundHmac?.enabled) {
+      this.pipeline.register(
+        new VerifyInboundHmacPolicy({
+          secret: cfg.verifyInboundHmac.secret,
+          headerName: cfg.verifyInboundHmac.headerName,
+          timestampHeader: cfg.verifyInboundHmac.timestampHeader,
+          publicRoutes: cfg.verifyInboundHmac.publicRoutes,
+          maxAgeSeconds: cfg.verifyInboundHmac.maxAgeSeconds,
+        })
+      );
+    }
+    if (cfg.stickySession?.enabled && cfg.stickySession.upstreams?.length) {
+      this.pipeline.register(
+        new StickySessionPolicy({
+          upstreams: cfg.stickySession.upstreams,
+          headerName: cfg.stickySession.headerName,
+          cookieName: cfg.stickySession.cookieName,
+          ttlMs: cfg.stickySession.ttlMs,
+        })
+      );
+    }
+    if (cfg.shadow?.enabled) {
+      this.pipeline.register(
+        new ShadowPolicy({
+          target: cfg.shadow.target,
+          sampleRate: cfg.shadow.sampleRate,
+          methods: cfg.shadow.methods,
+          maxInflight: cfg.shadow.maxInflight,
+        })
+      );
+    }
+    if (cfg.securityHeaders?.enabled) {
+      this.pipeline.register(
+        new SecurityHeadersPolicy({
+          hsts: cfg.securityHeaders.hsts,
+          stripServer: cfg.securityHeaders.stripServer,
+          frameOptions: cfg.securityHeaders.frameOptions,
+          referrerPolicy: cfg.securityHeaders.referrerPolicy,
+          contentTypeOptions: cfg.securityHeaders.contentTypeOptions,
+        })
+      );
+    }
     const authConfig = config.auth;
     if (authConfig && authConfig.enabled !== false) {
       this.pipeline.register(new AuthJwtPolicy(authConfig));
@@ -223,7 +317,12 @@ export class Gateway {
     if (apiKeyConfig?.enabled && apiKeyConfig.consumers?.length) {
       const store = new ConsumerStore();
       for (const consumer of apiKeyConfig.consumers) {
-        store.createConsumer(consumer.consumerId, consumer.plan, consumer.rateLimit, consumer.dailyLimit);
+        store.createConsumer(
+          consumer.consumerId,
+          consumer.plan,
+          consumer.rateLimit,
+          consumer.dailyLimit
+        );
         for (const key of consumer.keys ?? []) {
           store.issueKey(consumer.consumerId, key.key, { expiresAt: key.expiresAt });
         }
@@ -244,7 +343,8 @@ export class Gateway {
     }
     const cacheConfig = config.responseCache;
     if (cacheConfig?.enabled) {
-      this.pipeline.register(new ResponseCachePolicy(new ResponseCache()));
+      this.cache = new ResponseCache();
+      this.pipeline.register(new ResponseCachePolicy(this.cache));
     }
     const upstreamConfig = cfg.upstreamCredentials;
     if (upstreamConfig?.enabled && upstreamConfig.credentials?.length) {

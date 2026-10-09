@@ -19,7 +19,12 @@ export class ConsumerStore {
   private consumers = new Map<string, ConsumerRecord>();
   private keys = new Map<string, ApiKeyRecord>();
 
-  createConsumer(consumerId: string, plan = 'free', rateLimit = 1000, dailyLimit?: number): ConsumerRecord {
+  createConsumer(
+    consumerId: string,
+    plan = 'free',
+    rateLimit = 1000,
+    dailyLimit?: number
+  ): ConsumerRecord {
     if (this.consumers.has(consumerId)) throw new Error('ERR_CONSUMER_EXISTS');
     const record: ConsumerRecord = { consumerId, plan, rateLimit };
     if (dailyLimit !== undefined) record.dailyLimit = dailyLimit;

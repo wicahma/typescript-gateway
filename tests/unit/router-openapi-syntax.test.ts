@@ -40,7 +40,7 @@ describe('Router OpenAPI-style path syntax', () => {
     const router = new Router();
     router.register('GET', '/things/{thingId}', noop);
     const routes = router.getRoutes();
-    const route = routes.find((r) => r.method === 'GET' && r.path.includes('thingId'));
+    const route = routes.find(r => r.method === 'GET' && r.path.includes('thingId'));
     expect(route).toBeDefined();
   });
 

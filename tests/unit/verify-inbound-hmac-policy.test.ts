@@ -29,7 +29,9 @@ function makeCtx(overrides: Record<string, unknown> = {}): any {
 
 function sign(method: string, path: string, body: Buffer | null): { sig: string; ts: string } {
   const ts = Math.floor(Date.now() / 1000).toString();
-  const digest = createHash('sha256').update(body ?? Buffer.alloc(0)).digest('hex');
+  const digest = createHash('sha256')
+    .update(body ?? Buffer.alloc(0))
+    .digest('hex');
   const sig = createHmac('sha256', SECRET)
     .update(`${method}\n${path}\n${ts}\n${digest}`)
     .digest('base64');

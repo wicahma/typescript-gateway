@@ -66,7 +66,7 @@ describe('ShadowPolicy', () => {
     }) as typeof fetch;
     const p = new ShadowPolicy({ target: 'http://127.0.0.1:9999', sampleRate: 1, fetchImpl: impl });
     expect(() => p.executeInbound(ctx('/api/x'))).not.toThrow();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise(resolve => setTimeout(resolve, 0));
     expect(p.inflight()).toBe(0);
   });
 

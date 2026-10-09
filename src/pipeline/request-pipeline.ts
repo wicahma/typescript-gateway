@@ -59,6 +59,10 @@ export class RequestPipeline {
     }
   }
 
+  getPolicyNames(): string[] {
+    return this.policies.map(policy => policy.name);
+  }
+
   static async writeResponse(res: ServerResponse, response: Response): Promise<void> {
     res.statusCode = response.status;
     response.headers.forEach((value, key) => {

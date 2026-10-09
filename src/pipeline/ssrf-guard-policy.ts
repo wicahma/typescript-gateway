@@ -18,9 +18,9 @@ function stripBrackets(host: string): string {
 function isPrivateIpv4(host: string, blockLinkLocal: boolean): boolean {
   const parts = host.split('.');
   if (parts.length !== 4) return false;
-  if (!parts.every((p) => /^\d{1,3}$/.test(p))) return false;
+  if (!parts.every(p => /^\d{1,3}$/.test(p))) return false;
   const octets = parts.map(Number);
-  if (octets.some((n) => n > 255)) return false;
+  if (octets.some(n => n > 255)) return false;
   const a = octets[0] ?? -1;
   const b = octets[1] ?? -1;
   if (a === 127) return true;
@@ -59,7 +59,7 @@ export class SsrfGuardPolicy implements GatewayPolicy {
   private readonly blockLinkLocal: boolean;
 
   constructor(config: SsrfGuardConfig = {}) {
-    this.allowlist = (config.allowlist ?? []).map((h) => stripBrackets(h.toLowerCase()));
+    this.allowlist = (config.allowlist ?? []).map(h => stripBrackets(h.toLowerCase()));
     this.allowPrivate = config.allowPrivate ?? false;
     this.blockLinkLocal = config.blockLinkLocal ?? true;
   }

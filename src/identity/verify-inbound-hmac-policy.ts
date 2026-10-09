@@ -95,7 +95,7 @@ export class VerifyInboundHmacPolicy implements GatewayPolicy {
       timestamp,
       body,
       signature,
-      this.maxAgeSeconds,
+      this.maxAgeSeconds
     );
 
     if (!valid) {
