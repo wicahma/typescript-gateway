@@ -53,7 +53,7 @@ describe('Router regex-group path params', () => {
   it('exposes the regex param name without the pattern in route metadata', () => {
     const router = new Router();
     router.register('GET', '/items/:id(\\d+)', noop);
-    const route = router.getRoutes().find((r) => r.path.includes('items'));
+    const route = router.getRoutes().find(r => r.path.includes('items'));
     expect(route).toBeDefined();
     const match = router.match('GET', '/items/7');
     expect(match!.params['id']).toBe('7');

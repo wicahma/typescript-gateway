@@ -31,6 +31,7 @@ import { SecurityHeadersPolicy } from './pipeline/security-headers-policy.js';
 import { VerifyInboundHmacPolicy } from './identity/verify-inbound-hmac-policy.js';
 import { StickySessionPolicy } from './pipeline/sticky-session-policy.js';
 import { AdminControlPlane } from './admin/control-plane.js';
+import { routesFromOpenApi } from './config/openapi-routes.js';
 import { WithIdentity } from './types/identity.js';
 import { UpstreamTarget, CircuitBreakerState, RequestContext } from './types/core.js';
 import { AuthJwtPlugin } from './plugins/builtin/auth-jwt.js';
@@ -461,7 +462,21 @@ export class Gateway {
         '/metrics',
         config.monitoring?.export?.prometheus?.path ?? '',
       ]);
-      for (const route of config.routes || []) {
+      const declaredRoutes = [...(config.routes || [])];
+      const openapiCfg = (config as unknown as WithIdentity).openapi;
+      if (openapiCfg?.enabled && openapiCfg.spec) {
+        for (const r of routesFromOpenApi(openapiCfg.spec, {
+          basePath: openapiCfg.basePath,
+          upstreamId: openapiCfg.upstreamId,
+        })) {
+          declaredRoutes.push({
+            method: r.method,
+            path: r.path,
+            priority: 0,
+          } as (typeof declaredRoutes)[number]);
+        }
+      }
+      for (const route of declaredRoutes) {
         if (reserved.has(route.path)) continue;
         this.router.register(route.method, route.path, async ctx => {
           await this.proxyHandler!.handle(ctx);
