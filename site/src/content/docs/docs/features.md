@@ -1,13 +1,13 @@
 ---
 title: "Feature Matrix"
-description: "All 30 features across 7 groups, with implementation status."
+description: "All 39 features across 7 groups, with implementation status."
 order: 11
 section: "Features"
 track: "reference"
 ---
 
 
-All 30 features across 7 groups, each backed by unit and integration test coverage. 950/950 tests green at time of writing.
+All 39 features across 7 groups, each backed by unit and integration test coverage. 978/978 tests green at time of writing.
 
 | Group | Feature | Status |
 |---|---|---|
@@ -44,6 +44,12 @@ All 30 features across 7 groups, each backed by unit and integration test covera
 | Identity & Security | API Key Engine | implemented |
 | Identity & Security | Upstream Credential Injection | implemented |
 | Identity & Security | RFC 7807 Problem Details | implemented |
+| Traffic Control | CORS Policy | implemented |
+| Observability | W3C Trace Context | implemented |
+| Identity & Security | Outbound Secret Masking | implemented |
+| Traffic Control | Idempotency Keys | implemented |
+| Resilience | Adaptive Load Shedding | implemented |
+| Resilience | Concurrency Limiter | implemented |
 
 ## Benchmarks
 

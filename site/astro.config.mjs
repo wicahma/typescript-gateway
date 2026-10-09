@@ -16,6 +16,7 @@ const idSlugs = [
   'operations',
   'identity-security',
   'features',
+  'feature-pack',
   'usage',
   'testing',
 ];
@@ -68,6 +69,7 @@ export default defineConfig({
             'docs/operations',
             'docs/identity-security',
             'docs/features',
+            'docs/feature-pack',
             'docs/testing',
           ],
         },

@@ -6,6 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.0]
+
+### Added
+- CORS policy (preflight + `Access-Control-*` headers).
+- W3C trace-context propagation (`traceparent`).
+- Idempotency-key policy for `POST`/`PATCH` (replay, `400` on key reuse with a
+  different body, `409` while in flight).
+- Outbound secret masking (JWT, PEM private keys, sensitive JSON fields).
+- Adaptive load shedding with a concurrency limiter that tracks p95 latency.
+- `onComplete` pipeline hook for resource release on every request path.
+
+### Changed
+- The inbound policy pipeline now runs **before** route matching, so
+  pre-routing concerns (CORS, auth, rate limiting, load shedding) can
+  short-circuit uniformly.
+
 ## [1.0.8]
 
 ### Changed
