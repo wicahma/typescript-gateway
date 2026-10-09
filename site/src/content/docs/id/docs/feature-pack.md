@@ -1,6 +1,6 @@
 ---
 title: "Feature Pack"
-description: "CORS, W3C trace context, idempotency key, masking secret outbound, dan adaptive load shedding."
+description: "CORS, W3C trace context, idempotency key, masking secret outbound, adaptive load shedding, rekam/replay request, dan audit event stream."
 order: 14
 section: "Guide"
 track: "reference"
@@ -186,3 +186,33 @@ Deklarasikan seluruh route dari dokumen OpenAPI 3.1, bukan daftar manual.
 ```json
 { "openapi": { "enabled": true, "basePath": "/api", "spec": { "openapi": "3.1.0", "paths": { "/users/{id}": { "get": {} } } } } }
 ```
+
+### Rekam & replay request
+
+Rekam setiap exchange ke store in-memory berbatas, lalu sajikan kembali tanpa
+menyentuh upstream — berguna untuk debug insiden produksi dan fixture regresi
+yang deterministik.
+
+```json
+{ "record": { "enabled": true, "maxEntries": 1000, "captureBody": true, "methods": ["GET", "POST"] },
+  "replay": { "enabled": true, "headerName": "x-replay-id", "maxAgeMs": 3600000 } }
+```
+
+Kirim `x-replay-id: <requestId>` untuk mendapat respons rekaman. Id tak dikenal
+mengembalikan `404`, rekaman kedaluwarsa `409`. Respons replay membawa `x-replay: hit`.
+
+### Audit event stream
+
+Satu baris JSON ter-redaksi per request ke `stdout`, termasuk request yang
+di-short-circuit policy lain (penolakan auth, load shed, replay).
+
+```json
+{ "audit": { "enabled": true, "includeHeaders": false, "sampleRate": 1 } }
+```
+
+```json
+{"ts":"2026-10-09T20:05:38.875Z","requestId":"req-2","method":"GET","path":"/api/data","status":200,"durationMs":2}
+```
+
+Nilai berformat JWT, blok private key PEM, dan field JSON
+`secret`/`token`/`password`/`api_key` diredaksi sebelum emisi.

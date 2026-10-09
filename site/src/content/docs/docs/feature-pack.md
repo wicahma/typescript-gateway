@@ -1,6 +1,6 @@
 ---
 title: "Feature Pack"
-description: "CORS, W3C trace context, idempotency keys, outbound secret masking, and adaptive load shedding."
+description: "CORS, W3C trace context, idempotency keys, outbound secret masking, adaptive load shedding, request record/replay, and audit event stream."
 order: 14
 section: "Guide"
 track: "reference"
@@ -186,3 +186,33 @@ Declare every route from an OpenAPI 3.1 document instead of hand-listing them.
 ```json
 { "openapi": { "enabled": true, "basePath": "/api", "spec": { "openapi": "3.1.0", "paths": { "/users/{id}": { "get": {} } } } } }
 ```
+
+### Request record & replay
+
+Capture every exchange into a bounded in-memory store, then serve it back
+without touching the upstream — useful for debugging production incidents and
+for deterministic regression fixtures.
+
+```json
+{ "record": { "enabled": true, "maxEntries": 1000, "captureBody": true, "methods": ["GET", "POST"] },
+  "replay": { "enabled": true, "headerName": "x-replay-id", "maxAgeMs": 3600000 } }
+```
+
+Send `x-replay-id: <requestId>` to get the recorded response back. Unknown ids
+return `404`, expired records `409`. The replayed response carries `x-replay: hit`.
+
+### Audit event stream
+
+One redacted JSON line per request on `stdout`, including requests short-circuited
+by another policy (auth rejection, load shed, replay).
+
+```json
+{ "audit": { "enabled": true, "includeHeaders": false, "sampleRate": 1 } }
+```
+
+```json
+{"ts":"2026-10-09T20:05:38.875Z","requestId":"req-2","method":"GET","path":"/api/data","status":200,"durationMs":2}
+```
+
+JWT-shaped values, PEM private key blocks, and `secret`/`token`/`password`/`api_key`
+JSON fields are redacted before emission.

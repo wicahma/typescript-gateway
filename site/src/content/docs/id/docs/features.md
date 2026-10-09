@@ -1,12 +1,12 @@
 ---
 title: "Feature Matrix"
-description: "Semua 49 fitur di 7 grup, dengan status implementasi."
+description: "Semua 52 fitur di 7 grup, dengan status implementasi."
 order: 11
 section: "Features"
 track: "reference"
 ---
 
-Semua 49 fitur di 7 grup, masing-masing dengan cakupan unit dan integration test. 1044/1044 test hijau (model data), plus coverage tes unit dan integration. 950/950 tes hijau saat penulisan.
+Semua 52 fitur di 7 grup, masing-masing dengan cakupan unit dan integration test. 1069/1069 tes hijau saat penulisan.
 
 | Group | Feature | Status |
 |---|---|---|
@@ -59,6 +59,9 @@ Semua 49 fitur di 7 grup, masing-masing dengan cakupan unit dan integration test
 | Traffic Control | Idempotency Keys | implemented |
 | Resilience | Adaptive Load Shedding | implemented |
 | Resilience | Concurrency Limiter | implemented |
+| Operations | Request Record Store | implemented |
+| Operations | Request Replay | implemented |
+| Observability | Audit Event Stream | implemented |
 
 ## Benchmark
 

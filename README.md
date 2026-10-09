@@ -119,18 +119,18 @@ dashboard · CPU/memory profilers
 plugin chain with isolated async hooks · auto-tuner
 
 Full details: [Feature Matrix](https://tsgate.diama.dev/docs/features) —
-49 features across 7 groups.
+52 features across 7 groups.
 
 ## Performance
 
 Measured on a 4-core x86_64 reference box (Node 22) — your mileage will vary:
 
-| Metric | Value |
-|---|---|
-| Raw forward hop | ~223 µs/op |
-| Hot path (benchmark target path) | P99 5 ms, ~38k RPS |
-| Full proxy pipeline | ~3.2k RPS @ 100 parallel connections |
-| Production dependencies | **0** |
+| Metric                           | Value                                |
+| -------------------------------- | ------------------------------------ |
+| Raw forward hop                  | ~223 µs/op                           |
+| Hot path (benchmark target path) | P99 5 ms, ~38k RPS                   |
+| Full proxy pipeline              | ~3.2k RPS @ 100 parallel connections |
+| Production dependencies          | **0**                                |
 
 ```bash
 npm run benchmark           # load test with P99/RPS verdicts

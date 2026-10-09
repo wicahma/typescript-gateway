@@ -1,13 +1,13 @@
 ---
 title: "Feature Matrix"
-description: "All 49 features across 7 groups, with implementation status."
+description: "All 52 features across 7 groups, with implementation status."
 order: 11
 section: "Features"
 track: "reference"
 ---
 
 
-All 49 features across 7 groups, each backed by unit and integration test coverage. 1044/1044 tests green at time of writing.
+All 52 features across 7 groups, each backed by unit and integration test coverage. 1069/1069 tests green at time of writing.
 
 | Group | Feature | Status |
 |---|---|---|
@@ -60,6 +60,9 @@ All 49 features across 7 groups, each backed by unit and integration test covera
 | Traffic Control | Idempotency Keys | implemented |
 | Resilience | Adaptive Load Shedding | implemented |
 | Resilience | Concurrency Limiter | implemented |
+| Operations | Request Record Store | implemented |
+| Operations | Request Replay | implemented |
+| Observability | Audit Event Stream | implemented |
 
 ## Benchmarks
 
