@@ -5,6 +5,10 @@
 
 import { Route, RouteHandler, HttpMethod, RouteMatch } from '../types/core.js';
 
+function normalizePathSyntax(path: string): string {
+  return path.replace(/\{([A-Za-z0-9_]+)\}/g, ':$1');
+}
+
 /**
  * Radix tree node for dynamic routes
  */
@@ -74,25 +78,23 @@ export class Router {
    * Automatically detects static vs dynamic routes
    */
   register(method: HttpMethod, path: string, handler: RouteHandler, priority: number = 0): void {
+    const normalizedPath = normalizePathSyntax(path);
     const route: Route = {
       method,
-      path,
+      path: normalizedPath,
       handler,
       priority,
     };
 
-    // Check if route is static (no params or wildcards)
-    if (!path.includes(':') && !path.includes('*')) {
-      // Static route - use Map for O(1) lookup
+    if (!normalizedPath.includes(':') && !normalizedPath.includes('*')) {
       const methodMap = this.staticRoutes.get(method);
       const methodDefMap = this.staticRouteDefinitions.get(method);
       if (methodMap && methodDefMap) {
-        methodMap.set(path, handler);
-        methodDefMap.set(path, route);
+        methodMap.set(normalizedPath, handler);
+        methodDefMap.set(normalizedPath, route);
       }
     } else {
-      // Dynamic route - use radix tree
-      this.insertRadix(method, path, handler, route);
+      this.insertRadix(method, normalizedPath, handler, route);
     }
 
     this.routes.push(route);
