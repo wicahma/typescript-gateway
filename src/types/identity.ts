@@ -78,6 +78,22 @@ export interface WithIdentity extends GatewayConfig {
     ttlMs?: number;
   };
   admin?: { enabled?: boolean; basePath?: string; requireAuth?: boolean; requiredPlan?: string };
+  record?: {
+    enabled?: boolean;
+    maxEntries?: number;
+    captureBody?: boolean;
+    methods?: string[];
+  };
+  replay?: {
+    enabled?: boolean;
+    headerName?: string;
+    maxAgeMs?: number;
+  };
+  audit?: {
+    enabled?: boolean;
+    includeHeaders?: boolean;
+    sampleRate?: number;
+  };
   openapi?: {
     enabled?: boolean;
     spec?: Record<string, unknown>;

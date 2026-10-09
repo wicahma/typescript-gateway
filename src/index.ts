@@ -31,6 +31,10 @@ import { SecurityHeadersPolicy } from './pipeline/security-headers-policy.js';
 import { VerifyInboundHmacPolicy } from './identity/verify-inbound-hmac-policy.js';
 import { StickySessionPolicy } from './pipeline/sticky-session-policy.js';
 import { AdminControlPlane } from './admin/control-plane.js';
+import { RecordStore } from './pipeline/record-store.js';
+import { RecordPolicy } from './pipeline/record-policy.js';
+import { ReplayPolicy } from './pipeline/replay-policy.js';
+import { AuditPolicy } from './pipeline/audit-policy.js';
 import { routesFromOpenApi } from './config/openapi-routes.js';
 import { WithIdentity } from './types/identity.js';
 import { UpstreamTarget, CircuitBreakerState, RequestContext } from './types/core.js';
@@ -343,6 +347,34 @@ export class Gateway {
       );
     }
     const cacheConfig = config.responseCache;
+    if (cfg.audit?.enabled) {
+      this.pipeline.register(
+        new AuditPolicy({
+          includeHeaders: cfg.audit.includeHeaders,
+          sampleRate: cfg.audit.sampleRate,
+        })
+      );
+    }
+    const recordStore = new RecordStore(cfg.record?.maxEntries ?? 1000);
+    if (cfg.replay?.enabled) {
+      this.pipeline.register(
+        new ReplayPolicy({
+          store: recordStore,
+          headerName: cfg.replay.headerName,
+          maxAgeMs: cfg.replay.maxAgeMs,
+        })
+      );
+    }
+    if (cfg.record?.enabled) {
+      this.pipeline.register(
+        new RecordPolicy({
+          store: recordStore,
+          maxEntries: cfg.record.maxEntries,
+          captureBody: cfg.record.captureBody,
+          methods: cfg.record.methods,
+        })
+      );
+    }
     if (cacheConfig?.enabled) {
       this.cache = new ResponseCache();
       this.pipeline.register(new ResponseCachePolicy(this.cache));
