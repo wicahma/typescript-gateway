@@ -20,6 +20,7 @@ const CATALOG: Record<string, { status: number; title: string; slug: string }> =
   unauthorized: { status: 401, title: 'Unauthorized', slug: 'unauthorized' },
   forbidden: { status: 403, title: 'Forbidden', slug: 'forbidden' },
   'not-found': { status: 404, title: 'Not Found', slug: 'not-found' },
+  conflict: { status: 409, title: 'Conflict', slug: 'conflict' },
   'payload-too-large': { status: 413, title: 'Payload Too Large', slug: 'payload-too-large' },
   'rate-limit-exceeded': { status: 429, title: 'Too Many Requests', slug: 'rate-limit-exceeded' },
   'internal-error': { status: 500, title: 'Internal Server Error', slug: 'internal-error' },
@@ -75,6 +76,8 @@ export const HttpProblems = {
     createProblem('forbidden', { detail, ...extra }),
   notFound: (detail?: string, extra?: ProblemFields) =>
     createProblem('not-found', { detail, ...extra }),
+  conflict: (detail?: string, extra?: ProblemFields) =>
+    createProblem('conflict', { detail, ...extra }),
   payloadTooLarge: (detail?: string, extra?: ProblemFields) =>
     createProblem('payload-too-large', { detail, ...extra }),
   rateLimited: ({
