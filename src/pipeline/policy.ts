@@ -16,6 +16,7 @@ export interface GatewayPolicy {
     ctx: RequestContext,
     response: OutboundResponse,
   ): Promise<OutboundResponse | void> | OutboundResponse | void;
+  onComplete?(ctx: RequestContext): void;
 }
 
 export class PluginPolicy implements GatewayPolicy {

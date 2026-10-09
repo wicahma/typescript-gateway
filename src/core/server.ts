@@ -194,6 +194,10 @@ export class Server {
     } catch (error) {
       this.handleRequestError(ctx, error as Error);
     } finally {
+      if (this.pipeline) {
+        this.pipeline.complete(ctx);
+      }
+
       // Record latency
       metrics.recordLatency(startTime);
 

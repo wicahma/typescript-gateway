@@ -46,6 +46,19 @@ export class RequestPipeline {
     return current;
   }
 
+  complete(ctx: RequestContext): void {
+    for (const policy of this.policies) {
+      if (!policy.onComplete) {
+        continue;
+      }
+      try {
+        policy.onComplete(ctx);
+      } catch {
+        void 0;
+      }
+    }
+  }
+
   static async writeResponse(res: ServerResponse, response: Response): Promise<void> {
     res.statusCode = response.status;
     response.headers.forEach((value, key) => {
