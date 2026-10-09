@@ -172,8 +172,17 @@ State operasional read-only dan purge cache, digerbangi identitas yang sama
 
 ### Sintaks route OpenAPI `{param}`
 
-Route menerima `{id}` (gaya OpenAPI) maupun `:id`.
+Route menerima `{id}` (gaya OpenAPI) maupun `:id`, plus regex group
+(`/orders/:orderId(\d+)`).
 
 ```json
 { "routes": [{ "method": "GET", "path": "/users/{id}" }] }
+```
+
+### Dokumen OpenAPI sebagai sumber routing
+
+Deklarasikan seluruh route dari dokumen OpenAPI 3.1, bukan daftar manual.
+
+```json
+{ "openapi": { "enabled": true, "basePath": "/api", "spec": { "openapi": "3.1.0", "paths": { "/users/{id}": { "get": {} } } } } }
 ```

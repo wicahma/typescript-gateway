@@ -1,13 +1,13 @@
 ---
 title: "Feature Matrix"
-description: "All 47 features across 7 groups, with implementation status."
+description: "All 49 features across 7 groups, with implementation status."
 order: 11
 section: "Features"
 track: "reference"
 ---
 
 
-All 47 features across 7 groups, each backed by unit and integration test coverage. 1029/1029 tests green at time of writing.
+All 49 features across 7 groups, each backed by unit and integration test coverage. 1044/1044 tests green at time of writing.
 
 | Group | Feature | Status |
 |---|---|---|
@@ -52,6 +52,8 @@ All 47 features across 7 groups, each backed by unit and integration test covera
 | Operations | Admin Control Plane | implemented |
 | Traffic Control | Sticky Sessions | implemented |
 | Core Routing | OpenAPI {param} Syntax | implemented |
+| Core Routing | Regex-Group Path Params | implemented |
+| Core Routing | OpenAPI Route Source | implemented |
 | Traffic Control | CORS Policy | implemented |
 | Observability | W3C Trace Context | implemented |
 | Identity & Security | Outbound Secret Masking | implemented |

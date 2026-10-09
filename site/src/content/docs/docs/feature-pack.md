@@ -172,8 +172,17 @@ rest of the gateway (`requireAuth`).
 
 ### OpenAPI `{param}` route syntax
 
-Routes accept `{id}` (OpenAPI style) as well as `:id`.
+Routes accept `{id}` (OpenAPI style) as well as `:id`, plus regex groups
+(`/orders/:orderId(\d+)`).
 
 ```json
 { "routes": [{ "method": "GET", "path": "/users/{id}" }] }
+```
+
+### OpenAPI document as routing source
+
+Declare every route from an OpenAPI 3.1 document instead of hand-listing them.
+
+```json
+{ "openapi": { "enabled": true, "basePath": "/api", "spec": { "openapi": "3.1.0", "paths": { "/users/{id}": { "get": {} } } } } }
 ```

@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.1]
+
+### Added
+- Regex-group path params: `/orders/:orderId(\d+)`.
+- OpenAPI 3.1 document as a routing source (`openapi.spec`).
+
 ## [1.2.0]
 
 ### Added

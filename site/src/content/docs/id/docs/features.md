@@ -1,12 +1,12 @@
 ---
 title: "Feature Matrix"
-description: "Semua 47 fitur di 7 grup, dengan status implementasi."
+description: "Semua 49 fitur di 7 grup, dengan status implementasi."
 order: 11
 section: "Features"
 track: "reference"
 ---
 
-Semua 47 fitur di 7 grup, masing-masing dengan cakupan unit dan integration test. 1029/1029 test hijau (model data), plus coverage tes unit dan integration. 950/950 tes hijau saat penulisan.
+Semua 49 fitur di 7 grup, masing-masing dengan cakupan unit dan integration test. 1044/1044 test hijau (model data), plus coverage tes unit dan integration. 950/950 tes hijau saat penulisan.
 
 | Group | Feature | Status |
 |---|---|---|
@@ -51,6 +51,8 @@ Semua 47 fitur di 7 grup, masing-masing dengan cakupan unit dan integration test
 | Operations | Admin Control Plane | implemented |
 | Traffic Control | Sticky Sessions | implemented |
 | Core Routing | OpenAPI {param} Syntax | implemented |
+| Core Routing | Regex-Group Path Params | implemented |
+| Core Routing | OpenAPI Route Source | implemented |
 | Traffic Control | CORS Policy | implemented |
 | Observability | W3C Trace Context | implemented |
 | Identity & Security | Outbound Secret Masking | implemented |
