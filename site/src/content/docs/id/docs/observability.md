@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-Keempat fitur di grup ini sudah **implemented dan terverifikasi** — masing-masing punya pasangan spek FSD + ERD lengkap dan coverage unit/integration di test suite repo.
+Keempat fitur di grup ini sudah **implemented dan terverifikasi** , masing-masing dengan cakupan unit dan integration di test suite repo.
 
 ## CPU Memory Profiler
 
@@ -121,9 +121,7 @@ Tujuan: latensi p50/p95/p99, RPS, error rate, dan throughput tersedia kapan saja
 - **Metrik domain** (`AdvancedMetrics`): agregasi inkremental (count/total/avg/min/max)
   per route dan upstream; error rate dihitung dari history timestamp yang dipangkas
   ke window terbesar (900 detik).
-- Semua entitas metrik in-memory — mati bersama proses. Lihat
-FSD dan
-ERD.
+- Semua entitas metrik in-memory — mati bersama proses.
 
 ### Konfigurasi
 

@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-Semua 5 fitur di grup ini sudah **terimplementasi dan terverifikasi** — masing-masing punya pasangan spesifikasi FSD + ERD lengkap dan cakupan unit/integration di test suite repo.
+Semua 5 fitur di grup ini sudah **terimplementasi dan terverifikasi** , masing-masing dengan cakupan unit dan integration di test suite repo.
 
 ## Circuit Breaker
 

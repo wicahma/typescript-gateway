@@ -17,7 +17,7 @@ npm run test:integration      # tests/integration (proxy + pipeline end-to-end)
 npm run test:perf             # tests/performance (benchmarks with guards)
 ```
 
-Suite performa memakai timing guard dengan headroom lebar. Guard fast-path pool di-set ke **50 µs/op** (dulu 5 µs; varians CI pernah terukur 5,26 µs di mesin homelab 4-core). Guard ini bersifat informasional — gagal pada regresi order-of-magnitude, bukan jitter satu digit.
+Suite performa memakai timing guard dengan headroom lebar. Guard fast-path pool di-set ke **50 µs/op** (dulu 5 µs; varians CI pernah terukur 5,26 µs di mesin CI 4-core). Guard ini bersifat informasional — gagal pada regresi order-of-magnitude, bukan jitter satu digit.
 
 ## Benchmark
 
@@ -28,7 +28,7 @@ npm run benchmark:context    # context pool acquire/release
 npm run benchmark:plugins    # plugin execution chain
 ```
 
-Angka terkini di target homelab (4-core i5-6500T, Node 22):
+Angka terkini di target referensi (4-core x86_64, Node 22):
 
 | Scenario | Result | Note |
 |---|---|---|

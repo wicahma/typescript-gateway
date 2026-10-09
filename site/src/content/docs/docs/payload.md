@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-All 4 features in this group are **implemented and verified** — each has a full FSD + ERD spec pair and unit/integration coverage in the repo test suite.
+All 4 features in this group are **implemented and verified** , each with unit and integration coverage in the repo test suite.
 
 ## Body Parser
 
@@ -18,7 +18,7 @@ All 4 features in this group are **implemented and verified** — each has a ful
 1. Detect Content-Type from the header (parameters like `charset` ignored; keyword matching `json`/`urlencoded`/`multipart`/`text`; no header → `application/octet-stream`).
 2. Pre-check `Content-Length` against the per-type limit (`limits.json`, `limits.urlencoded`, `limits.multipart`, `limits.text`); violations are rejected immediately without reading the stream (`BODY_TOO_LARGE`, HTTP 413).
 3. Read the stream via `readBody()`: accumulate chunks into a `Buffer[]` array, verify the total byte count against the claimed `Content-Length` (`SIZE_EXCEEDED`, HTTP 413 — protects against forged headers), a `timeout` timer (default 30000 ms) destroys the connection (`TIMEOUT`, HTTP 408), the `error` event → `STREAM_ERROR`.
-4. Per-type transformation: JSON → `JSON.parse` (`INVALID_JSON`, 400); URL-encoded → own query-string parser with multi-value support as arrays (`INVALID_URLENCODED`, 400); multipart → raw buffer (full part parsing deliberately not built, see Out of Scope in the FSD); text → UTF-8 string; raw → buffer as-is.
+4. Per-type transformation: JSON → `JSON.parse` (`INVALID_JSON`, 400); URL-encoded → own query-string parser with multi-value support as arrays (`INVALID_URLENCODED`, 400); multipart → raw buffer (full part parsing deliberately not built); text → UTF-8 string; raw → buffer as-is.
 5. The resulting `ParsedBody { data?, buffer?, stream?, contentType, size }` is used by `ProxyHandler` (pipeline Step 3) as a transient `BODY_BUFFER` — released with the end of the request, never persisted.
 
 ### Configuration
@@ -95,7 +95,7 @@ All 4 features in this group are **implemented and verified** — each has a ful
 ### Configuration
 
 - `enableRequestTransformations` on `ProxyHandlerConfig` (default `true`) — the pipeline switch.
-- Rules are registered programmatically via `ProxyHandler.getRequestTransformer()`; there is no `requestTransformations` section in `gateway.config.json` (declarative config to follow, see FSD Out of Scope).
+- Rules are registered programmatically via `ProxyHandler.getRequestTransformer()`; there is no `requestTransformations` section in `gateway.config.json` (declarative config to follow).
 - `getStats()` exposes `totalTransformations`; `clear()` removes all rules.
 
 ### Edge cases
@@ -128,7 +128,7 @@ All 4 features in this group are **implemented and verified** — each has a ful
 ### Configuration
 
 - `enableResponseTransformations` on `ProxyHandlerConfig` (default `true`) — the pipeline switch.
-- Rules programmatically via `ProxyHandler.getResponseTransformer()`; no declarative section in `gateway.config.json` (see FSD Out of Scope).
+- Rules programmatically via `ProxyHandler.getResponseTransformer()`; no declarative section in `gateway.config.json` (not yet configurable declaratively).
 - `getStats()` → `totalTransformations`; `clear()` resets.
 
 ### Edge cases

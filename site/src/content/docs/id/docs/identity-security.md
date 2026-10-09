@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-Keempat fitur di grup ini sudah **implemented dan terverifikasi** — masing-masing punya pasangan spek FSD + ERD lengkap dan coverage unit/integration di test suite repo.
+Keempat fitur di grup ini sudah **implemented dan terverifikasi** , masing-masing dengan cakupan unit dan integration di test suite repo.
 
 ## API Key Engine
 
@@ -23,7 +23,7 @@ Keempat fitur di grup ini sudah **implemented dan terverifikasi** — masing-mas
         ├─ path in publicRoutes? ── yes ─▶ pass through (no auth)
         │                    no
         ▼
-   header x-api-key present? ── no ─▶ Authorization: *** ── no ─▶ 401 Missing API key
+   header x-api-key present? ── no ─▶ Authorization: Bearer <key> ── no ─▶ 401 Missing API key
         │ yes
         ▼
    regex format check O(1)? ── no ─▶ 401 Invalid API key format
@@ -75,7 +75,7 @@ Keempat fitur di grup ini sudah **implemented dan terverifikasi** — masing-mas
 |---|---|---|
 | `enabled` | boolean | harus `true` + minimal 1 consumer agar policy terdaftar |
 | `publicRoutes` | string[] | route tanpa auth (default `[\"/\", \"/health\", \"/metrics\"]`) |
-| `headerName` | string | header key (default `x-api-key`; fallback `Authorization: *** |
+| `headerName` | string | header key (default `x-api-key`; fallback `Authorization: Bearer <key>`) |
 | `cacheTtlSeconds` | number | TTL cache validasi (default 5) — batas atas delay revoke efektif |
 | `cacheMaxEntries` | number | kapasitas LRU cache (default 10000) |
 | `consumers[].consumerId` | string | ID consumer unik |
@@ -195,15 +195,15 @@ adalah konstanta modul — bukan config.
 
 ## Upstream Credential Injection
 
-- **Spek:** Inbound policy yang melakukan injeksi kredensial upstream SETELAH caller terautentikasi dan SEBELUM request diteruskan ke origin. Dua policy 0-dep: `set-upstream-header` (melampirkan token internal statis, mis. `Authorization: Bearer *** dan `upstream-hmac-signature` (menandatangani body request dengan shared secret sebelum dikirim ke microservice internal).
+- **Spek:** Inbound policy yang melakukan injeksi kredensial upstream SETELAH caller terautentikasi dan SEBELUM request diteruskan ke origin. Dua policy 0-dep: `set-upstream-header` (melampirkan token internal statis, mis. `Authorization: Bearer <token>` dan `upstream-hmac-signature` (menandatangani body request dengan shared secret sebelum dikirim ke microservice internal).
 - **Kenapa penting:** Menutup celah "Caller Auth vs Upstream Auth" vs Zuplo — kredensial upstream (token statis, secret HMAC) tidak boleh dipegang caller; gateway adalah satu-satunya pemegang. Krusial untuk BFF / microservice enterprise.
 
 ### Cara kerja
 
 1. **Urutan pipeline**: policy ini jalan setelah policy autentikasi caller (JWT-Auth-Plugin / API-Key-Engine) lolos — caller divalidasi dulu, lalu gateway mempersenjatai request menuju origin.
-2. **`set-upstream-header`**: konfigurasi statis `header → value` (mis. `Authorization: Bearer *** `x-internal-service: payments`). Header caller yang sensitif ditimpa, bukan dilewati.
+2. **`set-upstream-header`**: konfigurasi statis `header → value` (mis. `Authorization: Bearer <token>`, `x-internal-service: payments`). Header caller yang sensitif ditimpa, bukan dilewati.
 3. **`upstream-hmac-signature`**: menghitung HMAC-SHA256 atas body request memakai shared secret per-upstream (`node:crypto` `createHmac`), melampirkan signature + timestamp ke header upstream (mis. `x-signature`, `x-timestamp`) — microservice internal memverifikasi bahwa request benar-benar datang dari gateway dan body tidak diubah.
-4. **Pemisahan ketat**: caller auth (yang membuktikan client) ≠ upstream auth (yang membuktikan gateway ke origin). Kegagalan signature / secret hilang = «redacted-vault-secret» (request tidak diteruskan).
+4. **Pemisahan ketat**: caller auth (yang membuktikan client) ≠ upstream auth (yang membuktikan gateway ke origin). Kegagalan signature atau secret yang hilang membatalkan request — request tidak pernah diteruskan ke origin.
 
 ### Konfigurasi
 

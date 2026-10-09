@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://tsgate.diama.dev
+    about: Guides, configuration reference, and the feature matrix.
+  - name: Security issue
+    url: https://github.com/wicahma/typescript-gateway/security/advisories/new
+    about: Please report vulnerabilities privately — do not open a public issue.

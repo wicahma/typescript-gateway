@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-All features in this group are **implemented and verified** — each has a full FSD + ERD spec pair and unit/integration coverage in the repo test suite.
+All features in this group are **implemented and verified** , each with unit and integration coverage in the repo test suite.
 
 ## Radix Router
 

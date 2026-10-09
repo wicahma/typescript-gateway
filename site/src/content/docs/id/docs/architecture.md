@@ -35,7 +35,7 @@ Incoming Client Request
         │
    ┌────┴───────────────────────────┐
    ▼                                ▼
-Internal System Route           Proxy Route
+Built-in Route                  Proxy Route
 (/health, /metrics, /)          (/api/*, custom)
 Direct Response                     │
                                     ▼

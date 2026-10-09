@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-Ketiga fitur di grup ini sudah **implemented dan terverifikasi** — masing-masing punya pasangan spek FSD + ERD lengkap dan coverage unit/integration di test suite repo.
+Ketiga fitur di grup ini sudah **implemented dan terverifikasi** , masing-masing dengan cakupan unit dan integration di test suite repo.
 
 ## Auto Tuner
 

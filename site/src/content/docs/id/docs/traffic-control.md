@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-Semua 3 fitur di grup ini sudah **terimplementasi dan terverifikasi** — masing-masing punya pasangan spesifikasi FSD + ERD lengkap dan cakupan unit/integration di test suite repo.
+Semua 3 fitur di grup ini sudah **terimplementasi dan terverifikasi** , masing-masing dengan cakupan unit dan integration di test suite repo.
 
 ## Load Balancer
 
@@ -125,7 +125,7 @@ PERSISTED). Contoh:
 | Option | Default | Notes |
 |---|---|---|
 
-*(dipangkas — detail lengkap ada di vault proyek)*
+*(dipangkas — detail lengkap ada di source dan kode)*
 
 ### Edge cases
 

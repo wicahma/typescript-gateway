@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-All 4 features in this group are **implemented and verified** — each has a full FSD + ERD spec pair and unit/integration coverage in the repo test suite.
+All 4 features in this group are **implemented and verified** , each with unit and integration coverage in the repo test suite.
 
 ## CPU Memory Profiler
 
@@ -121,9 +121,7 @@ Goal: p50/p95/p99 latency, RPS, error rate, and throughput are available at any 
 - **Domain metrics** (`AdvancedMetrics`): incremental aggregation (count/total/avg/min/max)
   per route and upstream; error rate is computed from a timestamp history pruned
   to the largest window (900 seconds).
-- All metric entities are in-memory — they die with the process. See the
-FSD and
-ERD.
+- All metric entities are in-memory — they die with the process.
 
 ### Configuration
 

@@ -18,7 +18,7 @@ npm run test:integration      # tests/integration (proxy + pipeline end-to-end)
 npm run test:perf             # tests/performance (benchmarks with guards)
 ```
 
-The performance suite uses timing guards with wide headroom. The pool fast-path guard is set to **50 µs/op** (was 5 µs; CI variance measured 5.26 µs once on the homelab 4-core box). These guards are informational — they fail on order-of-magnitude regressions, not on single-digit jitter.
+The performance suite uses timing guards with wide headroom. The pool fast-path guard is set to **50 µs/op** (was 5 µs; CI variance measured 5.26 µs once on a shared 4-core CI box). These guards are informational — they fail on order-of-magnitude regressions, not on single-digit jitter.
 
 ## Benchmarks
 
@@ -29,7 +29,7 @@ npm run benchmark:context    # context pool acquire/release
 npm run benchmark:plugins    # plugin execution chain
 ```
 
-Current numbers on the homelab target (4-core i5-6500T, Node 22):
+Current numbers on the reference target (4-core x86_64, Node 22):
 
 | Scenario | Result | Note |
 |---|---|---|

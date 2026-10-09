@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-All 3 features in this group are **implemented and verified** — each has a full FSD + ERD spec pair and unit/integration coverage in the repo test suite.
+All 3 features in this group are **implemented and verified** , each with unit and integration coverage in the repo test suite.
 
 ## Load Balancer
 
@@ -125,7 +125,7 @@ PERSISTED). Example:
 | Option | Default | Notes |
 |---|---|---|
 
-*(trimmed — full detail lives in the project vault)*
+*(abridged — full detail lives in the source and the code)*
 
 ### Edge cases
 

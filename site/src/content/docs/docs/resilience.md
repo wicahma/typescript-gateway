@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-All 5 features in this group are **implemented and verified** — each has a full FSD + ERD spec pair and unit/integration coverage in the repo test suite.
+All 5 features in this group are **implemented and verified** , each with unit and integration coverage in the repo test suite.
 
 ## Circuit Breaker
 

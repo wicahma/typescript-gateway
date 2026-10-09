@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-Semua 4 fitur di grup ini sudah **terimplementasi dan terverifikasi** — masing-masing punya pasangan spesifikasi FSD + ERD lengkap dan cakupan unit/integration di test suite repo.
+Semua 4 fitur di grup ini sudah **terimplementasi dan terverifikasi** , masing-masing dengan cakupan unit dan integration di test suite repo.
 
 ## Body Parser
 
@@ -18,7 +18,7 @@ Semua 4 fitur di grup ini sudah **terimplementasi dan terverifikasi** — masing
 1. Deteksi Content-Type dari header (parameter seperti `charset` diabaikan; pencocokan kata kunci `json`/`urlencoded`/`multipart`/`text`; tanpa header → `application/octet-stream`).
 2. Pre-check `Content-Length` terhadap batas per tipe (`limits.json`, `limits.urlencoded`, `limits.multipart`, `limits.text`); pelanggaran langsung ditolak tanpa membaca stream (`BODY_TOO_LARGE`, HTTP 413).
 3. Baca stream via `readBody()`: akumulasi chunk ke array `Buffer[]`, verifikasi total byte terhadap `Content-Length` yang diklaim (`SIZE_EXCEEDED`, HTTP 413 — melindungi dari header palsu), timer `timeout` (default 30000 ms) menghancurkan koneksi (`TIMEOUT`, HTTP 408), event `error` → `STREAM_ERROR`.
-4. Transformasi per tipe: JSON → `JSON.parse` (`INVALID_JSON`, 400); URL-encoded → parser query-string sendiri dengan dukungan multi-value sebagai array (`INVALID_URLENCODED`, 400); multipart → buffer mentah (parsing part penuh sengaja tidak dibangun, lihat Out of Scope di FSD); text → string UTF-8; raw → buffer apa adanya.
+4. Transformasi per tipe: JSON → `JSON.parse` (`INVALID_JSON`, 400); URL-encoded → parser query-string sendiri dengan dukungan multi-value sebagai array (`INVALID_URLENCODED`, 400); multipart → buffer mentah (parsing part penuh sengaja tidak dibangun); text → string UTF-8; raw → buffer apa adanya.
 5. `ParsedBody { data?, buffer?, stream?, contentType, size }` yang dihasilkan dipakai oleh `ProxyHandler` (langkah pipeline 3) sebagai `BODY_BUFFER` transien — dilepas bersama berakhirnya request, tidak pernah dipersist.
 
 ### Konfigurasi
@@ -95,7 +95,7 @@ Semua 4 fitur di grup ini sudah **terimplementasi dan terverifikasi** — masing
 ### Konfigurasi
 
 - `enableRequestTransformations` di `ProxyHandlerConfig` (default `true`) — saklar pipeline.
-- Aturan didaftarkan secara programatik via `ProxyHandler.getRequestTransformer()`; tidak ada section `requestTransformations` di `gateway.config.json` (config deklaratif menyusul, lihat FSD Out of Scope).
+- Aturan didaftarkan secara programatik via `ProxyHandler.getRequestTransformer()`; tidak ada section `requestTransformations` di `gateway.config.json` (konfigurasi deklaratif belum tersedia).
 - `getStats()` mengekspos `totalTransformations`; `clear()` menghapus semua aturan.
 
 ### Edge cases
@@ -128,7 +128,7 @@ Semua 4 fitur di grup ini sudah **terimplementasi dan terverifikasi** — masing
 ### Konfigurasi
 
 - `enableResponseTransformations` di `ProxyHandlerConfig` (default `true`) — saklar pipeline.
-- Aturan programatik via `ProxyHandler.getResponseTransformer()`; tidak ada section deklaratif di `gateway.config.json` (lihat FSD Out of Scope).
+- Aturan programatik via `ProxyHandler.getResponseTransformer()`; tidak ada section deklaratif di `gateway.config.json` (belum bisa dikonfigurasi secara deklaratif).
 - `getStats()` → `totalTransformations`; `clear()` me-reset.
 
 ### Edge cases

@@ -7,13 +7,16 @@
 Production-grade HTTP API gateway in pure TypeScript on native `node:http` —
 zero runtime dependencies, one process, no frameworks.
 
+[![npm](https://img.shields.io/npm/v/typescript-gateway?color=2952ff&label=npm)](https://www.npmjs.com/package/typescript-gateway)
+[![npm downloads](https://img.shields.io/npm/dm/typescript-gateway?color=2952ff)](https://www.npmjs.com/package/typescript-gateway)
 [![CI](https://ci.diama.dev/api/badges/10/status.svg)](https://ci.diama.dev/repos/10)
 [![Zero runtime dependencies](https://img.shields.io/badge/runtime%20deps-0-2952ff)](package.json)
-[![Tests](https://img.shields.io/badge/tests-918%20passing-2952ff)](tests)
+[![Tests](https://img.shields.io/badge/tests-950%20passing-2952ff)](tests)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-2952ff)](tsconfig.json)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-2952ff)](package.json)
 [![License](https://img.shields.io/badge/license-MIT-2952ff)](LICENSE)
 
+[npm](https://www.npmjs.com/package/typescript-gateway) ·
 [Documentation](https://tsgate.diama.dev) ·
 [Getting Started](https://tsgate.diama.dev/docs/getting-started) ·
 [Feature Matrix](https://tsgate.diama.dev/docs/features) ·
@@ -33,22 +36,34 @@ library, which means a trivial audit surface, no supply-chain churn, and a
 `node_modules` you can read in one sitting.
 
 ```
-npm install   →   0 production packages
-node dist/index.js   →   that's the whole runtime
+npm install typescript-gateway   →   0 production packages
+node dist/index.js               →   that's the whole runtime
 ```
+
+## Install
+
+```bash
+npm install typescript-gateway
+```
+
+Or globally, to get the `tsgate` CLI:
+
+```bash
+npm install -g typescript-gateway
+```
+
+<sub>Also installable straight from source: `npm install github:wicahma/typescript-gateway`.</sub>
 
 ## Quick start
 
 ```bash
-git clone https://github.com/wicahma/typescript-gateway.git
-cd typescript-gateway
-npm install
-
-PORT=8088 npm start
+mkdir my-gateway && cd my-gateway
+npx tsgate init          # or: tsgate init (global install)
+tsgate start
 curl http://localhost:8088/health
 ```
 
-Minimal config (`config/gateway.config.json`):
+`init` scaffolds a minimal config (`gateway.config.json`):
 
 ```json
 {
@@ -60,6 +75,15 @@ Minimal config (`config/gateway.config.json`):
 
 Every `GET /api/**` now proxies to `localhost:3000` with connection pooling,
 circuit breaking, and caching already on the hot path.
+
+Use it as a library, no CLI required:
+
+```ts
+import { Gateway } from 'typescript-gateway';
+
+const gateway = new Gateway('./gateway.config.json');
+await gateway.start();
+```
 
 ## Features
 
@@ -95,11 +119,11 @@ dashboard · CPU/memory profilers
 plugin chain with isolated async hooks · auto-tuner
 
 Full details: [Feature Matrix](https://tsgate.diama.dev/docs/features) —
-30 features, each with an FSD + ERD spec pair.
+30 features across 7 groups.
 
 ## Performance
 
-Measured on a 4-core i5-6500T (homelab hardware — your mileage will be better):
+Measured on a 4-core x86_64 reference box (Node 22) — your mileage will vary:
 
 | Metric | Value |
 |---|---|
@@ -141,8 +165,9 @@ plugins never block responses.
 
 ```bash
 npm run dev          # tsx, hot reload
-npm test             # 918 tests (vitest)
+npm test             # 950 tests (vitest)
 npm run typecheck    # strict tsc, zero errors
+npm run build        # compile to dist/
 npm run benchmark    # load-test with pass/fail verdicts
 npm run site:dev     # docs site (Astro) locally
 ```
@@ -168,8 +193,13 @@ tests/           unit, integration, performance
 
 ## Contributing
 
-Fork → branch → tests → PR. Performance-critical changes must ship with a
-benchmark. New features need unit tests; the suite is the contract.
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the
+dev setup, the test/TDD workflow, and the commit convention. Performance-
+critical changes must ship with a benchmark. New features need unit tests;
+the suite is the contract.
+
+This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md). To
+report a security issue, see [SECURITY.md](SECURITY.md).
 
 ## License
 

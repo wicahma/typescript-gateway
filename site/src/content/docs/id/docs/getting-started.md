@@ -24,7 +24,7 @@ Cuma itu.
 npm install -g typescript-gateway
 ```
 
-Atau langsung dari GitHub selagi nama npm-nya belum fix:
+Atau langsung dari source:
 
 ```bash
 npm install -g github:wicahma/typescript-gateway

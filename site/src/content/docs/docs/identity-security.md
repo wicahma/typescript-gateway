@@ -6,7 +6,7 @@ section: "Features"
 track: "reference"
 ---
 
-All 4 features in this group are **implemented and verified** — each has a full FSD + ERD spec pair and unit/integration coverage in the repo test suite.
+All 4 features in this group are **implemented and verified** , each with unit and integration coverage in the repo test suite.
 
 ## API Key Engine
 
@@ -23,7 +23,7 @@ All 4 features in this group are **implemented and verified** — each has a ful
         ├─ path in publicRoutes? ── yes ─▶ pass through (no auth)
         │                    no
         ▼
-   header x-api-key present? ── no ─▶ Authorization: *** ── no ─▶ 401 Missing API key
+   header x-api-key present? ── no ─▶ Authorization: Bearer <key> ── no ─▶ 401 Missing API key
         │ yes
         ▼
    regex format check O(1)? ── no ─▶ 401 Invalid API key format
@@ -75,7 +75,7 @@ All 4 features in this group are **implemented and verified** — each has a ful
 |---|---|---|
 | `enabled` | boolean | must be `true` + at least 1 consumer for the policy to be registered |
 | `publicRoutes` | string[] | routes without auth (default `["/", "/health", "/metrics"]`) |
-| `headerName` | string | key header (default `x-api-key`; fallback `Authorization: ***`) |
+| `headerName` | string | key header (default `x-api-key`; fallback `Authorization: Bearer <key>`)`) |
 | `cacheTtlSeconds` | number | validation-cache TTL (default 5) — upper bound on effective revoke delay |
 | `cacheMaxEntries` | number | LRU cache capacity (default 10000) |
 | `consumers[].consumerId` | string | unique consumer ID |
@@ -195,7 +195,7 @@ is a module constant — not config.
 
 ## Upstream Credential Injection
 
-- **Spec:** An inbound policy that performs upstream credential injection AFTER the caller is authenticated and BEFORE the request is forwarded to the origin. Two 0-dep policies: `set-upstream-header` (attaches a static internal token, e.g. `Authorization: Bearer ***`) and `upstream-hmac-signature` (signs the request body with a shared secret before it is sent to internal microservices).
+- **Spec:** An inbound policy that performs upstream credential injection AFTER the caller is authenticated and BEFORE the request is forwarded to the origin. Two 0-dep policies: `set-upstream-header` (attaches a static internal token, e.g. `Authorization: Bearer <token>`) and `upstream-hmac-signature` (signs the request body with a shared secret before it is sent to internal microservices).
 - **Why it matters:** Closes the "Caller Auth vs Upstream Auth" gap vs Zuplo — upstream credentials (static tokens, HMAC secrets) must never be held by the caller; the gateway is the sole holder. Crucial for BFF / enterprise microservices.
 
 ### How it works
@@ -203,7 +203,7 @@ is a module constant — not config.
 1. **Pipeline order**: these policies run after caller-authentication policies (JWT-Auth-Plugin / API-Key-Engine) pass — the caller is validated first, then the gateway arms the request toward the origin.
 2. **`set-upstream-header`**: static `header → value` configuration (e.g. `Authorization: Bearer <inter...n>`, `x-internal-service: payments`). Sensitive caller headers are overwritten, not skipped.
 3. **`upstream-hmac-signature`**: computes HMAC-SHA256 over the request body using a per-upstream shared secret (`node:crypto` `createHmac`), attaches the signature + timestamp to upstream headers (e.g. `x-signature`, `x-timestamp`) — internal microservices verify that the request genuinely came from the gateway and the body wasn't altered.
-4. **Strict separation**: caller auth (what proves the client) ≠ upstream auth (what proves the gateway to the origin). Signature failure / missing secret = fail-closed (the request is not forwarded).
+4. **Strict separation**: caller auth (what proves the client) ≠ upstream auth (what proves the gateway to the origin). A signature failure or a missing secret aborts the request — it is never forwarded to the origin.
 
 ### Configuration
 

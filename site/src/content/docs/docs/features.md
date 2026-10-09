@@ -1,53 +1,53 @@
 ---
 title: "Feature Matrix"
-description: "All 30 features across 7 groups, with spec coverage (FSD + ERD) and implementation status."
+description: "All 30 features across 7 groups, with implementation status."
 order: 11
 section: "Features"
 track: "reference"
 ---
 
 
-All 30 features in 7 groups. Every implemented feature ships with an FSD (functional spec) and ERD (data model) pair, plus unit and integration test coverage. 950/950 tests green at time of writing.
+All 30 features across 7 groups, each backed by unit and integration test coverage. 950/950 tests green at time of writing.
 
-| Group | Feature | FSD | ERD | Status |
-|---|---|---|---|---|
-| Core Routing | Radix Router | ✓ | ✓ | implemented |
-| Core Routing | Reverse Proxy Handler | ✓ | ✓ | implemented |
-| Core Routing | Request Pipeline | ✓ | ✓ | implemented |
-| Core Routing | Request Context Pool | ✓ | ✓ | implemented |
-| Core Routing | WebSocket Tunneling | ✓ | ✓ | implemented |
-| Core Routing | OpenAPI Generator | ✓ | ✓ | implemented |
-| Core Routing | Client Disconnect Propagation | ✓ | ✓ | implemented |
-| Core Routing | Request Coalescing | ✓ | ✓ | implemented |
-| Core Routing | Streaming Response Path | ✓ | ✓ | implemented |
-| Resilience | Circuit Breaker | ✓ | ✓ | implemented |
-| Resilience | Retry Manager | ✓ | ✓ | implemented |
-| Resilience | Health Checker | ✓ | ✓ | implemented |
-| Resilience | Fallback Handler | ✓ | ✓ | implemented |
-| Resilience | Timeout Manager | ✓ | ✓ | implemented |
-| Traffic Control | Rate Limiter | ✓ | ✓ | implemented |
-| Traffic Control | Response Cache | ✓ | ✓ | implemented |
-| Traffic Control | Load Balancer | ✓ | ✓ | implemented |
-| Payload | Body Parser | ✓ | ✓ | implemented |
-| Payload | Request Transformer | ✓ | ✓ | implemented |
-| Payload | Response Transformer | ✓ | ✓ | implemented |
-| Payload | Compression Handler | ✓ | ✓ | implemented |
-| Observability | Metrics Histogram | ✓ | ✓ | implemented |
-| Observability | Native Structured Logger | ✓ | ✓ | implemented |
-| Observability | Performance Dashboard | ✓ | ✓ | implemented |
-| Observability | Access Log Sampling | ✓ | ✓ | implemented |
-| Observability | CPU & Memory Profiler | ✓ | ✓ | implemented |
-| Operations | Config Loader & Validator | ✓ | ✓ | implemented |
-| Operations | Plugin Execution Chain | ✓ | ✓ | implemented |
-| Operations | Auto Tuner | ✓ | ✓ | implemented |
-| Identity & Security | JWT Auth Plugin | ✓ | ✓ | implemented |
-| Identity & Security | API Key Engine | ✓ | ✓ | implemented |
-| Identity & Security | Upstream Credential Injection | ✓ | ✓ | implemented |
-| Identity & Security | RFC 7807 Problem Details | ✓ | — | implemented |
+| Group | Feature | Status |
+|---|---|---|
+| Core Routing | Radix Router | implemented |
+| Core Routing | Reverse Proxy Handler | implemented |
+| Core Routing | Request Pipeline | implemented |
+| Core Routing | Request Context Pool | implemented |
+| Core Routing | WebSocket Tunneling | implemented |
+| Core Routing | OpenAPI Generator | implemented |
+| Core Routing | Client Disconnect Propagation | implemented |
+| Core Routing | Request Coalescing | implemented |
+| Core Routing | Streaming Response Path | implemented |
+| Resilience | Circuit Breaker | implemented |
+| Resilience | Retry Manager | implemented |
+| Resilience | Health Checker | implemented |
+| Resilience | Fallback Handler | implemented |
+| Resilience | Timeout Manager | implemented |
+| Traffic Control | Rate Limiter | implemented |
+| Traffic Control | Response Cache | implemented |
+| Traffic Control | Load Balancer | implemented |
+| Payload | Body Parser | implemented |
+| Payload | Request Transformer | implemented |
+| Payload | Response Transformer | implemented |
+| Payload | Compression Handler | implemented |
+| Observability | Metrics Histogram | implemented |
+| Observability | Native Structured Logger | implemented |
+| Observability | Performance Dashboard | implemented |
+| Observability | Access Log Sampling | implemented |
+| Observability | CPU & Memory Profiler | implemented |
+| Operations | Config Loader & Validator | implemented |
+| Operations | Plugin Execution Chain | implemented |
+| Operations | Auto Tuner | implemented |
+| Identity & Security | JWT Auth Plugin | implemented |
+| Identity & Security | API Key Engine | implemented |
+| Identity & Security | Upstream Credential Injection | implemented |
+| Identity & Security | RFC 7807 Problem Details | implemented |
 
 ## Benchmarks
 
-Measured on the homelab target (4-core i5-6500T, Node 22):
+Measured on the reference target (4-core x86_64, Node 22):
 
 | Scenario | Result | Target |
 |---|---|---|

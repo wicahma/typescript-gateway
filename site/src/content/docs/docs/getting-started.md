@@ -25,7 +25,7 @@ That's the whole list.
 npm install -g typescript-gateway
 ```
 
-Or straight from GitHub while the npm name settles:
+Or straight from source:
 
 ```bash
 npm install -g github:wicahma/typescript-gateway
