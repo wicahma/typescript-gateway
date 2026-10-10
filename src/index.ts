@@ -11,6 +11,7 @@ import { PluginPolicy } from './pipeline/policy.js';
 import { Plugin } from './types/plugin.js';
 import { logger } from './utils/logger.js';
 import { metrics } from './utils/metrics.js';
+import { formatPrometheus } from './observability/prometheus-format.js';
 import { ConfigFile } from './types/config.js';
 import { AuthJwtPolicy } from './plugins/builtin/auth-jwt-policy.js';
 import { ConsumerStore } from './identity/consumer-store.js';
@@ -208,8 +209,18 @@ export class Gateway {
           upstreams: am.getUpstreamMetrics(),
         };
       }
-      ctx.res.writeHead(200, { 'Content-Type': 'application/json' });
-      ctx.res.end(JSON.stringify(snapshot, null, 2));
+
+      const acceptHeader = ctx.headers['accept'];
+      const acceptStr = Array.isArray(acceptHeader) ? acceptHeader.join(', ') : (acceptHeader ?? '');
+      const wantsPrometheus = acceptStr.includes('text/plain') || ctx.query?.['format'] === 'prometheus';
+
+      if (wantsPrometheus) {
+        ctx.res.writeHead(200, { 'Content-Type': 'text/plain; version=0.0.4; charset=utf-8' });
+        ctx.res.end(formatPrometheus(snapshot));
+      } else {
+        ctx.res.writeHead(200, { 'Content-Type': 'application/json' });
+        ctx.res.end(JSON.stringify(snapshot, null, 2));
+      }
       ctx.responded = true;
     };
 
