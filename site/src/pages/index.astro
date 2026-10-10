@@ -7,20 +7,15 @@ npx tsgate init .
 npx tsgate start
 curl http://localhost:8088/health`;
 
-const config = `{
-  "server": { "port": 8088 },
-  "routes": [{ "method": "GET", "path": "/api/*" }],
-  "upstreams": [
-    { "id": "backend", "host": "localhost", "port": 3000 }
-  ]
-}`;
-
-const terminal = `$ curl http://localhost:8088/api/test
-{"id":"test"}          # 200 OK — proxied to localhost:3000
-$ curl http://localhost:8088/health
-{"status":"ok"}`;
 
 const version = pkg.version;
+
+const facts = [
+  { k: 'runtime deps', v: '0' },
+  { k: 'hot path p99', v: '5ms' },
+  { k: 'features', v: '52' },
+  { k: 'tests', v: '1069 ✓' },
+];
 
 const steps = [
   { n: '01', title: 'ACCEPT', body: 'request hits the socket. zero allocations on the way in.' },
@@ -64,36 +59,193 @@ const docs = [
   { href: '/docs/identity-security', label: 'Identity & Security', desc: 'JWT, API keys, RFC 7807' },
   { href: '/docs/features', label: 'Feature Matrix', desc: 'every feature and benchmark' },
 ];
+
+const ticker = [
+  'GET /api/users → 200 · 3.2ms',
+  'POST /api/orders → 201 · 12ms',
+  'GET /api/products → 304 · 0.4ms',
+  'cache HIT · x-cache: STALE → refreshed',
+  'circuit CLOSED · upstream backend-1',
+  'GET /api/search → 200 · gzip 78%',
+  'rate-limit OK · 412/500 req',
+  'WS tunnel established · /socket',
+];
 ---
 
 <Layout
-  title="TypeScript Gateway — A simple gateway, it's all you need"
+  title="TypeScript Gateway - A simple gateway, it's all you need"
   description="Production-grade HTTP API gateway written in pure TypeScript with zero runtime dependencies. P99 5ms hot path, 52 features, radix router, circuit breaker, and connection pooling on native Node.js."
   canonical="https://tsgate.diama.dev/"
 >
   <main>
-    <section class="hero">
-      <div class="hero-copy">
-        <p class="eyebrow">MIT · 0 runtime dependencies · node &ge; 20 · v{version}</p>
-        <h1>
-          <span class="hl-line"><span>The API gateway</span></span>
-          <span class="hl-line"><em>for Node.js.</em></span>
-        </h1>
+    <section class="hero-shell">
+      <div class="hero-card">
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow">
+              <span>MIT</span>
+              <span>0 runtime dependencies</span>
+              <span>node &ge; 20</span>
+              <span>v{version}</span>
+            </p>
 
-        <p class="lede">
-          Pure TypeScript on native <code>node:http</code>. No framework, no runtime
-          dependencies &mdash; just a radix tree and a keep-alive pool. 52 features
-          in one process: routing, auth, caching, rate limits, circuit breaking, metrics.
-        </p>
+            <h1>
+              The API gateway<br />for Node.js.
+            </h1>
 
-        <div class="install">
-          <div class="install-head">
-            <span class="file">quickstart</span>
-            <button type="button" class="copy-btn" data-copy aria-label="Copy quick start commands">copy</button>
+            <p class="lede">
+              Pure TypeScript on native <code>node:http</code>. No framework, no runtime
+              dependencies. Just a radix tree and a keep-alive pool. 52 features in one
+              process: routing, auth, caching, rate limits, circuit breaking, metrics.
+            </p>
+
+            <div class="install">
+              <div class="install-head">
+                <span class="file">quickstart</span>
+                <button type="button" class="copy-btn" data-copy aria-label="Copy quick start commands">copy</button>
+              </div>
+              <pre><code>{quickstart}</code></pre>
+            </div>
+
+            <div class="actions">
+              <a href="/docs/getting-started" class="btn-primary">Get started</a>
+              <a
+                href="https://github.com/wicahma/typescript-gateway"
+                class="btn-ghost"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                GitHub ↗
+              </a>
+              <a href="/id/docs/getting-started" class="lang-link" lang="id">Bahasa Indonesia</a>
+            </div>
           </div>
-          <pre><code>{quickstart}</code></pre>
+
+          <div class="hero-panel" aria-label="Simulated request log">
+            <div class="panel-card">
+              <div class="panel-head">
+                <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span class="file">request log</span>
+                <span class="rate-readout" id="rateReadout">1 req/s</span>
+              </div>
+              <div class="log-window" id="logWindow" role="log" aria-live="off"></div>
+              <div class="load">
+                <label for="loadSlider">offered load</label>
+                <input id="loadSlider" type="range" min="0" max="1000" value="0"
+                       aria-label="Offered load in requests per second" />
+              </div>
+            </div>
+            <p class="panel-note">simulated stream · the scale matches the loopback benchmark below</p>
+          </div>
         </div>
 
+        <span class="sweep" aria-hidden="true"></span>
+      </div>
+    </section>
+
+    <section class="ticker" aria-hidden="true">
+      <div class="ticker-track">
+        {[...ticker, ...ticker].map((t) => <span>{t}</span>)}
+      </div>
+    </section>
+
+    <div class="shell">
+      <section class="lifecycle" aria-label="Request lifecycle in six steps">
+        <p class="sec-label">request lifecycle</p>
+        <h2>Six stages, socket to response.</h2>
+        <ol class="steps">
+          {steps.map((s) => (
+            <li>
+              <span class="step-n">{s.n}</span>
+              <strong>{s.title}</strong>
+              <span class="step-body">{s.body}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section class="facts">
+        {facts.map((f) => (
+          <div class="fact">
+            <dt>{f.k}</dt>
+            <dd>{f.v}</dd>
+          </div>
+        ))}
+      </section>
+
+      <section class="caps">
+        <p class="sec-label">capability index</p>
+        <h2>Everything a proxy needs.</h2>
+        <div class="cap-ledger">
+          {caps.map((c) => (
+            <div class="cap-row">
+              <span class="cap-group">{c.group}</span>
+              <ul>
+                {c.items.map((it) => (
+                  <li>{it}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <p class="caps-note">
+          Every capability ships with unit and integration coverage in the repo.
+          Details in the <a href="/docs/features">feature matrix</a>.
+        </p>
+      </section>
+
+      <section class="bench">
+        <p class="sec-label">benchmarks</p>
+        <h2>Overhead, with the receipts.</h2>
+        <div class="bench-scroll">
+          <table>
+            <thead>
+              <tr><th>Scenario</th><th>Direct upstream</th><th>Through tsgate</th><th>Δ</th></tr>
+            </thead>
+            <tbody>
+              {bench.map((b) => (
+                <tr>
+                  <td>{b.s}</td>
+                  <td>{b.direct}</td>
+                  <td>{b.gw}</td>
+                  <td class={b.d.startsWith('~') ? 'delta-win' : 'delta'}>{b.d}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p class="bench-note">
+          macOS arm64 · Node v22.21.1 · loopback · 2026-10-05. The fast-path tax is proxy
+          parse/socket cost in JavaScript; it disappears on latency-bound upstreams and
+          inverts with the response cache. Full method and caveats:
+          <a href="/docs/testing">testing &amp; benchmarks</a>.
+        </p>
+      </section>
+
+      <section class="docs-entry">
+        <p class="sec-label">documentation</p>
+        <h2>Read the manual.</h2>
+        <nav class="doc-links">
+          {docs.map((d) => (
+            <a href={d.href}>
+              <span class="label">{d.label}</span>
+              <span class="desc">{d.desc}</span>
+              <span class="arrow">→</span>
+            </a>
+          ))}
+        </nav>
+        <p class="docs-note">
+          Seluruh panduan juga tersedia dalam
+          <a href="/id/docs/getting-started" lang="id">Bahasa Indonesia</a>.
+        </p>
+      </section>
+
+      <section class="closing">
+        <h2>Start routing.</h2>
+        <p>
+          One JSON file. One process. Nothing to install at runtime.
+          Everything else has sensible defaults.
+        </p>
         <div class="actions">
           <a href="/docs/getting-started" class="btn-primary">Get started</a>
           <a
@@ -104,181 +256,94 @@ const docs = [
           >
             GitHub ↗
           </a>
-          <a href="/id/docs/getting-started" class="lang-link" lang="id">Bahasa Indonesia</a>
         </div>
-      </div>
-
-      <div class="hero-panel" aria-label="A minimal gateway config and its result">
-        <div class="panel-card">
-          <div class="panel-head">
-            <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
-            <span class="file">gateway.config.json</span>
-            <button type="button" class="copy-btn" data-copy aria-label="Copy example config">copy</button>
-          </div>
-          <pre><code>{config}</code></pre>
-        </div>
-        <div class="panel-card">
-          <div class="panel-head">
-            <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
-            <span class="file">terminal</span>
-          </div>
-          <pre><code>{terminal}</code></pre>
-        </div>
-        <p class="panel-note">the whole config. everything else has sensible defaults.</p>
-      </div>
-    </section>
-
-    <section class="ticker" aria-hidden="true">
-      <div class="ticker-track">
-        <span>GET /api/users → 200 · 3.2ms</span><span>POST /api/orders → 201 · 12ms</span><span>GET /api/products → 304 · 0.4ms</span><span>cache HIT · x-cache: STALE → refreshed</span><span>circuit CLOSED · upstream backend-1</span><span>GET /api/search → 200 · gzip 78%</span><span>rate-limit OK · 412/500 req</span><span>WS tunnel established · /socket</span><span>GET /api/users → 200 · 3.2ms</span><span>POST /api/orders → 201 · 12ms</span><span>GET /api/products → 304 · 0.4ms</span><span>cache HIT · x-cache: STALE → refreshed</span><span>circuit CLOSED · upstream backend-1</span><span>GET /api/search → 200 · gzip 78%</span><span>rate-limit OK · 412/500 req</span><span>WS tunnel established · /socket</span>
-      </div>
-    </section>
-
-    <section class="lifecycle" aria-label="Request lifecycle in six steps">
-      <p class="sec-label">request lifecycle</p>
-      <ol class="steps">
-        {steps.map((s) => (
-          <li>
-            <span class="step-n">{s.n}</span>
-            <strong>{s.title}</strong>
-            <span class="step-body">{s.body}</span>
-          </li>
-        ))}
-      </ol>
-    </section>
-
-    <section class="facts">
-      <div class="fact">
-        <dt>runtime deps</dt>
-        <dd>0</dd>
-      </div>
-      <div class="fact">
-        <dt>hot path p99</dt>
-        <dd>5ms</dd>
-      </div>
-      <div class="fact">
-        <dt>features</dt>
-        <dd>30</dd>
-      </div>
-      <div class="fact">
-        <dt>tests</dt>
-        <dd>950 ✓</dd>
-      </div>
-    </section>
-
-    <section class="caps">
-      <p class="sec-label">capability index</p>
-      <h2>Everything a proxy needs</h2>
-      <div class="cap-ledger">
-        {caps.map((c) => (
-          <div class="cap-row">
-            <span class="cap-group">{c.group}</span>
-            <ul>
-              {c.items.map((it) => (
-                <li>{it}</li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-      <p class="caps-note">
-        Every capability ships with unit and integration coverage in the repo.
-        Details in the <a href="/docs/features">feature matrix</a>.
-      </p>
-    </section>
-
-    <section class="bench">
-      <p class="sec-label">benchmarks</p>
-      <h2>Overhead, with the receipts</h2>
-      <div class="bench-scroll">
-        <table>
-          <thead>
-            <tr><th>Scenario</th><th>Direct upstream</th><th>Through tsgate</th><th>Δ</th></tr>
-          </thead>
-          <tbody>
-            {bench.map((b) => (
-              <tr>
-                <td>{b.s}</td>
-                <td>{b.direct}</td>
-                <td>{b.gw}</td>
-                <td class={b.d.startsWith('~') ? 'delta-win' : 'delta'}>{b.d}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p class="bench-note">
-        macOS arm64 · Node v22.21.1 · loopback · 2026-10-05. The fast-path tax is proxy
-        parse/socket cost in JavaScript; it disappears on latency-bound upstreams and
-        inverts with the response cache. Full method and caveats:
-        <a href="/docs/testing">testing &amp; benchmarks</a>.
-      </p>
-    </section>
-
-    <section class="docs-entry">
-      <p class="sec-label">documentation</p>
-      <h2>Read the manual</h2>
-      <nav class="doc-links">
-        {docs.map((d) => (
-          <a href={d.href}>
-            <span class="label">{d.label}</span>
-            <span class="desc">{d.desc}</span>
-            <span class="arrow">→</span>
-          </a>
-        ))}
-      </nav>
-      <p class="docs-note">
-        Seluruh panduan juga tersedia dalam
-        <a href="/id/docs/getting-started" lang="id">Bahasa Indonesia</a>.
-      </p>
-    </section>
-
-    <section class="closing">
-      <h2>Start routing.</h2>
-      <p>
-        One JSON file. One process. Nothing to install at runtime &mdash;
-        everything else has sensible defaults.
-      </p>
-      <div class="actions">
-        <a href="/docs/getting-started" class="btn-primary">Get started</a>
-        <a
-          href="https://github.com/wicahma/typescript-gateway"
-          class="btn-ghost"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          GitHub ↗
-        </a>
-      </div>
-    </section>
+      </section>
+    </div>
   </main>
 </Layout>
 
 <style>
   main {
-    max-width: 1120px;
-    margin: 0 auto;
-    padding: 0 1.5rem;
     width: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .shell {
+    width: 100%;
+    max-width: var(--shell);
+    margin: 0 auto;
+    padding: 0 var(--pad);
   }
 
   .sec-label {
     font-family: var(--font-mono);
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
+    font-size: 0.72rem;
+    font-weight: 400;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
     color: var(--accent);
-    margin-bottom: 0.7rem;
+    margin-bottom: 1rem;
   }
 
-  /* ---- hero: copy left, real product surface right ---- */
-  .hero {
+  .shell h2 {
+    font-size: clamp(1.9rem, 4.2vw, 3.25rem);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    margin-bottom: 2.5rem;
+  }
+
+  .hero-shell {
+    padding: clamp(1.25rem, 4vw, 2.75rem) var(--pad) 0;
+  }
+
+  .hero-card {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    max-width: var(--shell);
+    margin: 0 auto;
+    border-radius: var(--radius);
+    border: 1px solid var(--stroke);
+    padding: clamp(2.25rem, 6vw, 5rem) clamp(1.5rem, 5vw, 4.5rem) clamp(2.5rem, 6vw, 5rem);
+    background:
+      radial-gradient(120% 80% at 50% -10%, rgba(109, 140, 255, 0.32), transparent 55%),
+      radial-gradient(90% 60% at 50% 120%, rgba(0, 0, 0, 0.7), transparent 60%),
+      linear-gradient(180deg, #131327 0%, #0a0a12 46%, #050303 100%);
+    box-shadow: 0 40px 120px rgba(0, 0, 0, 0.6);
+  }
+
+  .hero-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    opacity: 0.05;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .sweep {
+    position: absolute;
+    top: -6%;
+    right: -8%;
+    width: 40%;
+    height: 20%;
+    border-radius: 80px;
+    transform: rotate(-18deg);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.5));
+    filter: blur(46px);
+    opacity: 0.28;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  .hero-grid {
     display: grid;
     grid-template-columns: 1.05fr 0.95fr;
-    gap: 3rem;
+    gap: clamp(2rem, 5vw, 4rem);
     align-items: center;
-    padding: 6.5rem 0 4.5rem;
   }
 
   .hero-copy {
@@ -286,62 +351,66 @@ const docs = [
   }
 
   .eyebrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
     font-family: var(--font-mono);
-    font-size: 0.72rem;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    color: var(--muted);
-    margin-bottom: 1.4rem;
+    font-size: 0.76rem;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: var(--soft);
+    margin-bottom: 1.75rem;
+  }
+
+  .eyebrow span + span {
+    padding-left: 0.75rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.14);
   }
 
   h1 {
-    font-size: clamp(2.8rem, 6.5vw, 4.6rem);
-    font-weight: 800;
-    letter-spacing: -0.05em;
-    line-height: 0.98;
-  }
-
-  .hl-line {
-    display: block;
-  }
-
-  h1 em {
-    font-style: normal;
-    color: var(--accent);
+    font-size: clamp(2.6rem, 7.4vw, 7rem);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.03;
   }
 
   .lede {
-    margin-top: 1.6rem;
-    font-size: 1.08rem;
-    line-height: 1.7;
-    color: var(--muted);
+    margin-top: 1.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    font-weight: 300;
+    line-height: 1.85;
+    color: var(--soft);
     max-width: 34rem;
   }
 
   .lede code {
     font-family: var(--font-mono);
-    font-size: 0.9em;
+    font-weight: 400;
     color: var(--ink);
-    background: var(--panel);
-    padding: 0.1rem 0.35rem;
-    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 0.1rem 0.4rem;
+    border-radius: 6px;
   }
 
   .install {
-    margin-top: 2.2rem;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 10px;
+    margin-top: 2.25rem;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid var(--stroke);
+    border-radius: 16px;
     overflow: hidden;
     max-width: 30rem;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
 
   .install-head {
     display: flex;
     align-items: center;
     gap: 0.8rem;
-    padding: 0.55rem 0.9rem;
-    border-bottom: 1px solid var(--line);
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--stroke);
   }
 
   .install-head .file {
@@ -349,10 +418,11 @@ const docs = [
   }
 
   .install pre {
-    padding: 1rem 1.2rem;
+    padding: 1.1rem 1.2rem;
     font-size: 0.78rem;
-    line-height: 1.75;
+    line-height: 1.85;
     overflow-x: auto;
+    color: var(--soft);
   }
 
   .install code::before {
@@ -364,16 +434,16 @@ const docs = [
   .copy-btn {
     font-family: var(--font-mono);
     font-size: 0.62rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
+    font-weight: 400;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--muted);
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    padding: 0.25rem 0.55rem;
+    background: transparent;
+    border: 1px solid var(--stroke);
+    border-radius: 999px;
+    padding: 0.28rem 0.7rem;
     cursor: pointer;
-    transition: color 0.15s ease, border-color 0.15s ease;
+    transition: color 0.18s ease, border-color 0.18s ease;
   }
 
   .copy-btn:hover,
@@ -383,49 +453,52 @@ const docs = [
   }
 
   .actions {
-    margin-top: 2.2rem;
+    margin-top: 2.25rem;
     display: flex;
-    gap: 1rem;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
     align-items: center;
   }
 
   .btn-primary {
-    background: var(--accent);
-    color: #0b0b0d;
-    font-weight: 700;
+    background: var(--ink);
+    color: #050303;
+    font-weight: 600;
     font-size: 0.95rem;
-    padding: 0.8rem 1.6rem;
-    border-radius: 8px;
-    transition: transform 0.15s ease, background 0.15s ease;
+    padding: 0.85rem 1.9rem;
+    border-radius: 999px;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
   }
 
   .btn-primary:hover {
-    background: #8aa3ff;
-  }
-
-  .btn-primary:active {
-    transform: scale(0.98);
+    transform: translateY(-2px);
+    box-shadow: 0 14px 40px rgba(109, 140, 255, 0.35);
   }
 
   .btn-ghost {
     font-family: var(--font-mono);
     font-size: 0.82rem;
-    color: var(--muted);
-    padding: 0.7rem 0.2rem;
-    transition: color 0.15s ease;
+    font-weight: 400;
+    color: var(--soft);
+    padding: 0.85rem 1.6rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: border-color 0.18s ease, color 0.18s ease;
   }
 
   .btn-ghost:hover {
-    color: var(--ink);
+    border-color: var(--accent);
+    color: var(--accent);
   }
 
   .lang-link {
-    font-size: 0.8rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
     color: var(--muted);
     text-decoration: underline;
     text-underline-offset: 3px;
-    text-decoration-color: var(--line);
-    transition: color 0.15s ease, text-decoration-color 0.15s ease;
+    text-decoration-color: rgba(255, 255, 255, 0.2);
+    transition: color 0.18s ease, text-decoration-color 0.18s ease;
   }
 
   .lang-link:hover {
@@ -433,7 +506,6 @@ const docs = [
     text-decoration-color: var(--accent);
   }
 
-  /* hero right: two stacked product cards */
   .hero-panel {
     min-width: 0;
     display: flex;
@@ -442,19 +514,20 @@ const docs = [
   }
 
   .panel-card {
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.42);
+    border: 1px solid var(--stroke);
+    border-radius: 16px;
     overflow: hidden;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
 
   .panel-head {
     display: flex;
     align-items: center;
     gap: 0.8rem;
-    padding: 0.55rem 0.9rem;
-    border-bottom: 1px solid var(--line);
-    position: relative;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--stroke);
   }
 
   .dots {
@@ -466,7 +539,7 @@ const docs = [
     width: 9px;
     height: 9px;
     border-radius: 50%;
-    background: #26262c;
+    background: rgba(255, 255, 255, 0.14);
   }
 
   .file {
@@ -477,42 +550,87 @@ const docs = [
     flex: 1;
   }
 
-  .panel-card .copy-btn {
-    position: static;
+  .rate-readout {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
   }
 
-  .panel-card pre {
-    padding: 1rem 1.2rem;
-    font-size: 0.78rem;
+  .log-window {
+    height: 200px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
     line-height: 1.75;
-    overflow-x: auto;
-    color: var(--ink);
+    color: var(--soft);
+    padding: 1rem 1.2rem;
+    background: rgba(0, 0, 0, 0.3);
+    scrollbar-width: thin;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .log-window :global(div) {
+    white-space: pre;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .load {
+    display: flex;
+    flex-direction: row;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.8rem 1.2rem 1rem;
+    border-top: 1px solid var(--stroke);
+  }
+
+  .load label {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .load input[type="range"] {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
   }
 
   .panel-note {
     font-family: var(--font-mono);
     font-size: 0.72rem;
+    font-weight: 300;
     color: var(--muted);
   }
 
-  /* ---- ticker: request-log marquee ---- */
   .ticker {
+    margin-top: clamp(2rem, 5vw, 3.5rem);
     border-top: 1px solid var(--line);
     border-bottom: 1px solid var(--line);
     overflow: hidden;
-    padding: 0.55rem 0;
+    padding: 0.85rem 0;
   }
 
   .ticker-track {
     display: flex;
-    gap: 2.5rem;
+    gap: 3rem;
     width: max-content;
-    animation: ticker-scroll 40s linear infinite;
+    animation: ticker-scroll 48s linear infinite;
   }
 
   .ticker-track span {
     font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-size: 0.74rem;
+    font-weight: 300;
     color: var(--muted);
     white-space: nowrap;
   }
@@ -522,68 +640,66 @@ const docs = [
     to { transform: translateX(-50%); }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .ticker-track { animation: none; }
-  }
-
-  /* ---- lifecycle: six steps, always visible ---- */
   .lifecycle {
-    padding: 3.2rem 0 3rem;
+    padding: clamp(3.5rem, 8vw, 7.5rem) 0 clamp(2.5rem, 5vw, 4rem);
+    text-align: center;
   }
 
   .steps {
     list-style: none;
     display: grid;
     grid-template-columns: repeat(6, 1fr);
-    gap: 1.2rem;
+    gap: 1.25rem;
+    text-align: left;
   }
 
   .steps li {
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
-    padding-top: 0.9rem;
-    border-top: 2px solid var(--line);
+    gap: 0.35rem;
+    padding-top: 1.1rem;
+    border-top: 1px solid var(--line);
     position: relative;
   }
 
   .steps li::before {
     content: '';
     position: absolute;
-    top: -2px;
+    top: -1px;
     left: 0;
-    width: 2.2rem;
-    height: 2px;
+    width: 2.5rem;
+    height: 1px;
     background: var(--accent);
   }
 
   .step-n {
     font-family: var(--font-mono);
-    font-size: 0.66rem;
+    font-size: 0.68rem;
     color: var(--accent);
   }
 
   .steps strong {
     font-family: var(--font-mono);
     font-size: 0.82rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
+    font-weight: 500;
+    letter-spacing: 0.08em;
   }
 
   .step-body {
-    font-size: 0.76rem;
-    line-height: 1.55;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    font-weight: 300;
+    line-height: 1.7;
     color: var(--muted);
   }
 
-  /* ---- facts: mono numerals, hairline row ---- */
   .facts {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 0;
     border-top: 1px solid var(--line);
     border-bottom: 1px solid var(--line);
-    padding: 2.2rem 0 2.6rem;
+    padding: clamp(2.5rem, 5vw, 4rem) 0;
   }
 
   .fact {
@@ -592,47 +708,38 @@ const docs = [
 
   .fact dt {
     font-family: var(--font-mono);
-    font-size: 0.68rem;
-    letter-spacing: 0.1em;
+    font-size: 0.7rem;
+    font-weight: 400;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--muted);
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.6rem;
   }
 
   .fact dd {
     font-family: var(--font-mono);
-    font-size: 2.4rem;
-    font-weight: 800;
+    font-size: clamp(2.4rem, 5vw, 4.25rem);
+    font-weight: 500;
     letter-spacing: -0.03em;
+    line-height: 1;
     color: var(--ink);
     font-variant-numeric: tabular-nums;
   }
 
-  /* ---- capability index: ledger, no cards ---- */
   .caps {
-    padding: 3.5rem 0 3rem;
-  }
-
-  .caps h2,
-  .bench h2,
-  .docs-entry h2,
-  .closing h2 {
-    font-size: 1.35rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    margin-bottom: 1.6rem;
+    padding: clamp(3.5rem, 8vw, 7.5rem) 0 clamp(2.5rem, 5vw, 4rem);
   }
 
   .cap-ledger {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0 3rem;
+    gap: 0 4rem;
   }
 
   .cap-row {
     display: flex;
-    gap: 1.2rem;
-    padding: 0.95rem 0;
+    gap: 1.4rem;
+    padding: 1.1rem 0;
     border-bottom: 1px solid var(--line);
     align-items: baseline;
   }
@@ -640,8 +747,8 @@ const docs = [
   .cap-group {
     font-family: var(--font-mono);
     font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
+    font-weight: 400;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--accent);
     white-space: nowrap;
@@ -653,23 +760,26 @@ const docs = [
     list-style: none;
     display: flex;
     flex-wrap: wrap;
-    gap: 0.35rem 0.4rem;
+    gap: 0.4rem 0.45rem;
   }
 
   .cap-row li {
     font-family: var(--font-mono);
     font-size: 0.74rem;
-    color: var(--ink);
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 5px;
-    padding: 0.12rem 0.5rem;
+    font-weight: 300;
+    color: var(--soft);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--stroke);
+    border-radius: 999px;
+    padding: 0.18rem 0.65rem;
     white-space: nowrap;
   }
 
   .caps-note {
-    margin-top: 1.2rem;
-    font-size: 0.82rem;
+    margin-top: 1.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 300;
     color: var(--muted);
   }
 
@@ -679,11 +789,11 @@ const docs = [
     color: var(--accent);
     text-decoration: underline;
     text-underline-offset: 3px;
+    text-decoration-color: rgba(109, 140, 255, 0.4);
   }
 
-  /* ---- benchmarks: table with receipts ---- */
   .bench {
-    padding: 3rem 0 3rem;
+    padding: clamp(2.5rem, 5vw, 4rem) 0 clamp(3.5rem, 8vw, 7.5rem);
     border-top: 1px solid var(--line);
   }
 
@@ -699,26 +809,28 @@ const docs = [
 
   .bench th {
     font-family: var(--font-mono);
-    font-size: 0.66rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
+    font-size: 0.68rem;
+    font-weight: 400;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     text-align: left;
     color: var(--muted);
-    padding: 0.55rem 1rem 0.55rem 0;
+    padding: 0.7rem 1rem 0.7rem 0;
     border-bottom: 1px solid var(--line);
   }
 
   .bench td {
     font-family: var(--font-mono);
     font-size: 0.8rem;
-    padding: 0.65rem 1rem 0.65rem 0;
+    font-weight: 300;
+    padding: 0.85rem 1rem 0.85rem 0;
     border-bottom: 1px solid var(--line);
     white-space: nowrap;
   }
 
   .bench td:first-child {
     font-family: var(--font-sans);
+    font-weight: 400;
     color: var(--ink);
     white-space: normal;
   }
@@ -734,47 +846,50 @@ const docs = [
 
   .delta-win {
     color: var(--accent);
-    font-weight: 700;
+    font-weight: 500;
   }
 
   .bench-note {
-    margin-top: 1.2rem;
-    font-size: 0.8rem;
-    line-height: 1.6;
+    margin-top: 1.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 300;
+    line-height: 1.8;
     color: var(--muted);
-    max-width: 44rem;
+    max-width: 46rem;
   }
 
-  /* ---- docs entry: 2-col list, hover slide ---- */
   .docs-entry {
-    padding: 3rem 0 3rem;
+    padding: clamp(2.5rem, 5vw, 4rem) 0 clamp(3.5rem, 8vw, 7.5rem);
     border-top: 1px solid var(--line);
   }
 
   .doc-links {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0 3rem;
+    gap: 0 4rem;
   }
 
   .doc-links a {
     display: flex;
     align-items: baseline;
-    gap: 0.8rem;
-    padding: 0.85rem 0;
+    gap: 0.9rem;
+    padding: 1rem 0;
     border-bottom: 1px solid var(--line);
-    transition: border-color 0.15s ease;
+    transition: border-color 0.18s ease;
   }
 
   .doc-links .label {
-    font-weight: 600;
+    font-weight: 500;
     font-size: 0.95rem;
     color: var(--ink);
     white-space: nowrap;
   }
 
   .doc-links .desc {
-    font-size: 0.8rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 300;
     color: var(--muted);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -784,7 +899,7 @@ const docs = [
 
   .doc-links .arrow {
     color: var(--muted);
-    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.15s ease;
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), color 0.18s ease;
   }
 
   .doc-links a:hover {
@@ -792,46 +907,48 @@ const docs = [
   }
 
   .doc-links a:hover .arrow {
-    transform: translateX(4px);
+    transform: translateX(5px);
     color: var(--accent);
   }
 
   .docs-note {
-    margin-top: 1.2rem;
-    font-size: 0.82rem;
+    margin-top: 1.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 300;
     color: var(--muted);
   }
 
-  /* ---- closing CTA ---- */
   .closing {
-    padding: 4.5rem 0 6rem;
     border-top: 1px solid var(--line);
+    padding: clamp(4rem, 9vw, 8rem) 0;
     text-align: center;
   }
 
   .closing h2 {
-    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    font-size: clamp(2.4rem, 6vw, 4.5rem);
     letter-spacing: -0.03em;
-    margin-bottom: 0.8rem;
+    margin-bottom: 1.25rem;
   }
 
   .closing p {
-    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    font-weight: 300;
+    line-height: 1.85;
+    color: var(--soft);
     max-width: 34rem;
     margin: 0 auto;
   }
 
   .closing .actions {
     justify-content: center;
-    margin-top: 2rem;
   }
 
-  /* ---- responsive ---- */
-  @media (max-width: 900px) {
-    .hero {
+  @media (max-width: 1024px) {
+    .hero-grid {
       grid-template-columns: 1fr;
-      gap: 2.5rem;
-      padding: 4.5rem 0 3rem;
+      gap: 3rem;
     }
     .steps {
       grid-template-columns: repeat(3, 1fr);
@@ -842,12 +959,26 @@ const docs = [
   }
 
   @media (max-width: 640px) {
+    .eyebrow {
+      gap: 0.4rem 0.75rem;
+    }
+    .eyebrow span + span {
+      padding-left: 0;
+      border-left: 0;
+    }
+    .hero-card {
+      border-radius: 24px;
+    }
     .steps {
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
     }
     .facts {
-      grid-template-columns: 1fr 1fr;
-      gap: 1.4rem 1rem;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+      text-align: center;
+    }
+    .fact {
+      padding-right: 0;
     }
     .doc-links {
       grid-template-columns: 1fr;
@@ -858,24 +989,34 @@ const docs = [
     }
     .cap-row {
       flex-direction: column;
-      gap: 0.5rem;
+      gap: 0.7rem;
     }
     .cap-group {
       width: auto;
     }
+    .log-window {
+      height: 160px;
+    }
+    .load {
+      flex-wrap: wrap;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .hl-line > span,
-    .hl-line > em {
+    .ticker-track {
       animation: none;
+    }
+    .btn-primary:hover,
+    .doc-links a:hover .arrow {
       transform: none;
+    }
+    .log-window {
+      scroll-behavior: auto;
     }
   }
 </style>
 
 <script>
-  // Copy-to-clipboard for the quickstart and the example config.
   document.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const host = btn.closest('.install') ?? btn.closest('.panel-card');
@@ -890,8 +1031,103 @@ const docs = [
           btn.classList.remove('copied');
         }, 1600);
       } catch {
-        /* clipboard unavailable — text stays selectable */
+        btn.textContent = 'select';
       }
     });
   });
+
+  const logWindow = document.getElementById('logWindow');
+  const loadSlider = document.getElementById('loadSlider');
+  const rateReadout = document.getElementById('rateReadout');
+
+  if (logWindow && loadSlider instanceof HTMLInputElement && rateReadout) {
+    let reqPerSec = 1;
+    let accumulator = 0;
+    let lastTime = performance.now();
+
+    const paths = [
+      '/api/users',
+      '/api/orders',
+      '/api/products',
+      '/api/search',
+      '/api/health',
+      '/api/bench',
+    ];
+    const methods = ['GET', 'GET', 'GET', 'POST', 'POST', 'PUT', 'DELETE'];
+    const statuses = [200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 201, 201, 304, 304, 429, 500];
+
+    function sample<T>(arr: readonly T[], fallback: T): T {
+      const item = arr[Math.floor(Math.random() * arr.length)];
+      return item !== undefined ? item : fallback;
+    }
+
+    function nextLine(): string {
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      const ss = String(d.getSeconds()).padStart(2, '0');
+      const ms = String(d.getMilliseconds()).padStart(3, '0');
+      const time = `${hh}:${mm}:${ss}.${ms}`;
+
+      const method = sample(methods, 'GET');
+      const path = sample(paths, '/api/users');
+      const status = sample(statuses, 200);
+      const duration = `${(Math.random() * 3.5 + 0.5).toFixed(1)}ms`;
+
+      return `${time}  ${method}  ${path}  ${status}  ${duration}`;
+    }
+
+    function appendLines(count: number): void {
+      if (!logWindow || count <= 0) return;
+      const frag = document.createDocumentFragment();
+      for (let i = 0; i < count; i++) {
+        const lineEl = document.createElement('div');
+        lineEl.style.whiteSpace = 'pre';
+        lineEl.style.overflow = 'hidden';
+        lineEl.style.textOverflow = 'ellipsis';
+        lineEl.textContent = nextLine();
+        frag.appendChild(lineEl);
+      }
+      logWindow.appendChild(frag);
+
+      while (logWindow.children.length > 200) {
+        const first = logWindow.firstElementChild;
+        if (first) {
+          first.remove();
+        } else {
+          break;
+        }
+      }
+
+      logWindow.scrollTop = logWindow.scrollHeight;
+    }
+
+    loadSlider.addEventListener('input', () => {
+      const t = Number(loadSlider.value);
+      reqPerSec = Math.round(Math.pow(80000, t / 1000));
+      rateReadout.textContent = `${reqPerSec.toLocaleString('en-US')} req/s`;
+    });
+
+    appendLines(1);
+
+    function step(now: number): void {
+      const elapsed = Math.min((now - lastTime) / 1000, 0.1);
+      lastTime = now;
+
+      const renderRate = reqPerSec > 60 ? 60 : reqPerSec;
+      accumulator += elapsed * renderRate;
+      let count = Math.floor(accumulator);
+      accumulator -= count;
+
+      if (count > 5) {
+        count = 5;
+        accumulator = 0;
+      }
+
+      appendLines(count);
+      requestAnimationFrame(step);
+    }
+
+    requestAnimationFrame(step);
+  }
 </script>
