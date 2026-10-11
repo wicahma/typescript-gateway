@@ -34,7 +34,8 @@ for (const file of files) {
     let doc = '';
     for (let i = lineNo - 2; i >= 0; i--) {
       const l = lines[i].trim();
-      if (l.startsWith('*') || l.startsWith('/*') || l === '') doc = l.replace(/^\/?\*+\/?/, '').trim() + ' ' + doc;
+      if (l.startsWith('*') || l.startsWith('/*') || l === '')
+        doc = l.replace(/^\/?\*+\/?/, '').trim() + ' ' + doc;
       else break;
     }
     entries.push({ signature, line: lineNo, doc: doc.trim() });

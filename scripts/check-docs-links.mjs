@@ -26,10 +26,7 @@ function resolves(pathname) {
   const base = clean.endsWith('/') ? clean.slice(0, -1) : clean;
   const target = join(DIST, base.slice(1));
   if (existsSync(target) && statSync(target).isFile()) return true;
-  return (
-    existsSync(join(target, 'index.html')) ||
-    existsSync(target + '.html')
-  );
+  return existsSync(join(target, 'index.html')) || existsSync(target + '.html');
 }
 
 const HREF_RE = /href="(\/[^"#][^"]*)"/g;
@@ -47,7 +44,7 @@ for (const file of walk(DIST)) {
   }
 }
 
-const unique = [...new Map(broken.map((b) => [b.page + ' -> ' + b.href, b])).values()];
+const unique = [...new Map(broken.map(b => [b.page + ' -> ' + b.href, b])).values()];
 
 console.log(`checked ${checked} internal links across ${walk(DIST).length} pages`);
 if (unique.length === 0) {
