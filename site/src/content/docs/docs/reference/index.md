@@ -23,6 +23,24 @@ Each page covers one module. It opens with a one-paragraph summary of the module
 
 Pages are ordered by dependency, not alphabetically. [Entrypoints](/docs/reference/entrypoints/) and [Types](/docs/reference/types/) are the best starting points because everything else depends on them.
 
+## Modules
+
+| Module | Description |
+| --- | --- |
+| [Entrypoints](/docs/reference/entrypoints/) | Gateway bootstrap and top-level exports |
+| [Core Engine](/docs/reference/core/) | HTTP server, radix router, connection pools, cache |
+| [Pipeline](/docs/reference/pipeline/) | Middleware policies and execution chain |
+| [Plugins](/docs/reference/plugins/) | Plugin lifecycle hooks and built-in handlers |
+| [Identity](/docs/reference/identity/) | API key crypto and consumer management |
+| [Config](/docs/reference/config/) | Schema validation and auto-tuning |
+| [Types](/docs/reference/types/) | Core interfaces and contract types |
+| [Utils](/docs/reference/utils/) | Logger, object pool, and metrics buffers |
+| [Profiling](/docs/reference/profiling/) | V8 CPU profiler and heap snapshots |
+| [Monitoring](/docs/reference/monitoring/) | Performance monitors and alerts |
+| [Observability](/docs/reference/observability/) | Prometheus exposition format |
+| [Admin](/docs/reference/admin/) | Administrative management endpoints |
+| [Testing](/docs/reference/testing/) | Test suites and benchmark harnesses |
+
 ## Related sections
 
 - [Deep Dive](/docs/deep-dive/) explains behaviour and configuration; Reference explains structure and signatures.

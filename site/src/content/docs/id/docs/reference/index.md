@@ -23,6 +23,24 @@ Setiap halaman mencakup satu modul. Ia dibuka dengan satu paragraf ringkas tenta
 
 Halaman diurutkan menurut dependensi, bukan alfabetis. [Entrypoints](/id/docs/reference/entrypoints/) dan [Types](/id/docs/reference/types/) adalah titik mulai terbaik karena semua yang lain bergantung padanya.
 
+## Modul
+
+| Modul | Deskripsi |
+| --- | --- |
+| [Titik Masuk](/id/docs/reference/entrypoints/) | Bootstrap gateway dan ekspor tingkat atas |
+| [Mesin Inti](/id/docs/reference/core/) | Server HTTP, router radix, connection pool, cache |
+| [Pipeline](/id/docs/reference/pipeline/) | Kebijakan middleware dan rantai eksekusi |
+| [Plugin](/id/docs/reference/plugins/) | Hook siklus hidup plugin dan handler bawaan |
+| [Identitas](/id/docs/reference/identity/) | Kriptografi API key dan manajemen konsumen |
+| [Konfigurasi](/id/docs/reference/config/) | Validasi skema dan auto-tuning |
+| [Tipe](/id/docs/reference/types/) | Antarmuka inti dan tipe kontrak |
+| [Utilitas](/id/docs/reference/utils/) | Logger, object pool, dan buffer metrik |
+| [Pemrofilan](/id/docs/reference/profiling/) | Pemrofil CPU V8 dan heap snapshot |
+| [Pemantauan](/id/docs/reference/monitoring/) | Pemantau performa dan peringatan |
+| [Observabilitas](/id/docs/reference/observability/) | Format eksposisi Prometheus |
+| [Admin](/id/docs/reference/admin/) | Endpoint manajemen administratif |
+| [Pengujian](/id/docs/reference/testing/) | Rangkaian tes dan harness tolak ukur |
+
 ## Seksi terkait
 
 - [Pendalaman](/id/docs/deep-dive/) menjelaskan perilaku dan konfigurasi; Referensi menjelaskan struktur dan tanda tangan.
