@@ -31,6 +31,9 @@ describe('tsgate CLI', () => {
     expect(existsSync(join(TMP, 'gateway.config.json'))).toBe(true);
     expect(existsSync(join(TMP, 'package.json'))).toBe(true);
     expect(existsSync(join(TMP, 'plugins', 'hello.ts'))).toBe(true);
+    expect(existsSync(join(TMP, 'AGENTS.md'))).toBe(true);
+    expect(existsSync(join(TMP, 'CLAUDE.md'))).toBe(true);
+    expect(readFileSync(join(TMP, 'AGENTS.md'), 'utf-8')).toContain('BEGIN:tsgate-agent-rules');
     const cfg = JSON.parse(readFileSync(join(TMP, 'gateway.config.json'), 'utf-8'));
     expect(cfg.routes.length).toBeGreaterThan(0);
     expect(cfg.upstreams.length).toBeGreaterThan(0);

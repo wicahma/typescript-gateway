@@ -29,13 +29,17 @@ npx tsgate init .
 Expected output:
 
 ```text
-Scaffolded gateway files in /path/to/my-gateway:
+Created gateway project in /path/to/my-gateway
   - package.json
   - gateway.config.json
   - plugins/hello.ts
+  - AGENTS.md
+  - CLAUDE.md
 ```
 
 The scaffolding creates `gateway.config.json` for routing definitions and `plugins/hello.ts` for lifecycle hooks.
+
+It also writes `AGENTS.md` and `CLAUDE.md` for AI coding agents. The rules live in a managed `<!-- BEGIN:tsgate-agent-rules -->` block that points the agent at the version-matched docs bundled at `node_modules/typescript-gateway/dist/docs/index.md`. `tsgate start` re-upserts the block; text you add outside it is preserved.
 
 ## Step 2: Configure Route and Upstream
 

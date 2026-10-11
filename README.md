@@ -11,7 +11,7 @@ zero runtime dependencies, one process, no frameworks.
 [![npm downloads](https://img.shields.io/npm/dm/typescript-gateway?color=2952ff)](https://www.npmjs.com/package/typescript-gateway)
 [![CI](https://ci.diama.dev/api/badges/10/status.svg)](https://ci.diama.dev/repos/10)
 [![Zero runtime dependencies](https://img.shields.io/badge/runtime%20deps-0-2952ff)](package.json)
-[![Tests](https://img.shields.io/badge/tests-950%20passing-2952ff)](tests)
+[![Tests](https://img.shields.io/badge/tests-1086%20passing-2952ff)](tests)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-2952ff)](tsconfig.json)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-2952ff)](package.json)
 [![License](https://img.shields.io/badge/license-MIT-2952ff)](LICENSE)
@@ -161,11 +161,25 @@ Lifecycle hooks: `init` · `preRoute` · `preHandler` · `postHandler` ·
 run off the request path (`setImmediate`-scheduled) — latency-sensitive
 plugins never block responses.
 
+## AI coding agents
+
+The docs ship inside the package, version-matched, so an agent reads the API it
+actually has instead of its training data:
+
+```
+node_modules/typescript-gateway/dist/docs/index.md
+```
+
+`tsgate init` writes `AGENTS.md` and `CLAUDE.md` (the latter imports the former
+with `@AGENTS.md`); `tsgate start` re-upserts them. The rules live in a managed
+`<!-- BEGIN:tsgate-agent-rules -->` block — anything you write outside it is
+preserved.
+
 ## Scripts
 
 ```bash
 npm run dev          # tsx, hot reload
-npm test             # 950 tests (vitest)
+npm test             # 1086 tests (vitest)
 npm run typecheck    # strict tsc, zero errors
 npm run build        # compile to dist/
 npm run benchmark    # load-test with pass/fail verdicts

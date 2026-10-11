@@ -6,6 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.4.0]
+
+### Added
+
+- AI-agent support: `AGENTS.md` and `CLAUDE.md` are written by `tsgate init` and re-upserted by `tsgate start`, using a managed `<!-- BEGIN:tsgate-agent-rules -->` block that preserves user content outside it.
+- Version-matched documentation is bundled into the npm package at `dist/docs/`, with a generated `dist/docs/index.md` listing every guide and reference, so agents read the docs for the installed version with no network lookup.
+- Prometheus text exposition on the metrics endpoint (`src/observability/prometheus-format.ts`).
+
+### Changed
+
+- Buffered `stdout` writes and cached ISO timestamps in the logger (write 2447 → 276 ns/op, timestamp 837 → 72 ns/op).
+
+### Fixed
+
+- `setDestination` no longer leaves a stale file destination attached to later loggers created without one.
+
 ## [1.3.0]
 
 ### Added

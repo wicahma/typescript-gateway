@@ -29,13 +29,17 @@ npx tsgate init .
 Hasil yang diharapkan:
 
 ```text
-Scaffolded gateway files in /path/to/my-gateway:
+Created gateway project in /path/to/my-gateway
   - package.json
   - gateway.config.json
   - plugins/hello.ts
+  - AGENTS.md
+  - CLAUDE.md
 ```
 
 Inisialisasi ini menghasilkan file `gateway.config.json` untuk konfigurasi routing dan `plugins/hello.ts` untuk hook lifecycle.
+
+Perintah ini juga menulis `AGENTS.md` dan `CLAUDE.md` untuk agen pengkode AI. Aturannya berada dalam blok terkelola `<!-- BEGIN:tsgate-agent-rules -->` yang mengarahkan agen ke dokumentasi sesuai versi yang dipaketkan di `node_modules/typescript-gateway/dist/docs/index.md`. `tsgate start` menulis ulang blok tersebut; teks yang Anda tambahkan di luarnya tetap dipertahankan.
 
 ## Langkah 2: Konfigurasi Route dan Upstream
 

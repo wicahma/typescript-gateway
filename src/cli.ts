@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { ensureClaudeImport, upsertAgentBlock } from './utils/agent-files.js';
 import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync, realpathSync } from 'fs';
 import { join, resolve, dirname } from 'path';
 import { pathToFileURL } from 'url';
@@ -57,6 +58,8 @@ function init(dir: string): void {
   writeFileSync(join(root, 'gateway.config.json'), JSON.stringify(STARTER_CONFIG, null, 2) + '\n');
   writeFileSync(join(root, 'package.json'), JSON.stringify(STARTER_PKG, null, 2) + '\n');
   writeFileSync(join(root, 'plugins', 'hello.ts'), STARTER_PLUGIN);
+  upsertAgentBlock(join(root, 'AGENTS.md'));
+  ensureClaudeImport(join(root, 'CLAUDE.md'));
   console.log(`Created gateway project in ${root}`);
   console.log('Next: npm install && npx tsgate start');
 }
@@ -84,6 +87,9 @@ async function validate(configPath: string): Promise<void> {
 }
 
 async function start(configPath: string): Promise<void> {
+  const root = dirname(configPath);
+  upsertAgentBlock(join(root, 'AGENTS.md'));
+  ensureClaudeImport(join(root, 'CLAUDE.md'));
   const pluginDir = resolve(dirname(configPath), 'plugins');
   const hasTsPlugins =
     existsSync(pluginDir) && readdirSync(pluginDir).some(f => f.endsWith('.ts'));
