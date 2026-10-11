@@ -3,20 +3,31 @@ title: "Usage Guide"
 description: "Practical recipes: proxying, auth, rate limiting, caching, load balancing, and custom plugins."
 ---
 
+At the end of this guide, you will have working recipes for authentication, rate limits, caching, and load balancing in your gateway.
 
-End-to-end recipes for the most common gateway setups. All examples use the real config schema from `src/types/config.ts` and `src/types/identity.ts` — nothing here is aspirational.
+## Recipes Overview
 
-## Basic Reverse Proxy
+The following recipes represent standard production deployment patterns:
 
-Route traffic to a single backend. Routes not in the reserved set (`/`, `/health`, `/metrics`) are proxied to the first configured upstream.
+| Recipe | Feature Area | Config Section |
+| --- | --- | --- |
+| Basic Proxy | Routing | `routes`, `upstreams` |
+| JWT Authentication | Identity | `auth` |
+| API Keys & Quotas | Traffic Control | `apiKeys` |
+| Response Caching | Performance | `responseCache` |
+| Credential Injection | Security | `upstreamCredentials` |
+| Load Balancing | Traffic Control | `upstreams[].weight` |
+
+## Step 1: Set Up Reverse Proxy
+
+Configure a basic proxy that forwards requests from `/api/*` to an upstream service while providing local health checks:
 
 ```json
 {
-  "server": { "port": 3000, "host": "0.0.0.0" },
+  "server": { "port": 8088, "host": "0.0.0.0" },
   "routes": [
     { "method": "GET", "path": "/api/:id", "priority": 0 },
-    { "method": "POST", "path": "/api/orders", "priority": 0 },
-    { "method": "GET", "path": "/static/*", "priority": 0 }
+    { "method": "POST", "path": "/api/orders", "priority": 0 }
   ],
   "upstreams": [
     {
@@ -35,25 +46,41 @@ Route traffic to a single backend. Routes not in the reserved set (`/`, `/health
         "expectedStatus": 200
       }
     }
-  ],
-  "plugins": [],
-  "performance": { "workerCount": 0, "contextPoolSize": 1000, "bufferPoolSize": 1000, "responsePoolSize": 1000, "enablePooling": true }
+  ]
 }
 ```
 
-Path patterns: `:param` captures one segment, `*` is a terminal wildcard. A trailing slash is equivalent to no trailing slash. Reserved paths (`/`, `/health`, `/metrics`) are always handled by the gateway itself.
-
-Run and verify:
+Start the gateway and verify routing:
 
 ```bash
-PORT=8088 npm start
-curl http://localhost:8088/api/42          # -> proxied to backend /api/42
-curl http://localhost:8088/health          # -> gateway health report
+npx tsgate start
 ```
 
-## JWT Authentication
+Expected output:
 
-Enabled when an `auth` block is present and `enabled !== false`. JWTs are verified against a JWKS (`node:crypto` only — no external JWT library). Invalid tokens get a 401 `application/problem+json` response; valid identity lands in `ctx.state.user`.
+```text
+Gateway started on http://0.0.0.0:8088
+```
+
+Verify the health check endpoint:
+
+```bash
+curl -s http://localhost:8088/health
+```
+
+Expected output:
+
+```json
+{"status":"healthy","upstreams":[{"id":"backend","status":"healthy"}]}
+```
+
+## Step 2: Add Authentication and Rate Limiting
+
+Secure upstream services by requiring JWT validation or API keys with client-specific rate limits.
+
+### JWT Authentication Recipe
+
+Add the `auth` block to verify tokens using native cryptographic keys:
 
 ```json
 {
@@ -63,14 +90,33 @@ Enabled when an `auth` block is present and `enabled !== false`. JWTs are verifi
     "audience": "my-api",
     "leewaySeconds": 30,
     "publicRoutes": ["/health", "/metrics", "/auth/login"],
-    "jwks": { "keys": [ { "kty": "RSA", "n": "...", "e": "AQAB", "kid": "2026-01" } ] }
+    "jwks": {
+      "keys": [
+        { "kty": "RSA", "n": "...", "e": "AQAB", "kid": "2026-01" }
+      ]
+    }
   }
 }
 ```
 
-## API Keys + Per-Consumer Rate Limits
+Verify authentication enforcement:
 
-Enabled when `apiKeys.enabled` and `apiKeys.consumers` are set. Two policies are registered automatically: `ApiKeyPolicy` (validates `x-api-key` against issued keys) and `ConsumerRateLimitPolicy` (per-consumer quota).
+```bash
+curl -i http://localhost:8088/api/profile
+```
+
+Expected output:
+
+```text
+HTTP/1.1 401 Unauthorized
+content-type: application/problem+json
+
+{"type":"about:blank","title":"Unauthorized","status":401,"detail":"Missing or invalid token"}
+```
+
+### API Key Quotas Recipe
+
+Add consumer-specific rate limits with `apiKeys`:
 
 ```json
 {
@@ -85,34 +131,54 @@ Enabled when `apiKeys.enabled` and `apiKeys.consumers` are set. Two policies are
         "consumerId": "mobile-app",
         "plan": "free",
         "rateLimit": 100,
-        "keys": [ { "key": "ak_live_...", "expiresAt": 1798761600000 } ]
-      },
-      {
-        "consumerId": "partner-internal",
-        "plan": "unlimited",
-        "rateLimit": 0,
-        "keys": [ { "key": "ak_live_..." } ]
+        "keys": [{ "key": "ak_live_mobile_123" }]
       }
     ]
   }
 }
 ```
 
-`rateLimit` is requests per minute per consumer; `0` means unlimited. Keys are resolved through an in-memory `ConsumerStore` with a TTL cache in front — after the first hit, validation is a cache lookup.
+## Step 3: Enable Caching and Upstream Signing
 
-## Response Caching
+Improve latency with in-memory caching and securely sign outbound requests.
 
-Enabled when `responseCache.enabled` is set. `ResponseCachePolicy` short-circuits cache hits before the upstream is touched and adds an `x-cache: HIT|MISS` header.
+### Response Caching Recipe
+
+Add the `responseCache` configuration block:
 
 ```json
 {
-  "responseCache": { "enabled": true }
+  "responseCache": {
+    "enabled": true,
+    "ttlSeconds": 60,
+    "maxSize": 5000
+  }
 }
 ```
 
-## Upstream Credential Injection + HMAC Signing
+Verify cache status:
 
-For upstreams that require static headers or HMAC request signing (e.g. internal services behind a signature check). Credentials live in the gateway config; headers are injected (or signatures computed) right before forwarding.
+```bash
+curl -i http://localhost:8088/api/items
+```
+
+Expected output:
+
+```text
+HTTP/1.1 200 OK
+x-cache: MISS
+```
+
+Sending the same request immediately returns:
+
+```text
+HTTP/1.1 200 OK
+x-cache: HIT
+```
+
+### Credential Injection and HMAC Recipe
+
+Attach internal service credentials and HMAC signatures:
 
 ```json
 {
@@ -121,8 +187,12 @@ For upstreams that require static headers or HMAC request signing (e.g. internal
     "credentials": [
       {
         "name": "billing-service",
-        "headers": { "x-internal-token": "..." },
-        "hmac": { "secret": "${BILLING_HMAC_SECRET}", "keyId": "gw-1", "headerNamespace": "x-hmac" }
+        "headers": { "x-internal-token": "secret-token" },
+        "hmac": {
+          "secret": "${BILLING_HMAC_SECRET}",
+          "keyId": "gw-1",
+          "headerNamespace": "x-hmac"
+        }
       }
     ],
     "injection": { "credentialName": "billing-service", "publicRoutes": ["/health"] },
@@ -131,89 +201,33 @@ For upstreams that require static headers or HMAC request signing (e.g. internal
 }
 ```
 
-Secrets support env interpolation (`${VAR}` / `${VAR:-default}`) — never commit raw secrets.
+## Step 4: Configure Load Balancing
 
-## Custom Plugin (Code-Level)
-
-The declarative `plugins` array exists in the schema, but the pipeline policies are wired programmatically in `src/index.ts`. To add your own inbound/outbound logic, implement the `GatewayPolicy` interface (`src/pipeline/policy.ts`) and register it:
-
-```ts
-import { GatewayPolicy, RequestContext, OutboundResponse } from './pipeline/policy.js';
-
-class TenantHeaderPolicy implements GatewayPolicy {
-  name = 'tenant-header';
-
-  // inbound: may return a Response to short-circuit, or void to continue
-  async executeInbound(ctx: RequestContext): Promise<Response | void> {
-    const tenant = ctx.headers['x-tenant'];
-    if (!tenant) {
-      return new Response(JSON.stringify({ type: 'about:blank', title: 'Missing tenant', status: 400 }), {
-        status: 400,
-        headers: { 'content-type': 'application/problem+json' },
-      });
-    }
-    ctx.state.tenant = tenant;
-  }
-
-  // outbound: receives and may replace the OutboundResponse
-  async executeOutbound(ctx: RequestContext, response: OutboundResponse): Promise<OutboundResponse> {
-    response.headers['x-tenant'] = String(ctx.state.tenant ?? '');
-    return response;
-  }
-}
-
-// in src/index.ts, after config load:
-pipeline.register(new TenantHeaderPolicy());
-```
-
-Execution order = registration order. The first inbound policy returning a `Response` short-circuits the chain (upstream never sees the request). Outbound policies compose left-to-right over the `OutboundResponse`.
-
-## Programmatic Rate Limiting (Plugin Hook API)
-
-For limiter strategies beyond the consumer quota above, the `Plugin` hook API (`src/types/plugin.ts`) + `RateLimitPlugin` (`src/plugins/builtin/rate-limit-plugin.ts`) supports token-bucket and sliding-window strategies keyed by IP, header, upstream, or consumer:
-
-```ts
-import { createRateLimitPlugin } from './plugins/builtin/rate-limit-plugin.js';
-
-const limiter = createRateLimitPlugin({
-  enabled: true,
-  strategies: [
-    { name: 'api-burst', type: 'token-bucket', capacity: 50, refillRate: 10, keyExtractor: 'ip', includeHeaders: true },
-    { name: 'api-quota', type: 'sliding-window', windowMs: 60000, maxRequests: 300, keyExtractor: 'header', headerName: 'x-api-key' },
-  ],
-});
-// register on a PluginExecutionChain or run preRoute manually
-```
-
-Token bucket absorbs short bursts at a sustained average; sliding window enforces hard "N per minute" quotas. Both are in-memory and zero-dependency.
-
-## Load Balancing Across Upstreams
-
-Multiple upstreams with the same role are selected per request by the `LoadBalancer` (round-robin / ip-hash / weighted; health-aware). Mark a `weight` per upstream to skew traffic:
+Distribute traffic across multiple backends using weighted upstream endpoints:
 
 ```json
 {
   "upstreams": [
-    { "id": "api-a", "host": "10.0.0.1", "port": 8080, "weight": 3, "healthCheck": { "enabled": true, "path": "/health" } },
-    { "id": "api-b", "host": "10.0.0.2", "port": 8080, "weight": 1, "healthCheck": { "enabled": true, "path": "/health" } }
+    {
+      "id": "api-primary",
+      "host": "10.0.0.1",
+      "port": 8080,
+      "weight": 3,
+      "healthCheck": { "enabled": true, "path": "/health" }
+    },
+    {
+      "id": "api-secondary",
+      "host": "10.0.0.2",
+      "port": 8080,
+      "weight": 1,
+      "healthCheck": { "enabled": true, "path": "/health" }
+    }
   ]
 }
 ```
 
-Unhealthy upstreams (per active + passive checks) stop receiving traffic immediately; circuit breakers per upstream prevent retry storms during partial outages.
+The gateway balances traffic at a 3:1 ratio and bypasses instances that fail background health checks.
 
-## Verifying Your Setup
+## Next Steps
 
-```bash
-# health + upstream report
-curl -s http://localhost:8088/health | jq
-
-# metrics snapshot (latency histogram, pool hit rates, per-upstream stats)
-curl -s http://localhost:8088/metrics | jq
-
-# auth rejection path (expect 401 problem+json)
-curl -i http://localhost:8088/api/private
-
-# rate limit path (expect 429 after quota, with rate limit headers if enabled)
-for i in $(seq 1 120); do curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8088/api/ping; done | sort | uniq -c
-```
+To examine the internal mechanics of circuit breaking, radix routing, and pipeline policies, explore [Deep Dive](/docs/deep-dive/).

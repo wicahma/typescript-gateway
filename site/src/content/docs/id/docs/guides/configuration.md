@@ -3,9 +3,22 @@ title: "Referensi Konfigurasi"
 description: "Konfigurasi JSON deklaratif dengan interpolasi environment variable."
 ---
 
-Gateway dikonfigurasi lewat file JSON deklaratif (default: `config/gateway.config.json`). Semua field string mendukung interpolasi environment variable.
+Di akhir panduan ini, Anda akan memiliki file gateway.config.json tervalidasi yang disesuaikan untuk lingkungan produksi atau lokal Anda.
 
-## Contoh Konfigurasi
+## Ikhtisar
+
+Gateway membaca pengaturannya dari file JSON deklaratif (`gateway.config.json`). Setiap field string mendukung interpolasi variabel lingkungan dengan nilai cadangan (fallback).
+
+| Bagian Tingkat Atas | Tujuan | Wajib |
+| --- | --- | --- |
+| `server` | Listener HTTP, port, batas waktu, dan batas ukuran body. | Ya |
+| `routes` | Pola URL masuk, metode HTTP, dan prioritas. | Ya |
+| `upstreams` | Layanan tujuan, pool koneksi, dan health check. | Ya |
+| `performance` | Jumlah worker dan alokasi pool memori. | Tidak |
+
+## Langkah 1: Buat File Konfigurasi Dasar
+
+Buat file `gateway.config.json` di direktori utama proyek Anda:
 
 ```json
 {
@@ -55,9 +68,21 @@ Gateway dikonfigurasi lewat file JSON deklaratif (default: `config/gateway.confi
 }
 ```
 
-## Interpolasi Environment Variable
+## Langkah 2: Konfigurasi Opsi Utama
 
-Kamu bisa menyisipkan environment variable sistem langsung ke dalam string pakai `${VAR_NAME}` atau sintaks fallback `${VAR_NAME:-defaultValue}`:
+Sesuaikan opsi utama berdasarkan arsitektur jaringan Anda:
+
+| Kolom | Tipe | Nilai Bawaan | Deskripsi |
+| --- | --- | --- | --- |
+| `server.port` | number | `3000` | Port untuk menerima permintaan HTTP. |
+| `server.keepAlive` | boolean | `true` | Menggunakan ulang koneksi TCP antara klien dan gateway. |
+| `server.maxBodySize` | number | `10485760` | Ukuran payload permintaan maksimum dalam byte (10 MB). |
+| `routes[].path` | string | — | Pola route, mendukung token `:param`. |
+| `upstreams[].poolSize` | number | `10` | Jumlah koneksi pool soket maksimum per upstream. |
+
+## Langkah 3: Interpolasi Variabel Lingkungan
+
+Gantikan string statis dengan variabel lingkungan bila diperlukan. Gunakan format `${VAR_NAME}` atau sintaks fallback `${VAR_NAME:-defaultValue}`:
 
 ```json
 {
@@ -67,35 +92,42 @@ Kamu bisa menyisipkan environment variable sistem langsung ke dalam string pakai
   },
   "upstreams": [
     {
-      "host": "${AUTH_SERVICE_HOST:-auth.internal}",
-      "port": "${AUTH_SERVICE_PORT:-8080}"
+      "id": "backend-service",
+      "host": "${BACKEND_HOST:-localhost}",
+      "port": "${BACKEND_PORT:-8080}"
     }
   ]
 }
 ```
 
-## Bagian Konfigurasi
+Gateway melakukan substitusi variabel sebelum melakukan validasi skema JSON.
 
-### `server`
-- `port`: Nomor port (ditimpa oleh `process.env.PORT` kalau ada).
-- `host`: Alamat bind interface (ditimpa oleh `process.env.HOST`).
-- `keepAlive`: Aktifkan pemakaian ulang koneksi HTTP Keep-Alive.
-- `keepAliveTimeout`: Timeout (dalam ms) sebelum socket idle ditutup.
-- `maxBodySize`: Ukuran payload request maksimal dalam byte (default: 10MB).
+## Langkah 4: Validasi File Konfigurasi
 
-### `routes`
-- `method`: HTTP Verb (`GET`, `POST`, `PUT`, `DELETE`, `PATCH`).
-- `path`: Pola URL. Mendukung parameter dinamis (`/api/:id`).
-- `priority`: Urutan evaluasi.
+Jalankan perintah validasi konfigurasi dari direktori proyek Anda:
 
-### `upstreams`
-- `id`: Key unik untuk cluster backend.
-- `protocol`: `http` atau `https`.
-- `host`: IP atau hostname backend.
-- `port`: Port tujuan backend.
-- `poolSize`: Jumlah koneksi persisten maksimal yang dipertahankan.
-- `healthCheck`: Konfigurasi health probe aktif di background.
+```bash
+npx tsgate validate
+```
 
-### `performance`
-- `contextPoolSize`: Instance request context yang dialokasikan di awal.
-- `enablePooling`: Nyalakan/matikan daur ulang memory pool.
+Hasil yang diharapkan:
+
+```text
+OK: configuration is valid (1 routes, 1 upstreams)
+```
+
+Jika terjadi kesalahan, validator akan menunjukkan lokasi field dan tipe yang diharapkan:
+
+```bash
+GATEWAY_PORT=abc npx tsgate validate
+```
+
+Hasil yang diharapkan:
+
+```text
+Error: server.port must be an integer, received NaN
+```
+
+## Langkah Selanjutnya
+
+Untuk mengonfigurasi autentikasi, rate limiting, dan caching respons untuk route Anda, lanjutkan ke [Panduan Penggunaan](/id/docs/guides/usage/).

@@ -1,36 +1,23 @@
 ---
-title: "Memulai"
-description: "Dari nol sampai gateway jalan dalam sekitar dua menit. Nggak perlu paham framework apa pun."
+title: "Panduan Memulai"
+description: "Dari nol hingga gateway berjalan dalam dua menit. Tanpa membutuhkan pemahaman framework."
 ---
 
-TypeScript Gateway adalah reverse proxy dan API gateway yang ditulis murni pakai
-TypeScript di atas `node:http` bawaan Node. Nggak ada framework di baliknya —
-install, tulis satu file JSON, dan kamu sudah punya gateway.
+Di akhir panduan ini, Anda akan memiliki gateway yang berjalan dan meneruskan permintaan HTTP ke layanan lokal dengan header kustom.
 
-## Yang kamu butuhkan
+## Prasyarat
 
-- **Node.js 20 atau lebih baru** — cek dengan `node -v`
-- Backend buat di-proxy (HTTP service apa pun; buat coba-coba,
-  `python3 -m http.server 3000` juga oke)
+Pastikan lingkungan pengembangan Anda memenuhi persyaratan berikut sebelum memulai:
 
-Cuma itu.
+| Kebutuhan | Versi Didukung | Perintah Verifikasi |
+| --- | --- | --- |
+| Node.js | 20.0.0 atau lebih tinggi | `node -v` |
+| npm | 9.0.0 atau lebih tinggi | `npm -v` |
+| Layanan HTTP | Backend HTTP lokal apa pun | `python3 -m http.server 3000` |
 
-## Install
+## Langkah 1: Pasang dan Inisialisasi
 
-Install sebagai dependency project kamu:
-
-```bash
-npm install typescript-gateway
-```
-
-Itu memberi kamu library sekaligus CLI `tsgate` (lewat `npx`). Kalau mau
-`tsgate` tersedia global di PATH:
-
-```bash
-npm install -g typescript-gateway
-```
-
-## Bikin gateway pertamamu
+Buat direktori baru untuk proyek gateway Anda, inisialisasi paket, dan pasang file awal:
 
 ```bash
 mkdir my-gateway && cd my-gateway
@@ -39,111 +26,105 @@ npm install typescript-gateway tsx
 npx tsgate init .
 ```
 
-`init` akan membuat tiga hal:
+Hasil yang diharapkan:
 
-```
-my-gateway/
-├── package.json          ← depend ke typescript-gateway (+ tsx untuk plugin TS)
-├── gateway.config.json   ← routes, upstreams, plugins
-└── plugins/
-    └── hello.ts          ← an example plugin
+```text
+Scaffolded gateway files in /path/to/my-gateway:
+  - package.json
+  - gateway.config.json
+  - plugins/hello.ts
 ```
 
-Buka `gateway.config.json` — bagian pentingnya kecil banget:
+Inisialisasi ini menghasilkan file `gateway.config.json` untuk konfigurasi routing dan `plugins/hello.ts` untuk hook lifecycle.
+
+## Langkah 2: Konfigurasi Route dan Upstream
+
+Buka file `gateway.config.json` dan periksa konfigurasi routing bawaan:
 
 ```json
 {
-  "server": { "port": 8088 },
-  "routes": [{ "method": "GET", "path": "/api/*" }],
-  "upstreams": [{ "id": "backend", "host": "localhost", "port": 3000 }]
+  "server": {
+    "port": 8088
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/*"
+    }
+  ],
+  "upstreams": [
+    {
+      "id": "backend",
+      "host": "localhost",
+      "port": 3000
+    }
+  ]
 }
 ```
 
-Bacanya gini: *"request ke `GET /api/**` diteruskan ke service di
-`localhost:3000`"*. Sisanya sudah pakai default yang masuk akal.
+Konfigurasi ini menentukan parameter berikut:
 
-## Jalankan
+| Bagian | Pengaturan | Tujuan |
+| --- | --- | --- |
+| `server.port` | `8088` | Port tempat gateway mendengarkan permintaan masuk. |
+| `routes[0].path` | `/api/*` | Mencocokkan permintaan GET yang diawali dengan `/api/`. |
+| `upstreams[0]` | `localhost:3000` | Alamat layanan HTTP target. |
 
-Jalankan backend sekali pakai dulu biar kelihatan traffic-nya mengalir:
-
-```bash
-python3 -m http.server 3000 &
-```
-
-Terus nyalakan gateway-nya:
-
-```bash
-npx tsgate start
-```
-
-Kamu bakal lihat `Gateway started` di port 8088. Coba:
-
-```bash
-curl http://localhost:8088/health
-curl http://localhost:8088/api/test
-```
-
-Request kedua di-proxy ke backend kamu — dan response-nya membawa header
-`x-hello: from tsgate plugin`. Header itu datang dari
-`plugins/hello.ts`, plugin contoh yang dibuat oleh `init`. Kamu baru saja
-menjalankan gateway dengan plugin yang berfungsi tanpa nulis kode sama sekali.
-
-## Plugin pertamamu
-
-Buka `plugins/hello.ts`:
-
-```ts
-import type { Plugin } from 'typescript-gateway';
-
-const plugin: Plugin = {
-  name: 'hello',
-  version: '1.0.0',
-  description: 'Adds a response header',
-
-  async postHandler(ctx) {
-    ctx.state['pluginHeaders'] = { 'x-hello': 'from tsgate plugin' };
-  },
-};
-
-export default plugin;
-```
-
-Setiap file `.ts` di `plugins/` dimuat saat startup. Hooks yang tersedia:
-`preRoute`, `preHandler` (sebelum panggilan upstream), `postHandler`,
-`postResponse` (sesudahnya), `onError`, plus `init` dan `destroy` buat setup dan
-teardown. Buat mengubah response header, taruh di `ctx.state.pluginHeaders` —
-nanti digabungkan ke response akhir.
-
-> **Catatan:** set header langsung di `ctx.res` dalam `postHandler` nggak akan
-> bertahan — proxy menulis header upstream setelah hook kamu jalan. Pakai
-> `ctx.state.pluginHeaders` saja.
-
-## Cek konfigurasi tanpa menyalakan
+Validasi file konfigurasi tersebut:
 
 ```bash
 npx tsgate validate
 ```
 
-Mencetak `OK: ... (N routes, M upstreams)` atau memberi tahu persis apa yang salah.
+Hasil yang diharapkan:
 
-## Lanjut ke mana
-
-- **Resep** — setup dunia nyata: auth, rate limiting, caching, load
-  balancing. Lihat [Usage Guide](/docs/usage).
-- **Konfigurasi** — semua opsi di `gateway.config.json`, dijelaskan. Lihat
-  [Configuration](/docs/configuration).
-- **Cara kerjanya** — siklus hidup request, dari socket ke upstream dan balik
-  lagi. Lihat [Architecture](/docs/architecture).
-- **Bahasan mendalam** — bagian Reference di sidebar mendokumentasikan tiap
-  subsistem secara lengkap.
-
-## Embed di aplikasimu sendiri
-
-CLI-nya opsional. Gateway ini juga bisa dipakai sebagai library:
-
-```ts
-import { Gateway } from 'typescript-gateway';
-
-const gateway = new Gateway('./gateway.config.json');
-await gateway.start();
+```text
+OK: configuration is valid (1 routes, 1 upstreams)
 ```
+
+## Langkah 3: Jalankan dan Verifikasi Gateway
+
+Jalankan layanan HTTP lokal di terminal terpisah:
+
+```bash
+python3 -m http.server 3000
+```
+
+Hasil yang diharapkan:
+
+```text
+Serving HTTP on 0.0.0.0 port 3000 (http://0.0.0.0:3000/) ...
+```
+
+Di direktori proyek Anda, jalankan gateway:
+
+```bash
+npx tsgate start
+```
+
+Hasil yang diharapkan:
+
+```text
+Gateway started on http://0.0.0.0:8088
+```
+
+Kirim permintaan uji melalui proxy:
+
+```bash
+curl -i http://localhost:8088/api/
+```
+
+Hasil yang diharapkan:
+
+```text
+HTTP/1.1 200 OK
+x-hello: from tsgate plugin
+Content-Type: text/html
+Content-Length: ...
+```
+
+Permintaan berhasil diteruskan dan menyertakan header respons `x-hello` dari `plugins/hello.ts`.
+
+## Langkah Selanjutnya
+
+Untuk mempelajari cara mengatur batas waktu timeout, menambahkan variabel lingkungan, dan mengonfigurasi banyak route, baca [Konfigurasi](/id/docs/guides/configuration/).

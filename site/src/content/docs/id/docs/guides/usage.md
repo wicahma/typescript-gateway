@@ -3,19 +3,31 @@ title: "Panduan Penggunaan"
 description: "Resep praktis: proxying, auth, rate limiting, caching, load balancing, dan plugin kustom."
 ---
 
-Resep end-to-end buat setup gateway yang paling umum. Semua contoh memakai skema config asli dari `src/types/config.ts` dan `src/types/identity.ts` — nggak ada yang sekadar wacana.
+Di akhir panduan ini, Anda akan memiliki resep praktis untuk autentikasi, pembatasan laju (rate limiting), caching, dan load balancing pada gateway Anda.
 
-## Reverse Proxy Dasar
+## Ikhtisar Resep
 
-Arahkan traffic ke satu backend. Route yang tidak termasuk daftar reserved (`/`, `/health`, `/metrics`) akan di-proxy ke upstream pertama yang dikonfigurasi.
+Resep berikut merepresentasikan pola penerapan standar produksi:
+
+| Resep | Area Fitur | Bagian Konfigurasi |
+| --- | --- | --- |
+| Reverse Proxy Dasar | Routing | `routes`, `upstreams` |
+| Autentikasi JWT | Identitas | `auth` |
+| Kunci API & Kuota | Kontrol Trafik | `apiKeys` |
+| Caching Respons | Performa | `responseCache` |
+| Injeksi Kredensial | Keamanan | `upstreamCredentials` |
+| Load Balancing | Kontrol Trafik | `upstreams[].weight` |
+
+## Langkah 1: Siapkan Reverse Proxy
+
+Konfigurasikan proxy dasar yang meneruskan permintaan dari `/api/*` ke layanan upstream sambil menyediakan health check lokal:
 
 ```json
 {
-  "server": { "port": 3000, "host": "0.0.0.0" },
+  "server": { "port": 8088, "host": "0.0.0.0" },
   "routes": [
     { "method": "GET", "path": "/api/:id", "priority": 0 },
-    { "method": "POST", "path": "/api/orders", "priority": 0 },
-    { "method": "GET", "path": "/static/*", "priority": 0 }
+    { "method": "POST", "path": "/api/orders", "priority": 0 }
   ],
   "upstreams": [
     {
@@ -34,25 +46,41 @@ Arahkan traffic ke satu backend. Route yang tidak termasuk daftar reserved (`/`,
         "expectedStatus": 200
       }
     }
-  ],
-  "plugins": [],
-  "performance": { "workerCount": 0, "contextPoolSize": 1000, "bufferPoolSize": 1000, "responsePoolSize": 1000, "enablePooling": true }
+  ]
 }
 ```
 
-Pola path: `:param` menangkap satu segmen, `*` adalah wildcard di ujung. Trailing slash dianggap sama dengan tanpa trailing slash. Path reserved (`/`, `/health`, `/metrics`) selalu ditangani oleh gateway sendiri.
-
-Jalankan dan verifikasi:
+Jalankan gateway dan periksa routing:
 
 ```bash
-PORT=8088 npm start
-curl http://localhost:8088/api/42          # -> proxied to backend /api/42
-curl http://localhost:8088/health          # -> gateway health report
+npx tsgate start
 ```
 
-## Autentikasi JWT
+Hasil yang diharapkan:
 
-Aktif saat blok `auth` ada dan `enabled !== false`. JWT diverifikasi terhadap JWKS (`node:crypto` saja — tanpa library JWT eksternal). Token yang tidak valid dapat response 401 `application/problem+json`; identitas yang valid masuk ke `ctx.state.user`.
+```text
+Gateway started on http://0.0.0.0:8088
+```
+
+Periksa endpoint health check:
+
+```bash
+curl -s http://localhost:8088/health
+```
+
+Hasil yang diharapkan:
+
+```json
+{"status":"healthy","upstreams":[{"id":"backend","status":"healthy"}]}
+```
+
+## Langkah 2: Tambahkan Autentikasi dan Rate Limiting
+
+Amankan layanan upstream dengan validasi token JWT atau kunci API berserta kuota per konsumen.
+
+### Resep Autentikasi JWT
+
+Tambahkan blok `auth` untuk memverifikasi token menggunakan kunci kriptografi bawaan:
 
 ```json
 {
@@ -62,14 +90,33 @@ Aktif saat blok `auth` ada dan `enabled !== false`. JWT diverifikasi terhadap JW
     "audience": "my-api",
     "leewaySeconds": 30,
     "publicRoutes": ["/health", "/metrics", "/auth/login"],
-    "jwks": { "keys": [ { "kty": "RSA", "n": "...", "e": "AQAB", "kid": "2026-01" } ] }
+    "jwks": {
+      "keys": [
+        { "kty": "RSA", "n": "...", "e": "AQAB", "kid": "2026-01" }
+      ]
+    }
   }
 }
 ```
 
-## API Key + Rate Limit per Consumer
+Verifikasi penolakan tanpa token:
 
-Aktif saat `apiKeys.enabled` dan `apiKeys.consumers` di-set. Dua policy otomatis didaftarkan: `ApiKeyPolicy` (memvalidasi `x-api-key` terhadap key yang diterbitkan) dan `ConsumerRateLimitPolicy` (kuota per consumer).
+```bash
+curl -i http://localhost:8088/api/profile
+```
+
+Hasil yang diharapkan:
+
+```text
+HTTP/1.1 401 Unauthorized
+content-type: application/problem+json
+
+{"type":"about:blank","title":"Unauthorized","status":401,"detail":"Missing or invalid token"}
+```
+
+### Resep Kuota Kunci API
+
+Tambahkan batasan laju per konsumen menggunakan `apiKeys`:
 
 ```json
 {
@@ -84,34 +131,54 @@ Aktif saat `apiKeys.enabled` dan `apiKeys.consumers` di-set. Dua policy otomatis
         "consumerId": "mobile-app",
         "plan": "free",
         "rateLimit": 100,
-        "keys": [ { "key": "ak_live_...", "expiresAt": 1798761600000 } ]
-      },
-      {
-        "consumerId": "partner-internal",
-        "plan": "unlimited",
-        "rateLimit": 0,
-        "keys": [ { "key": "ak_live_..." } ]
+        "keys": [{ "key": "ak_live_mobile_123" }]
       }
     ]
   }
 }
 ```
 
-`rateLimit` adalah jumlah request per menit per consumer; `0` berarti unlimited. Key diresolve lewat `ConsumerStore` in-memory dengan TTL cache di depannya — setelah hit pertama, validasi tinggal lookup cache.
+## Langkah 3: Aktifkan Caching dan Kredensial Upstream
 
-## Response Caching
+Tingkatkan latensi dengan in-memory caching dan tandatangani permintaan keluar secara aman.
 
-Aktif saat `responseCache.enabled` di-set. `ResponseCachePolicy` memotong jalan untuk cache hit sebelum upstream disentuh dan menambahkan header `x-cache: HIT|MISS`.
+### Resep Caching Respons
+
+Tambahkan blok konfigurasi `responseCache`:
 
 ```json
 {
-  "responseCache": { "enabled": true }
+  "responseCache": {
+    "enabled": true,
+    "ttlSeconds": 60,
+    "maxSize": 5000
+  }
 }
 ```
 
-## Injeksi Kredensial Upstream + HMAC Signing
+Verifikasi status cache:
 
-Buat upstream yang butuh header statis atau HMAC request signing (misalnya service internal di balik pemeriksaan signature). Kredensial disimpan di config gateway; header diinjeksikan (atau signature dihitung) tepat sebelum diteruskan.
+```bash
+curl -i http://localhost:8088/api/items
+```
+
+Hasil yang diharapkan:
+
+```text
+HTTP/1.1 200 OK
+x-cache: MISS
+```
+
+Mengirim permintaan yang sama segera mengembalikan:
+
+```text
+HTTP/1.1 200 OK
+x-cache: HIT
+```
+
+### Resep Injeksi Kredensial dan Penandatanganan HMAC
+
+Sematkan header internal dan tanda tangan HMAC:
 
 ```json
 {
@@ -120,8 +187,12 @@ Buat upstream yang butuh header statis atau HMAC request signing (misalnya servi
     "credentials": [
       {
         "name": "billing-service",
-        "headers": { "x-internal-token": "..." },
-        "hmac": { "secret": "${BILLING_HMAC_SECRET}", "keyId": "gw-1", "headerNamespace": "x-hmac" }
+        "headers": { "x-internal-token": "secret-token" },
+        "hmac": {
+          "secret": "${BILLING_HMAC_SECRET}",
+          "keyId": "gw-1",
+          "headerNamespace": "x-hmac"
+        }
       }
     ],
     "injection": { "credentialName": "billing-service", "publicRoutes": ["/health"] },
@@ -130,89 +201,33 @@ Buat upstream yang butuh header statis atau HMAC request signing (misalnya servi
 }
 ```
 
-Secret mendukung interpolasi env (`${VAR}` / `${VAR:-default}`) — jangan pernah commit secret mentah.
+## Langkah 4: Konfigurasi Load Balancing
 
-## Plugin Kustom (Level Kode)
-
-Array `plugins` deklaratif memang ada di skema, tapi policy pipeline dirakit secara programatik di `src/index.ts`. Buat menambahkan logika inbound/outbound sendiri, implementasikan interface `GatewayPolicy` (`src/pipeline/policy.ts`) lalu daftarkan:
-
-```ts
-import { GatewayPolicy, RequestContext, OutboundResponse } from './pipeline/policy.js';
-
-class TenantHeaderPolicy implements GatewayPolicy {
-  name = 'tenant-header';
-
-  // inbound: may return a Response to short-circuit, or void to continue
-  async executeInbound(ctx: RequestContext): Promise<Response | void> {
-    const tenant = ctx.headers['x-tenant'];
-    if (!tenant) {
-      return new Response(JSON.stringify({ type: 'about:blank', title: 'Missing tenant', status: 400 }), {
-        status: 400,
-        headers: { 'content-type': 'application/problem+json' },
-      });
-    }
-    ctx.state.tenant = tenant;
-  }
-
-  // outbound: receives and may replace the OutboundResponse
-  async executeOutbound(ctx: RequestContext, response: OutboundResponse): Promise<OutboundResponse> {
-    response.headers['x-tenant'] = String(ctx.state.tenant ?? '');
-    return response;
-  }
-}
-
-// in src/index.ts, after config load:
-pipeline.register(new TenantHeaderPolicy());
-```
-
-Urutan eksekusi = urutan registrasi. Policy inbound pertama yang mengembalikan `Response` memotong rantai (upstream tidak pernah melihat request-nya). Policy outbound dikomposisikan kiri-ke-kanan atas `OutboundResponse`.
-
-## Rate Limiting Programatik (Plugin Hook API)
-
-Buat strategi limiter di luar kuota consumer di atas, `Plugin` hook API (`src/types/plugin.ts`) + `RateLimitPlugin` (`src/plugins/builtin/rate-limit-plugin.ts`) mendukung strategi token-bucket dan sliding-window dengan key berdasarkan IP, header, upstream, atau consumer:
-
-```ts
-import { createRateLimitPlugin } from './plugins/builtin/rate-limit-plugin.js';
-
-const limiter = createRateLimitPlugin({
-  enabled: true,
-  strategies: [
-    { name: 'api-burst', type: 'token-bucket', capacity: 50, refillRate: 10, keyExtractor: 'ip', includeHeaders: true },
-    { name: 'api-quota', type: 'sliding-window', windowMs: 60000, maxRequests: 300, keyExtractor: 'header', headerName: 'x-api-key' },
-  ],
-});
-// register on a PluginExecutionChain or run preRoute manually
-```
-
-Token bucket menyerap burst singkat dengan rata-rata yang stabil; sliding window menegakkan kuota keras "N per menit". Keduanya in-memory dan tanpa dependensi.
-
-## Load Balancing Antar Upstream
-
-Beberapa upstream dengan peran yang sama dipilih per request oleh `LoadBalancer` (round-robin / ip-hash / weighted; sadar kesehatan). Tandai `weight` per upstream untuk memiringkan traffic:
+Distribusikan trafik ke banyak backend menggunakan bobot upstream:
 
 ```json
 {
   "upstreams": [
-    { "id": "api-a", "host": "10.0.0.1", "port": 8080, "weight": 3, "healthCheck": { "enabled": true, "path": "/health" } },
-    { "id": "api-b", "host": "10.0.0.2", "port": 8080, "weight": 1, "healthCheck": { "enabled": true, "path": "/health" } }
+    {
+      "id": "api-primary",
+      "host": "10.0.0.1",
+      "port": 8080,
+      "weight": 3,
+      "healthCheck": { "enabled": true, "path": "/health" }
+    },
+    {
+      "id": "api-secondary",
+      "host": "10.0.0.2",
+      "port": 8080,
+      "weight": 1,
+      "healthCheck": { "enabled": true, "path": "/health" }
+    }
   ]
 }
 ```
 
-Upstream yang tidak sehat (menurut pemeriksaan aktif + pasif) langsung berhenti menerima traffic; circuit breaker per upstream mencegah retry storm saat terjadi gangguan parsial.
+Gateway menyeimbangkan trafik dengan rasio 3:1 dan mengabaikan instance yang gagal dalam pemeriksaan kesehatan berkala.
 
-## Memverifikasi Setup Kamu
+## Langkah Selanjutnya
 
-```bash
-# health + upstream report
-curl -s http://localhost:8088/health | jq
-
-# metrics snapshot (latency histogram, pool hit rates, per-upstream stats)
-curl -s http://localhost:8088/metrics | jq
-
-# auth rejection path (expect 401 problem+json)
-curl -i http://localhost:8088/api/private
-
-# rate limit path (expect 429 after quota, with rate limit headers if enabled)
-for i in $(seq 1 120); do curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8088/api/ping; done | sort | uniq -c
-```
+Untuk memeriksa mekanisme internal dari circuit breaker, perutean radix, dan kebijakan pipeline, telusuri [Pendalaman](/id/docs/deep-dive/).

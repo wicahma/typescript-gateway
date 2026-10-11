@@ -11,14 +11,21 @@ Guides show you what to type. Deep Dive explains what the gateway does with it. 
 - Engineers designing for production: retries, timeouts, circuit breaking, caching, auth, observability.
 - Reviewers who need to judge whether a feature fits their workload before adopting it.
 
-## What you can do with it
+## Structure: What it does
 
-Each page follows the same shape, so you can read the one you need and ignore the rest:
+Each page explains the subsystem behaviour in plain terms, outlining architectural responsibilities, data structures, and baseline guarantees.
 
-1. **What it does** — the behaviour in plain terms.
-2. **Configuration** — every option, its type, its default, and its effect.
-3. **Interactions** — how it composes with the rest of the pipeline and in what order.
-4. **Tradeoffs and failure modes** — the cost of enabling it and what it does under load.
+## Structure: Configuration
+
+Every page covers every configuration option, its type, its default, and its exact runtime effect.
+
+## Structure: Interactions
+
+Every page details how the feature composes with the rest of the pipeline, identifying exact hook positions and upstream communication stages.
+
+## Structure: Tradeoffs and failure modes
+
+Every page describes the operational cost of enabling the feature, memory overhead, and behaviour under upstream degradation or resource exhaustion.
 
 ## How it relates to the other sections
 

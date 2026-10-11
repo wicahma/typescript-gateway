@@ -5,321 +5,66 @@ description: "Lock-free metrics, structured logging, live dashboard, and in-proc
 
 Every feature in this group is **implemented and verified**, each with unit and integration coverage in the repo test suite.
 
-## CPU Memory Profiler
+## What It Does
 
-An in-process profiling toolkit for diagnosing gateway CPU and memory — built on Node.js
-(`inspector`, `v8`, `process`), no external dependencies:
+The observability subsystem delivers low-overhead telemetry, structured JSON logging, lock-free metrics collection, live terminal diagnostics, and on-demand CPU/memory profiling.
 
-- `src/profiling/cpu-profiler.ts` (453 LOC) — CPU sampling via the V8 Inspector
-  (`Profiler.start/stop`), hot-function analysis, flame graph export in
-  collapsed-stack format, and a lightweight stack-capture sampling mode.
-- `src/profiling/memory-profiler.ts` (408 LOC) — heap snapshots (`v8.writeHeapSnapshot`),
-  snapshot diffing for leak detection, allocation tracking, GC monitoring.
-- `src/core/memory-optimizer.ts` (396 LOC) — periodic memory monitoring, heap growth
-  analysis, automatic leak detection, GC flag recommendations, memory reports.
-- `src/core/v8-optimizations.ts` (338 LOC) — shape/hidden class analysis, polymorphism
-  detection, function benchmarking, monomorphic handler helpers.
+### CPU & Memory Profiler
 
-Goal: when latency degrades or memory grows, operators can capture profiles
-and snapshots without installing external tooling or restarting the process.
+An in-process diagnostic toolkit using native Node.js V8 primitives:
+- **CPU Sampling (`CPUProfiler`)**: Captures stack samples via the V8 Inspector Session or lightweight error-stack sampling, generating collapsed-stack flame graphs.
+- **Heap Diagnostics (`MemoryProfiler`)**: Generates `.heapsnapshot` dumps into `heapdumps/`, tracks heap growth rates (MB/hour), and flags leak thresholds.
+- **V8 Shape Analysis**: Checks hidden class stability and warns about polymorphic call-sites.
 
-### How it works
+### Lock-Free Metrics & Latency Histogram
 
-- **CPU (V8 Inspector)**: `CPUProfiler.startProfiling(duration?)` opens a `Session`,
-  `Profiler.enable` + `Profiler.start` with a `samplingInterval` (default 1000 µs).
-  `stopProfiling()` processes nodes + samples + timeDeltas into a `ProfileResult`
-  (selfTime/totalTime per node). `analyzeProfile()` sorts the top-20 hot functions
-  with percentages of total CPU time. `generateFlameGraph()` writes the
-  collapsed-stack format (`func (file:line);... count`) ready for flamegraph.pl.
-- **Lightweight CPU sampling**: `startSampling(interval)` captures stacks via
-  `new Error().stack` (regex-parse the top frame) — low overhead, coarser accuracy;
-  stops automatically at `maxSamples` (default 10,000).
-- **Memory**: `MemoryProfiler.takeSnapshot()` writes a `.heapsnapshot` file into
-  `heapdumps/`, records `{ id, timestamp, path, size, heapUsed }` into an
-  in-memory list. `compareSnapshots()` computes `heapGrowth` and `growthRate` (MB/hour)
-  and flags a leak when growth exceeds 10 MB. `analyzeHeapGrowth(interval, duration)`
-  (MemoryOptimizer) samples `process.memoryUsage()` periodically and concludes
-  `isLeaking` at a growth rate above 10 MB/hour, including external/arrayBuffers checks.
-- **Monitoring & recommendations**: `MemoryOptimizer.startMonitoring(interval)` keeps a
-  history of 1000 samples, runs `detectMemoryLeaks()` periodically (10 MB/hour threshold,
-  `suspected`/`confirmed` levels), `getRecommendations()` offers advice based on
-  heap utilization (80%/90%), external memory, and average GC pause time.
-  `forceGC()` is available when Node is run with `--expose-gc`.
-- **V8 optimizations**: `analyzeObjectShape()` checks property-order consistency
-  (hidden class stability); `PolymorphismDetector` warns about call-sites with
-  more than 4 types; `benchmark()` measures optimization impact (100-iteration warmup).
+High-performance metrics collection avoiding garbage collection overhead:
+- **Ring-Buffer Histogram (`LatencyHistogram`)**: Bounded sample array (10,000 samples) with O(1) writes and deferred percentile sorting at read time.
+- **Atomic Histogram (`MetricsAggregator`)**: Implements lock-free counters and histogram buckets over `Int32Array` using `Atomics`, compatible with `SharedArrayBuffer` workers.
+- **Prometheus Exposition**: Standard Prometheus text format exposition at `/metrics` via `Accept: text/plain` or `?format=prometheus`.
 
-### Configuration
+### Native Structured Logger
 
-| Option | Default | Location |
-|---|---|---|
-| `samplingInterval` (CPU) | 1000 µs | `ProfilerConfig` |
-| `maxSamples` | 10000 | `ProfilerConfig` |
-| `includeNative` | false | `ProfilerConfig` |
-| Light sampling interval | 100 ms | `startSampling(interval)` |
-| `snapshotPath` | `<cwd>/heapdumps` | `MemoryProfilerConfig` |
-| `retentionDays` | 7 | cleanup of old snapshots |
-| `autoSnapshot` / `autoSnapshotInterval` | false / 3600000 ms | automatic snapshots |
-| Leak threshold | 10 MB/hour | `analyzeHeapGrowth` / `detectMemoryLeaks` |
-| Monitoring interval | 10000 ms | `MemoryOptimizer.startMonitoring` |
+High-speed JSON logging writing directly to `process.stdout.write`:
+- **Zero Allocations**: Avoids string formatting overhead in the request hot path.
+- **Context Enrichment**: Injects `requestId`, timestamps, route identifiers, and latency metrics.
 
-No `gateway.config.json` fields — the profiler is activated programmatically
-(on-demand diagnosis), not always-on.
+### Live Performance Dashboard
 
-### Edge cases
+A terminal-based operational dashboard (`src/dashboard/index.ts`) providing real-time ASCII visualizations of RPS, p50/p95/p99 latencies, upstream health, and memory allocation rates.
 
-- **Double profiling**: `startProfiling()` while a session is active throws
-  `Error('Profiling already in progress')`; `stopProfiling()` with no session throws
-  `Error('No profiling session active')`.
-- **Snapshot files**: `writeHeapSnapshot` is synchronous and blocks the event loop for
-  several seconds on large heaps — use it for diagnosis, not routinely in busy production.
-- **Snapshot comparison**: per-type leak analysis is still simplified
-  (detection based on total growth, not snapshot parsing) — honestly documented
-  in the code as a simplified implementation.
-- **GC monitor**: `GCMonitorImpl.start()` doesn't install a `PerformanceObserver` yet —
-  the event list is empty until the implementation is complete (the code documents this).
-- **`forceGC()` without `--expose-gc`**: console warning, no crash; GC stats
-  are not recorded.
-- **Snapshot retention**: `cleanupSnapshots()` deletes files older than `retentionDays`;
-  in-memory references are capped at the last 10 (MemoryOptimizer).
+### Access Log Sampling
 
+Configurable head/tail sampling strategies that log a representative percentage of successful requests while capturing 100% of error responses (HTTP >= 400).
 
-## Metrics Histogram
+## Configuration
 
-Latency and counter metric collectors for the gateway, designed so measurement
-overhead is negligible next to the request latency itself. Three layers:
+Observability settings are managed through `monitoring` configuration blocks and programmatic defaults:
 
-1. `MetricsCollector` (`src/utils/metrics.ts`) — lock-free counters + a 10,000-sample
-   ring-buffer histogram, singleton `metrics`.
-2. `MetricsAggregator` (`src/core/metrics-aggregator.ts`) — an `Int32Array(310)`-based
-   histogram with `Atomics.*` operations (lock-free, ready for cross-worker use
-   via `SharedArrayBuffer`), plus a 60-second sliding window.
-3. `AdvancedMetrics` (`src/core/advanced-metrics.ts`) — domain metrics: per-route,
-   per-upstream, transformation, compression, WebSocket, error rates (1/5/15-minute windows),
-   retry statistics, timeouts, and circuit breakers.
+| Option | Type | Default | Effect |
+| --- | --- | --- | --- |
+| `monitoring.metrics.enabled` | boolean | `true` | Enables latency and throughput metrics collection. |
+| `monitoring.metrics.path` | string | `"/metrics"` | Endpoint path exposing Prometheus and JSON metrics. |
+| `monitoring.logging.level` | string | `"info"` | Minimum log level (`debug`, `info`, `warn`, `error`). |
+| `monitoring.logging.format` | string | `"json"` | Log output format (`json`, `text`). |
+| `monitoring.sampling.rate` | number | `1.0` | Inbound request access log sampling ratio (0.0 to 1.0). |
+| `monitoring.sampling.alwaysLogErrors` | boolean | `true` | Forces access logs for all requests with status >= 400. |
+| `profiler.samplingInterval` | number | `1000` | CPU profiling sampling interval in microseconds. |
+| `profiler.maxSamples` | number | `10000` | Maximum stack samples recorded before auto-stop. |
+| `memory.retentionDays` | number | `7` | Days to retain heap snapshot files on disk. |
 
-Goal: p50/p95/p99 latency, RPS, error rate, and throughput are available at any time
-(`GET /metrics`) without meaningful garbage-collection pressure.
+## Interactions
 
-### How it works
+Observability instruments every stage of the request lifecycle:
 
-- **Ring-buffer histogram** (`LatencyHistogram`, default 10,000 samples): every
-  `record(latencyMs)` writes to slot `index % size`. When the buffer is full, old
-  samples are overwritten (fixed memory, no growth). Percentiles are computed by
-  sorting a copy of the samples when `snapshot()` is called — O(n log n) only on the
-  read path, not the write path.
-- **Atomic histogram** (`MetricsAggregator`): 100 log-distribution buckets per
-  dimension (latency 1–100 ms, request/response size 100 B–10 KB), plus 10 counter
-  slots. Increments use `Atomics.add` so they are safe under concurrent
-  access and can be shared with worker_threads via `getSharedBuffer()`.
-- **Sliding window**: every record also enters a `WindowEntry[]` (max 10,000 entries,
-  max age 60 seconds) for more accurate percentiles over recent data
-  (`getWindowSnapshot()`).
-- **Domain metrics** (`AdvancedMetrics`): incremental aggregation (count/total/avg/min/max)
-  per route and upstream; error rate is computed from a timestamp history pruned
-  to the largest window (900 seconds).
-- All metric entities are in-memory — they die with the process.
+1. **Context Initialization**: `RequestContext` assigns a unique `requestId` and records the initial monotonic timestamp (`process.hrtime.bigint()`).
+2. **Pipeline Execution**: Errors, rate limits, and circuit breaker transitions increment corresponding counter metrics.
+3. **Response Flush**: The final response status, duration, and byte sizes are passed to the access logger and recorded in the latency histogram.
+4. **Scraping Endpoint**: The `/metrics` endpoint reads the aggregated atomic histogram without halting or locking the active request pipeline.
 
-### Configuration
+## Tradeoffs and Failure Modes
 
-| Option | Default | Location |
-|---|---|---|
-| Ring-buffer histogram size | `10000` samples | `new MetricsCollector(histogramSize)` |
-| Shared-memory aggregator | `false` | `new MetricsAggregator({ useSharedMemory })` |
-| Sliding window size | `10000` entries / `60000` ms | `new MetricsAggregator({ windowSize, windowDuration })` |
-| Error-rate windows | `[60, 300, 900]` seconds | `AdvancedMetricsConfig.timeWindows` |
-| Periodic reporting | `60000` ms (logs a metrics snapshot) | `Gateway.setupMetricsReporting()` |
-| Snapshot endpoint | `GET /metrics` | system route, registered in `src/index.ts` |
-| Metrics endpoint path | `/metrics` | `monitoring.export.prometheus.path` |
-| Prometheus text format | opt-in per request | `Accept: text/plain` or `?format=prometheus` |
-
-No dedicated `gateway.config.json` fields for this feature — everything
-is instantiated with in-code defaults (zero-config by design).
-
-### Prometheus text exposition
-
-`GET /metrics` serves JSON by default. Add `Accept: text/plain` (or `?format=prometheus`)
-and the same snapshot is rendered as Prometheus text exposition format `0.0.4` with
-`Content-Type: text/plain; version=0.0.4; charset=utf-8`, ready for a scrape config:
-
-```yaml
-scrape_configs:
-  - job_name: tsgate
-    metrics_path: /metrics
-    static_configs:
-      - targets: ['localhost:8080']
-```
-
-Every metric carries `# HELP` and `# TYPE`. The serializer
-(`src/observability/prometheus-format.ts`) is a pure function over the snapshot object —
-it adds no collection of its own, so a scrape costs nothing beyond serialization.
-
-Core series: `gateway_requests_total`, `gateway_errors_total`, `gateway_auth_failures_total`
-(counters); `gateway_requests_per_second`, `gateway_active_connections`,
-`gateway_latency_{avg,p50,p95,p99}_milliseconds` (gauges);
-`gateway_memory_{heap_used,heap_total,rss,external,array_buffers}_bytes` (gauges);
-`gateway_cpu_{user,system}_microseconds` (counters).
-
-Set `monitoring.metrics.enabled: true` to add the per-route and per-upstream series, which
-carry labels: `gateway_route_requests_total{route=…}`, `gateway_route_errors_total{route=…}`,
-`gateway_route_latency_avg_milliseconds{route=…}`,
-`gateway_route_status_codes_total{route=…,code=…}`,
-`gateway_upstream_requests_total{upstream_id=…}`,
-`gateway_upstream_errors_total{upstream_id=…}`,
-`gateway_upstream_success_total{upstream_id=…}`,
-`gateway_upstream_latency_avg_milliseconds{upstream_id=…}`.
-
-Label values escape backslash, double-quote, and newline per the exposition spec. Counters
-and gauges from custom `snapshot.counters` / `snapshot.gauges` records are emitted too, and
-`snapshot.histograms` entries become `_bucket{le=…}` / `_sum` / `_count` triples. The
-existing JSON response is unchanged when neither selector is present.
-
-### Edge cases
-
-- **Latency outside the bucket range**: the value is clamped into the histogram range (e.g. 1–100 ms)
-  before bucket mapping — no out-of-bounds index.
-- **Snapshot while the buffer is not full**: only filled slots are counted
-  (the `filled` flag); percentiles/averages are correct from the first request.
-- **`totalOriginalSize = 0` in compression**: the ratio is computed from accumulated
-  totals, not per-event, so the first event can't divide by zero.
-- **Concurrent reset**: `Atomics.store(…, 0)` over the whole buffer; the sliding window
-  is discarded in one go. A snapshot running concurrently may see a half-reset state —
-  accepted because snapshots are best-effort, not transactional.
-- **Error-rate history growth**: pruned on every `recordErrorRate` against the largest
-  window (900 s); the timeout distribution is capped at the last 10,000 durations.
-
-
-## Native Structured Logger
-
-The built-in structured JSON logger (`src/utils/logger.ts`, 211 LOC) that
-**replaces pino** as part of the gateway's zero-dependency principle. Goal: synchronous
-logging without unnecessary pipeline allocation — every line is
-`JSON.stringify(payload) + '\n'` written directly to `process.stdout.write()`
-(a `appendFileSync` option is available when a file `destination` is set). The line format
-is compatible with standard log consumers: one JSON object per line (NDJSON), fields
-`level`, `time` (ISO-8601), `pid`, `hostname`, `msg`.
-
-### How it works
-
-- **Six levels**: `TRACE(10) DEBUG(20) INFO(30) WARN(40) ERROR(50) FATAL(60)`.
-  `write()` early-returns when the event level weight is below the active logger level —
-  a `logger.debug()` call while at level `info` is near-free (a single numeric comparison).
-- **Three payload modes** in `FastNativeLogger.write()`:
-  1. string → `{ level, time, pid, hostname, ...bindings, msg }`;
-  2. object → spread as top-level fields + optional `msg`;
-  3. anything else → wrapped in a `data` field.
-- **Child loggers**: `child(bindings)` creates a new instance with merged
-  bindings — used by `StructuredLogger.component(name)` for per-component loggers
-  (a cached `componentLoggers` Map), `withCorrelation(id)` for request tracing,
-  and `withContext(ctx)`.
-- **`StructuredLogger`** (featureful wrapper): `logRequest`, `logResponse`
-  (status ≥ 500 → `error`, ≥ 400 → `warn`, otherwise `info`), `logSlowRequest`
-  (default threshold 100 ms), `logError` with a sampling rate, `updateConfig`
-  hot-update (per-component levels are reset together with the child logger cache).
-- **`createRequestLogger()`**: a stateless helper for request/response/error logging.
-- The default level is read from the `LOG_LEVEL` env var (fallback `info`).
-
-### Configuration
-
-| Option | Default | Source |
-|---|---|---|
-| `level` | `info` / `LOG_LEVEL` env | `LoggerConfig.level` |
-| `destination` | unset → stdout | `LoggerConfig.destination` (file path, `appendFileSync`) |
-| `pretty` | `false` | present in the interface; the current implementation always writes NDJSON |
-| `slowRequestThreshold` | `100` ms | `StructuredLogger` |
-| `errorSampling` | `1.0` | fraction of errors recorded |
-| `componentLevels` | `{}` | level overrides per component name |
-| `enableCorrelationId` | `true` | `correlationId` binding on child loggers |
-
-### Edge cases
-
-- **Write failure to the file destination**: `appendFileSync` is wrapped in try/catch —
-  it falls back to `process.stdout.write(line)`; logs are never lost and the process doesn't crash.
-- **Unknown level** in `LEVEL_WEIGHT`: falls back to weight 30 (info).
-- **Non-object/string payload**: wrapped as `{ data: value }` — never
-  `JSON.stringify(undefined)` producing an empty line.
-- **Error objects**: `logError` explicitly extracts `{ name, message, stack }`;
-  a raw `JSON.stringify(err)` would drop the stack.
-- **Synchronous I/O**: `appendFileSync` blocks the event loop — which is why the default
-  is stdout (async pipe); the file destination is only for deliberate use.
-
-
-## Performance Dashboard
-
-A separate monitoring HTTP server (`src/monitoring/performance-dashboard.ts`, 420 LOC)
-that presents gateway performance metrics in real time (SSE) and historically, plus
-alert-rule evaluation (`src/monitoring/performance-alerts.ts`, 283 LOC). Goal:
-operators can see p50/p95/p99, throughput, error rate, and memory usage without
-touching the main gateway endpoint — the dashboard runs on its own port.
-
-### How it works
-
-- **`PerformanceDashboard.start(port)`** runs its own `http.createServer`
-  with open CORS (`GET, OPTIONS`) and manual routing to 6 `/api/performance/*` endpoints.
-- **Real-time**: `GET /api/performance/realtime` opens an SSE stream
-  (`text/event-stream`). `EventStream` (an EventEmitter) keeps the list of
-  `ServerResponse` clients, broadcasts `metrics` / `worker` / `alert` events as
-  `event: <name>\ndata: <json>\n\n`, and drops `destroyed` clients.
-- **History**: `updateMetrics(point)` is called periodically (1 s interval while the server
-  is running) and stores `MetricPoint`s in the **`metricsHistory`** ring buffer — max
-  3,600 points (one hour at a 1-second interval), FIFO `shift()`. This ring buffer is
-  this feature's `METRIC_SAMPLE` form: **TRANSIENT**, never written to disk.
-- **Historical query**: `getHistoricalMetrics({from,to})` filters points by
-  window and computes aggregates (`avgLatencyP99`, `maxLatencyP99`, `avgThroughput`,
-  totals).
-- **Alerting**: `PerformanceAlerter.checkAlerts(metrics)` evaluates the 7 built-in
-  rules plus custom rules with a per-rule cooldown (default 60 s) and sends
-  notifications via an optional handler (fallback `console.warn`). Alerts are broadcast
-  to SSE via `dashboard.addAlert()`.
-- **Per-worker / per-route / per-upstream**: the `workerMetrics`, `routeMetrics`,
-  `upstreamMetrics` Maps are updated via `update*Metric()` methods — the data source
-  is the Metrics-Histogram.
-
-### Configuration
-
-| Option | Default | Notes |
-|---|---|---|
-| Dashboard port | required `start(port)` argument | a separate HTTP process from the gateway |
-| Update interval | 1000 ms | `startMetricsUpdate()` |
-| History retention | 3,600 points (~1 hour) | `metricsHistory` FIFO |
-| Alert retention | last 100 alerts / 1 hour (alerter) | FIFO + age filter |
-| Alert cooldown | 60000 ms | `AlertConfig.defaultCooldown` |
-| Built-in rules | 7 rules | see the table below |
-
-Built-in `PerformanceAlerter` rules:
-
-| Rule | Condition | Severity | Cooldown |
-|---|---|---|---|
-| `latency-threshold` | p99 > 10 ms | critical | 60 s |
-| `rps-drop` | drop of > 20% vs the previous sample | warning | 60 s |
-| `memory-leak` | growth > 10 MB/hour | warning | 5 minutes |
-| `gc-pause` | p99 pause > 100 ms | warning | 60 s |
-| `error-rate-spike` | error rate > 5% | critical | 60 s |
-| `circuit-breaker-open` | breaker open | warning | 2 minutes |
-| `connection-pool-exhaustion` | pool utilization > 90% | warning | 60 s |
-
-### Edge cases
-
-- **Built-in data is still synthetic**: `startMetricsUpdate()` currently produces
-  synthetic `MetricPoint`s (`Math.random()`) — wiring to real metrics is not
-  yet connected in `Gateway`. The endpoints and broadcast pipeline are tested
-  (covered by unit tests); real data wiring is the next
-  integration step.
-- **SSE client disconnect**: the `res.on('close')` handler removes the client from the list;
-  `broadcast` skips `destroyed` clients.
-- **Range query outside retention**: a `from` older than one hour yields an
-  empty array — no error; retention is limited to one hour by design.
-- **An alert rule throws**: `checkAlerts` wraps each rule's evaluation
-  in try/catch and logs to the console — a bad rule doesn't stop the others.
-- **Alert spam**: a per-rule-name cooldown prevents more than one alert per rule per
-  cooldown period.
-
-## Access Log Sampling
-
-At high RPS, per-request access logging can become its own bottleneck (every
-`logger.info` is a format + write). Sampling keeps the signal without the cost.
-
-`server.accessLogSampleRate` (default `1` — log every request, no behavior
-change). Set to `N` to log 1-in-N completed requests, deterministic via the
-request-id counter (stable, correlatable). Responses with status `>= 500`
-always log regardless of sampling — errors never leave the observability trail.
+- **Synchronous Heap Dumps**: Invoking `v8.writeHeapSnapshot()` blocks the Node.js event loop synchronously for several seconds on large heaps. Heap snapshots should only be triggered on-demand during dedicated diagnostic sessions, not routine production operation.
+- **Sampling vs Observability Detail**: Logging every single request at 100k RPS generates massive log volumes and I/O pressure. Access log sampling reduces log I/O overhead while guaranteeing visibility into all failure responses.
+- **Prometheus Scrape Costs**: Generating Prometheus text metrics requires reading and sorting histogram percentiles. Scraping intervals should be kept at reasonable cadences (e.g. 10-15s) to avoid unnecessary CPU spikes.
+- **Fixed Memory Ring Buffers**: Latency histograms operate over fixed-size ring buffers to guarantee zero memory growth over time, meaning very old request data is continually overwritten by newer samples.

@@ -5,58 +5,22 @@ description: "Radix router, reverse proxy pipeline, policy chaining, and zero-al
 
 Every feature in this group is **implemented and verified**, each with unit and integration coverage in the repo test suite.
 
-## Radix Router
+## What It Does
 
-The Radix Router is the gateway's route-matching engine. Its goal: map an incoming
-HTTP `method + path` to a single `RouteHandler` as fast as possible, using two
-complementary lookup paths:
+The core routing and proxy layer comprises the primary HTTP routing, context management, and upstream proxy pipeline of TypeScript Gateway.
+
+### Radix Router
+
+The Radix Router is the gateway's route-matching engine. Its goal: map an incoming HTTP `method + path` to a single `RouteHandler` as fast as possible, using two complementary lookup paths:
 
 - **Static routes** (no `:` or `*`) live in `Map<HttpMethod, Map<path, handler>>` — **O(1)** lookup.
 - **Dynamic routes** (`:param`, `*` wildcard) live in a **radix tree** per method — **O(log n)** lookup relative to the number of segments, not the number of routes.
 
-Implementation: `src/core/router.ts` (250 lines), the `Router` class. Zero dependencies —
-just `Map`, `split`, and plain recursion; no regex, no external library
-(per the project's zero-dependency principle: `node:http`, `node:crypto`, no Express).
+Implementation: `src/core/router.ts`, the `Router` class. Zero dependencies — just `Map`, `split`, and plain recursion; no regex, no external library.
 
-### Configuration
+### Request Context Pool
 
-| Source | Field | Effect |
-|---|---|---|
-| `routes[]` in `config/gateway.config.json` | `method`, `path`, `handler ref`, `priority` | `ROUTE` source (PERSISTED); read once at boot |
-| `server{}` | `requestTimeout` | Not part of the router, but used by the `Server` that calls `router.match` |
-| — | `Router.clear()` | Clears all Maps + tree (used by tests / hot-reload path) |
-
-There is no runtime configuration for the router itself: the data structures are fixed in the
-constructor (7 HTTP methods: GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS).
-
-### Edge cases
-
-| Trigger | Behavior | User-visible result |
-|---|---|---|
-| Path matches nothing | `match` returns `null` | `Server` sends 404 `Not Found` |
-| Two dynamic routes compete for the same segment (`:id` vs `:userId` at the same position) | Only one `paramChild` node; the param name from the **first** registration wins | First param name is what the handler sees |
-| Wildcard not the last segment (e.g. `/files/*/edit`) | `insertRadix` breaks at `*`; remaining segments ignored during insert | Wildcard stays terminal; documented behavior, avoid this pattern |
-| Path with trailing slash (`/api/users/`) | `filter(s => s.length > 0)` drops empty segments | `/api/users` and `/api/users/` are equivalent |
-| Query string in the URL | `Server` splits off `?query` before `router.match` | Router only receives the pure path |
-| Method not in the 7-method enum | No Map/tree exists for it | Match `null` → 404 |
-| Dynamic-segment backtrack fails (`/a/:x/b` vs request `/a/1/c`) | Param is `delete`d, walk falls back to wildcard/`null` | 404 without leaking params |
-
-
-## Request Context Pool
-
-The Request Context Pool provides `RequestContext` objects that are **reused across
-requests** to reduce GC pressure. Every incoming HTTP request needs a context
-(requestId, method, path, headers, body, timestamps, etc.); without pooling, each
-request allocates a new object → memory churn → GC jank. The pool pre-allocates.
-
-Implementation:
-- `src/core/context.ts` (185 lines) — `PoolableRequestContext` + `ContextPool` + `PoolMetrics`.
-- `src/utils/pool.ts` (247 lines) — generic `ObjectPool<T>` + `BufferPool` (byte-buffer reuse).
-- `src/core/cleanup-manager.ts` (427 lines) — `CleanupManager`: per-request resource tracking (timers, streams, event listeners, AbortControllers), leak detection, guaranteed cleanup.
-
-Zero-dependency: only JS structures (`Array.pop`, `Set`) — no external pooling library.
-
-### How it works
+The Request Context Pool provides `RequestContext` objects that are **reused across requests** to reduce GC pressure. Every incoming HTTP request needs a context (requestId, method, path, headers, body, timestamps, etc.); without pooling, each request allocates a new object, causing memory churn and GC pauses. The pool pre-allocates these structures.
 
 ```
 request arrives (Server.handleRequest)
@@ -73,71 +37,11 @@ request arrives (Server.handleRequest)
        contextPool.release(ctx)           ← inUse.delete → ctx.reset() → pool.push (if < maxSize)
 ```
 
-`PoolableRequestContext.reset()` clears 14 fields (requestId, startTime, method,
-path, query, params, headers, body, req, res, upstream, state, responded, route,
-timestamps) — no request state can leak into the next request.
+`PoolableRequestContext.reset()` clears 14 fields (requestId, startTime, method, path, query, params, headers, body, req, res, upstream, state, responded, route, timestamps) so no request state can leak into subsequent requests.
 
-`ContextPool` (default `initialSize = 1000`):
-- `acquire()` — `pool.pop()`; hit → `hits++`; pool empty → `misses++` + `new PoolableRequestContext()` (overflow object, GC'd on release above maxSize).
-- `release(ctx)` — double-release guard (`inUse.has`), `ctx.reset()`, `pool.push` only when `pool.length < maxSize`.
-- `metrics()` — `{ size, available, inUse, hits, misses, totalAcquired }`; `getHitRate()` = hits/totalAcquired × 100.
+### Request Pipeline & Policy Chaining
 
-`ObjectPool<T>` (generic, `src/utils/pool.ts`) follows the same pattern for any object with
-a `reset()`; `BufferPool` pools `Buffer`s per size (default 8192 B, 100 per size)
-with a `WeakMap<Buffer, wrapper>` for safe release.
-
-`CleanupManager` complements pooling: resources attached to a single request
-(`trackTimer`, `trackStream`, `trackEventListener`, `trackAbortController`)
-are tracked per `requestId`; `cleanupRequest(requestId)` runs them all via
-`Promise.all`; periodic leak detection (60 s interval, `unref()`) flags resources
-active for > `leakDetectionThreshold` (default 60 s, enabled in `NODE_ENV=development`).
-
-### Configuration
-
-| Source | Field | Default | Effect |
-|---|---|---|---|
-| Code (`Server` constructor) | `ContextPool(1000)` | 1000 | Request-context pool size (not yet exported to the config file) |
-| `CleanupConfig` | `enableLeakDetection` | `NODE_ENV === 'development'` | Periodic leak scanner |
-| `CleanupConfig` | `leakDetectionThreshold` | 60000 ms | Resource age above which it counts as a leak |
-| `CleanupConfig` | `autoCleanupOnTimeout` | `true` | Automatic cleanup on timeout |
-| `CleanupConfig` | `enableMetrics` | `true` | `totalCleanupTime`/`avgCleanupTime` stats |
-| `ObjectPool` | `size` | 100 | Generic pool size / per-size BufferPool |
-| `BufferPool` | `defaultSize` | 8192 | Default buffer size |
-
-### Edge cases
-
-| Trigger | Behavior | User-visible result |
-|---|---|---|
-| 1000+ concurrent requests | Pool empty → `misses++`, new context allocated | Still served; overflow objects GC'd on release above maxSize |
-| `release` called twice for the same ctx | Guard `inUse.has(ctx)` → no-op return | No duplication in the pool |
-| Handler forgets to clear a field (e.g. `ctx.state`) | `reset()` clears everything on release | No data leakage between requests |
-| Orphaned timer/stream on request error | `cleanupRequest(requestId)` in the application `finally` path | Resource closed; event loop not kept alive |
-| Resource active > 60 s (dev mode) | `detectLeaks()` every 60 s + `logger.warn` | Operator sees potential leak in the log |
-| `cleanup()` throws | Caught + `logger.error`; resource still removed from tracking | One failing resource doesn't drop the others |
-| Shutdown after drain timeout | `Server` force-destroys remaining sockets (`socket.destroy()`) | Connections don't hold up shutdown |
-
-
-## Request Pipeline
-
-The Request Pipeline is the gateway's policy-chaining layer. Its goal:
-provide a single execution point for **inbound policies** (auth, cache, rate limit —
-may short-circuit a request before it reaches the backend) and **outbound policies**
-(response transformation before it is sent to the client), replacing the ad-hoc
-`preRouteHook` in `Server`.
-
-Implementation:
-
-| File | Contents |
-|---|---|
-| `src/pipeline/policy.ts` (16 lines) | `GatewayPolicy` interface (`name`, optional `executeInbound`/`executeOutbound`), `OutboundResponse` type |
-| `src/pipeline/request-pipeline.ts` (56 lines) | `RequestPipeline` class: `register`, `runInbound`, `runOutbound`, `static writeResponse` |
-| `src/core/url-forward.ts` (93 lines) | `UrlForwarder` — pure upstream forwarding, extracted from `ProxyHandler.proxyRequest` (monolith 560 → 490 lines) |
-| `src/core/response-cache-policy.ts` (79 lines) | `ResponseCachePolicy` — first real consumer of `ResponseCache` (previously dead code) |
-| `src/plugins/builtin/auth-jwt-policy.ts` (150 lines) | `AuthJwtPolicy` — JWT verification as a policy; returns a problem `Response`, identity into `ctx.state.user` |
-
-Zero external dependencies. **Status: implemented**.
-
-### How it works
+The Request Pipeline is the gateway's policy-chaining layer. It provides a single execution point for **inbound policies** (auth, cache, rate limit — which may short-circuit a request before it reaches the backend) and **outbound policies** (response transformation before it is sent to the client).
 
 ```
 Client → Server → ContextPool → Radix Router
@@ -150,61 +54,15 @@ Client → Server → ContextPool → Radix Router
       → RequestPipeline.writeResponse → ServerResponse → Client
 ```
 
-1. **`register(policy)`** — adds a policy; duplicate names are rejected
-   (`Duplicate policy name: …`). Registration order = execution order
-   (`src/index.ts`: `AuthJwtPolicy` first, then `ResponseCachePolicy`).
-2. **`runInbound(ctx)`** — runs `executeInbound` on every policy that has the
-   hook. The first returned `Response` = **short-circuit**: returned to `Server`,
-   the rest of the chain and the handler are skipped. All `void`/no hook → `null` → continue
-   to `ProxyHandler`.
-3. **Short-circuit write** — `RequestPipeline.writeResponse(res, response)`
-   (static): copies `status` + headers from the Web `Response` to the `ServerResponse`,
-   writes the body once (no `headersSent` race).
-4. **`UrlForwarder`** — forwards the request to the upstream (pure function, no
-   policy logic) — called by `ProxyHandler` after all inbound policies pass.
-5. **`runOutbound(ctx, response)`** — composition chain: each `executeOutbound`
-   may replace the `OutboundResponse` (`{ statusCode, headers, body? }`);
-   the last policy's result is what gets written. Policy errors never write directly to the
-   socket — they come back as a problem `Response` via the same mechanism.
+1. **`register(policy)`**: Adds a policy; duplicate names are rejected. Registration order equals execution order.
+2. **`runInbound(ctx)`**: Runs `executeInbound` on every policy. The first returned `Response` short-circuits execution.
+3. **Short-circuit write**: `RequestPipeline.writeResponse(res, response)` copies status and headers to `ServerResponse` and writes the body without headersSent race conditions.
+4. **`UrlForwarder`**: Forwards the request to the upstream target after inbound policies pass.
+5. **`runOutbound(ctx, response)`**: Runs `executeOutbound` across registered policies to transform the outbound response.
 
-### Configuration
+### Reverse Proxy Handler
 
-No new `gateway.config.json` fields for the pipeline itself. Wiring happens
-in `src/index.ts`:
-
-- `auth` (object, optional) in config → `AuthJwtPolicy` is registered.
-- `ResponseCachePolicy` is always registered (uses `ResponseCache`).
-- `Server.setPipeline(pipeline)` — replaces `preRouteHook` (removed).
-
-Policy registration is programmatic (TypeScript), not declarative —
-declarative policy arrays remain out of scope (YAGNI).
-
-### Edge cases
-
-| Trigger | Behavior | User-visible result |
-|---|---|---|
-| Two policies with the same `name` | `register` throws before serving | Fast boot failure, not silent |
-| Cache HIT | Cached `Response` goes straight to `writeResponse` | Upstream untouched; `x-cache: HIT` header (MISS when forwarded) |
-| Invalid/expired JWT | `AuthJwtPolicy` returns a 401 problem | `application/problem+json`, upstream not consumed |
-| Inbound policy without `executeInbound` | Skipped (`continue`) | Outbound-only policies mix in safely |
-| Outbound policy returns `void` | `current` is kept | Composition chain optional per policy |
-| Policy response when headers already sent | `writeResponse` is only called from the single `Server` path | No double-write `headersSent` |
-
-
-## Reverse Proxy Handler
-
-The Reverse Proxy Handler is the heart of the gateway's forwarding: after the `Radix-Router`
-finds a route, this handler forwards the request to the upstream, returns the
-response to the client, and installs resilience guards along the way (circuit
-breaker, health checks, load balancing, transformation, compression).
-
-Implementation: `src/core/proxy-handler.ts` (560 lines, the `ProxyHandler` class),
-zero-dependency: `node:http`, `node:https`, no undici/axios/http-proxy. Splitting the
-monolith into smaller modules is deliberately out of scope (YAGNI).
-
-### How it works
-
-The `ProxyHandler.handle(ctx)` pipeline — 8 deterministic steps:
+The `ProxyHandler.handle(ctx)` pipeline coordinates 8 deterministic steps:
 
 ```
 handle(ctx)
@@ -227,90 +85,64 @@ handle(ctx)
                            + recordLatency, passive health check, advanced metrics
 ```
 
-Error path: any error before the response is sent is mapped —
-`timeout` → 504 `gateway_timeout`, `no healthy upstream` → 503 `service_unavailable`,
-everything else → 502 `bad_gateway` (JSON body `{ error: { code, message } }`).
+### WebSocket Tunneling
 
-### Configuration
+Opt-in `Upgrade` handling: when `proxy.enableWebSocket` is set, the proxy handler completes the WebSocket handshake against the selected upstream, writes the `101 Switching Protocols` response to the client, and pipes both sockets bidirectionally as a raw byte pipe.
 
-`ProxyHandlerConfig` (constructor override of `DEFAULT_CONFIG`):
+### Auxiliary Utilities
 
-| Field | Default | Effect |
-|---|---|---|
-| `enableBodyParsing` | `true` | Parse POST/PUT/PATCH bodies via `BodyParser` |
-| `enableCircuitBreaker` | `true` | One `CircuitBreaker` per upstream id |
-| `enableHealthChecking` | `true` | `HealthChecker.start(upstreams)` + passive check per request |
-| `requestTimeout` | `30000` ms | Request timeout toward the upstream |
-| `enableRequestTransformations` | `true` | Header/path/body rewrite before forwarding |
-| `enableResponseTransformations` | `true` | Response rewrite before sending |
-| `enableCompression` | `true` | gzip/brotli/deflate via `CompressionHandler` |
-| `enableAdvancedMetrics` | `true` | `AdvancedMetrics.record*` for route/upstream/error |
-| `maxRequestSize` | 10 MB (10485760) | Reject oversized requests (step 1) |
-| `maxResponseSize` | 50 MB (52428800) | Response buffer limit |
-| `maxHeaderSize` | 16 KB (16384) | Header size limit |
+- **OpenAPI Generator (`src/core/openapi-generator.ts`)**: Emits OpenAPI 3 specifications over the live route table with parameter and server mapping.
+- **Client Disconnect Propagation**: Proxied requests attach an `AbortController` bound to the client socket `close` event, halting in-flight upstream fetches if the caller disconnects.
+- **Request Coalescing (Single-Flight)**: `UrlForwarder.share()` collapses concurrent identical GET/HEAD requests into a single upstream fetch.
+- **Streaming Response Path**: `ProxyHandlerConfig.streamingThreshold` streams GET/HEAD responses above threshold size directly to the client without buffering.
 
-`UPSTREAM` source (PERSISTED): `upstreams[]` in `config/gateway.config.json` —
-`id, protocol, host, port, basePath, poolSize, timeout, healthCheck{}, weight`.
-Injected via `ProxyHandler.initialize(upstreams)`.
+## Configuration
 
-### Edge cases
+Core routing and proxy behavior is controlled via the following options:
 
-| Trigger | Behavior | User-visible result |
-|---|---|---|
-| `content-length` > `maxRequestSize` | `throw 'Request size exceeds limit'` before forwarding | 502 (`bad_gateway` mapping) — oversize also prevented earlier by `Server` (413) |
-| All upstreams unhealthy | `LoadBalancer.select` returns null | 503 `service_unavailable` |
-| Upstream timeout (`requestTimeout`) | `proxyReq.destroy()`, agent `remove`d from pool, throw | 504 `gateway_timeout` |
-| Upstream error mid-stream | `proxyRes.on('error')` → agent removed, reject | 502 `bad_gateway` |
-| Circuit breaker OPEN | `breaker.execute` short-circuits without touching the upstream | Fast error, details in Resilience → Circuit Breaker |
-| Body without `content-length` (chunked) | `shouldParseBody` false; body still forwarded when `ctx.body` exists | Forwarding continues |
-| Compressible response (large JSON + `accept-encoding: gzip`) | Negotiate + compress + `Content-Encoding` header | Compressed response; ratio metric recorded |
-| Client IP for LB `ip-hash` | `X-Forwarded-For` → `X-Real-IP` → `socket.remoteAddress` (in order) | Sticky routing per IP |
-| `shutdown()` called | `healthChecker.stop()` + `clientPool.destroy()` | Upstream connections closed cleanly |
+| Option | Type | Default | Effect |
+| --- | --- | --- | --- |
+| `routes[].method` | string | — | HTTP method to register in the router. |
+| `routes[].path` | string | — | URL path pattern (`/static`, `/users/:id`, `/files/*`). |
+| `routes[].priority` | number | `0` | Route match precedence order. |
+| `server.requestTimeout` | number | `30000` | Inbound request timeout in milliseconds. |
+| `proxy.enableWebSocket` | boolean | `false` | Enables HTTP 101 Switching Protocols WebSocket tunneling. |
+| `proxy.streamingThreshold` | number | `0` | Byte threshold to bypass buffering and stream responses directly. |
+| `proxy.enableBodyParsing` | boolean | `true` | Parses POST/PUT/PATCH request payloads. |
+| `proxy.enableCircuitBreaker` | boolean | `true` | Enforces circuit breaker limits per upstream. |
+| `proxy.enableHealthChecking` | boolean | `true` | Enables active and passive health checks for upstreams. |
+| `proxy.maxRequestSize` | number | `10485760` | Rejects incoming request payloads larger than this limit (bytes). |
+| `proxy.maxResponseSize` | number | `52428800` | Response buffer limit (50 MB). |
+| `proxy.maxHeaderSize` | number | `16384` | Maximum allowable header size in bytes. |
 
-## WebSocket Tunneling
+## Interactions
 
-Opt-in `Upgrade` handling: when `proxy.enableWebSocket` is set, the proxy handler
-completes the WebSocket handshake against the selected upstream, writes the
-`101 Switching Protocols` response to the client, and pipes both sockets
-bidirectionally. Raw byte pipe — no per-frame inspection.
+Core routing coordinates with the rest of the gateway pipeline in the following sequence:
 
-Implementation: `ProxyHandler.tunnelUpgrade` in `src/core/proxy-handler.ts`;
-wiring chain `config.proxy.enableWebSocket` → `ProxyHandler({enableWebSocket})` →
-`setRouter()` → `Server.setProxyHandler()` → `handleUpgrade`. All links optional;
-missing any link rejects upgrades exactly as before.
+1. **Router Resolution**: The `RadixRouter` resolves the route path and binds URL parameters (`ctx.params`).
+2. **Inbound Policy Enforcement**: `RequestPipeline.runInbound` runs auth, caching, and rate limiting sequentially. If a policy returns a `Response`, execution short-circuits and skips upstream forwarding.
+3. **Load Balancer Selection**: Filters healthy upstream candidates from `HealthChecker` and picks an endpoint using the configured load balancing algorithm.
+4. **Circuit Breaker Check**: Verifies the target upstream is `CLOSED` or canary `HALF-OPEN` before leasing an HTTP connection.
+5. **Upstream Forwarding & Outbound Policies**: Transports the request over `HttpClientPool`, applies response transformations through `runOutbound`, and flushes compressed bytes to the client.
 
-| Trigger | Behavior |
-|---|---|
-| `enableWebSocket` unset/false | Upgrade requests rejected as before |
-| Upstream handshake fails | Client socket destroyed, no half-open tunnel |
-| Upstream dies mid-stream | Tunnel closes (no mid-stream failover) |
+## Tradeoffs and Failure Modes
 
-## OpenAPI Generator
+### Memory Pooling vs Allocation Spikes
 
-Zero-dependency OpenAPI 3 generator over the live route table
-(`src/core/openapi-generator.ts`). `generateOpenApi(routes, upstreams, info)`
-emits paths (converting `:param` → `{param}` and `*` → `{wildcard}`), groups
-operations into tags by first path segment, and maps upstreams to `servers`.
-Useful for exposing a spec endpoint or feeding client generators.
+Pre-allocating contexts (`ContextPool(1000)`) eliminates GC pauses under steady high throughput. If concurrent requests exceed pool capacity, the pool allocates temporary objects outside the pool. Once released, overflow objects are garbage-collected normally.
 
-## Client Disconnect Propagation
+### Upstream Degradation and Timeouts
 
-Every proxied request gets an `AbortController`; the client socket's `close`
-event aborts the in-flight upstream fetch (`ForwardRequest.signal`). A caller
-that goes away stops consuming upstream resources immediately. The listener is
-removed in `finally` — `close` also fires on normal completion, no leak.
+- **Upstream Timeout**: If an upstream fails to reply within `requestTimeout`, the socket is destroyed, removed from the pool, and the gateway returns a `504 Gateway Timeout`.
+- **All Upstreams Unhealthy**: If the load balancer finds no healthy upstream instances, the gateway responds with `503 Service Unavailable`.
+- **Client Disconnect**: If the client closes the connection during streaming, an `AbortSignal` terminates the upstream request immediately to prevent wasted resource consumption.
 
-## Request Coalescing (single-flight)
+### Edge Case Matrix
 
-`UrlForwarder.share()`: N identical in-flight GET/HEAD requests collapse into
-one upstream fetch. A cache-miss stampede costs one upstream call, not N.
-Only GET/HEAD are coalesced; different paths or methods never share a flight.
-
-## Streaming Response Path
-
-`ProxyHandlerConfig.streamingThreshold` (bytes): when set above zero and
-response transformations are disabled, GET/HEAD responses stream directly to
-the client via `UrlForwarder.forwardStreaming` — headers forwarded immediately,
-body piped without `Buffer.concat`. Small bodies (Content-Length below the
-threshold) stay on the buffered path at zero cost; chunked/unknown-length
-bodies always stream.
+| Scenario | Behavior | Response / Outcome |
+| --- | --- | --- |
+| Route not found | `match` returns `null` | 404 Not Found |
+| Two dynamic routes compete for same segment | First registered param name wins | Deterministic parameter assignment |
+| Oversized request body | `content-length > maxRequestSize` | 413 Payload Too Large / 502 Bad Gateway |
+| Upstream error mid-stream | Socket emits error, agent removed | 502 Bad Gateway |
+| Duplicate policy name registered | Pipeline throws on registration | Process crashes fast at boot time |

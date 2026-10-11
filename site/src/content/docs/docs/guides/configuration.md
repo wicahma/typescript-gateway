@@ -3,10 +3,22 @@ title: "Configuration Reference"
 description: "Declarative JSON configuration with environment variable interpolation."
 ---
 
+At the end of this guide, you will have a validated gateway.config.json file tailored for your production or local environment.
 
-The gateway is configured via a declarative JSON file (default: `config/gateway.config.json`). Every string field supports environment variable interpolation.
+## Overview
 
-## Example Configuration
+The gateway reads its settings from a declarative JSON file (`gateway.config.json`). Every string field supports environment variable interpolation with fallback defaults.
+
+| Top-Level Section | Purpose | Required |
+| --- | --- | --- |
+| `server` | HTTP listener, port, timeouts, and body limits. | Yes |
+| `routes` | Inbound URL patterns, HTTP methods, and priorities. | Yes |
+| `upstreams` | Destination services, connection pools, and health checks. | Yes |
+| `performance` | Worker count and memory pool allocations. | No |
+
+## Step 1: Create Base Configuration File
+
+Create `gateway.config.json` in your project root:
 
 ```json
 {
@@ -56,9 +68,21 @@ The gateway is configured via a declarative JSON file (default: `config/gateway.
 }
 ```
 
-## Environment Variable Interpolation
+## Step 2: Configure Core Options
 
-You can inject system environment variables directly into strings using `${VAR_NAME}` or fallback syntax `${VAR_NAME:-defaultValue}`:
+Adjust the primary settings based on your network architecture:
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `server.port` | number | `3000` | Port for incoming HTTP requests. |
+| `server.keepAlive` | boolean | `true` | Reuses TCP connections between client and gateway. |
+| `server.maxBodySize` | number | `10485760` | Maximum request payload size in bytes (10 MB). |
+| `routes[].path` | string | — | Route pattern, supporting `:param` tokens. |
+| `upstreams[].poolSize` | number | `10` | Maximum socket pool connections per upstream. |
+
+## Step 3: Interpolate Environment Variables
+
+Replace static strings with environment variables where needed. Use `${VAR_NAME}` or fallback syntax `${VAR_NAME:-defaultValue}`:
 
 ```json
 {
@@ -68,35 +92,42 @@ You can inject system environment variables directly into strings using `${VAR_N
   },
   "upstreams": [
     {
-      "host": "${AUTH_SERVICE_HOST:-auth.internal}",
-      "port": "${AUTH_SERVICE_PORT:-8080}"
+      "id": "backend-service",
+      "host": "${BACKEND_HOST:-localhost}",
+      "port": "${BACKEND_PORT:-8080}"
     }
   ]
 }
 ```
 
-## Configuration Sections
+The gateway substitutes variables before parsing and validating the JSON schema.
 
-### `server`
-- `port`: Port number (overridden by `process.env.PORT` if present).
-- `host`: Interface bind address (overridden by `process.env.HOST`).
-- `keepAlive`: Enable HTTP Keep-Alive connection reuse.
-- `keepAliveTimeout`: Timeout (in ms) before closing idle socket.
-- `maxBodySize`: Maximum allowed request payload in bytes (default: 10MB).
+## Step 4: Validate Configuration File
 
-### `routes`
-- `method`: HTTP Verb (`GET`, `POST`, `PUT`, `DELETE`, `PATCH`).
-- `path`: URL pattern. Supports dynamic parameters (`/api/:id`).
-- `priority`: Order of evaluation.
+Run the configuration validator from your project directory:
 
-### `upstreams`
-- `id`: Unique backend cluster key.
-- `protocol`: `http` or `https`.
-- `host`: Backend IP or hostname.
-- `port`: Backend destination port.
-- `poolSize`: Maximum persistent connections to maintain.
-- `healthCheck`: Active background health probe configuration.
+```bash
+npx tsgate validate
+```
 
-### `performance`
-- `contextPoolSize`: Pre-allocated request context instances.
-- `enablePooling`: Toggle memory pool recycling on/off.
+Expected output:
+
+```text
+OK: configuration is valid (1 routes, 1 upstreams)
+```
+
+If an error is present, the validator reports the exact JSON pointer and expected schema type:
+
+```bash
+GATEWAY_PORT=abc npx tsgate validate
+```
+
+Expected output:
+
+```text
+Error: server.port must be an integer, received NaN
+```
+
+## Next Steps
+
+To set up authentication, rate limiting, and response caching for your routes, proceed to [Usage](/docs/guides/usage/).

@@ -1,17 +1,54 @@
 ---
-title: "Feature Pack"
-description: "CORS, W3C trace context, idempotency key, masking secret outbound, adaptive load shedding, rekam/replay request, dan audit event stream."
+title: "Paket Fitur (Feature Pack)"
+description: "CORS, W3C trace context, idempotency keys, outbound secret masking, adaptive load shedding, request record/replay, dan audit event stream."
 ---
 
+Kebijakan tata kelola, pengamanan trafik, dan operasional yang disertakan dalam paket inti gateway. Semua kebijakan nonaktif secara bawaan.
 
-Policy governance dan keamanan yang sudah ada di gateway inti. Semuanya
-nonaktif secara default — aktifkan dengan menambah block di
-`gateway.config.json`.
+## Apa yang Dilakukannya (What it does)
 
-## CORS
+Paket fitur menambahkan kebijakan tata kelola dan keselamatan operasional tanpa memerlukan dependensi pihak ketiga:
 
-Menjawab request preflight (`OPTIONS`) dan menambah header `Access-Control-*`
-ke response asli.
+### Tata Kelola Trafik & Ketahanan
+- **CORS**: Menangani permintaan preflight (`OPTIONS`) dan menyisipkan header standar `Access-Control-*`. Permintaan preflight dieksekusi sebelum autentikasi dan rate limiting.
+- **W3C Trace Context**: Membaca header `traceparent` masuk untuk meneruskan jejak terdistribusi atau menghasilkan ID trace/span baru, menyediakannya ke plugin melalui `ctx.state`.
+- **Idempotency Keys**: Mencegah eksekusi ganda pada metode HTTP tidak aman (`POST`, `PATCH`, `PUT`) dengan menyimpan respons berdasarkan header `Idempotency-Key`. Pengulangan permintaan mengembalikan `idempotent-replay: true`.
+- **Adaptive Load Shedding**: Menyesuaikan batas konkurensi secara dinamis berdasarkan observasi latensi P95. Kondisi kelebihan beban langsung mengembalikan HTTP 503 Problem Details.
+- **Traffic Shadowing**: Meneruskan salinan sampel trafik produksi secara asinkron ke upstream pengujian (`x-shadow: true`) tanpa memengaruhi latensi respons klien.
+- **Sticky Sessions**: Mengikat pemanggil ke instans upstream tertentu melalui hashing cookie atau header.
+
+### Keamanan & Tata Kelola Identitas
+- **Outbound Secret Masking**: Memeriksa body respons upstream untuk mendeteksi JWT, kunci privat PEM, dan kunci sensitif umum (`password`, `token`, `secret`), menggantinya dengan teks tersamarkan.
+- **Verifikasi HMAC Masuk**: Memvalidasi tanda tangan kriptografis dari body request sebelum perutean dilakukan.
+- **Kuota Harian**: Menerapkan batas request bergulir 24 jam per identitas konsumen di samping rate limit per menit.
+- **SSRF Guard**: Membatasi penerusan proxy ke alamat IP privat, loopback, atau metadata cloud kecuali jika dimasukkan ke daftar izin (allowlist).
+- **Security Headers**: Menyisipkan header keamanan standar (HSTS, CSP, X-Frame-Options) dan menghapus banner identitas server internal.
+
+### Operasional & Diagnostik
+- **Admin Control Plane**: Menyediakan endpoint introspeksi terlindungi (`/__admin/state`) dan mekanisme pembersihan cache (`POST /__admin/cache/purge`).
+- **Pembuatan Rute OpenAPI**: Mengimpor manifes rute langsung dari dokumen spesifikasi OpenAPI 3.1, mendukung sintaks path `{param}` dan `:param`.
+- **Request Record & Replay**: Menyimpan request dan response yang lewat ke memori lokal untuk mempermudah reproduksi insiden dan pembuatan pengujian regresi (`x-replay-id`).
+- **Audit Event Stream**: Memancarkan catatan audit berformat NDJSON ke stdout dengan penyensoran otomatis terhadap data kredensial.
+
+## Konfigurasi (Configuration)
+
+Kebijakan dalam feature pack diaktifkan melalui `gateway.config.json`:
+
+| Kebijakan | Blok Konfigurasi | Nilai Bawaan | Pengaturan Kunci |
+|---|---|---|---|
+| CORS | `cors` | Nonaktif | `allowOrigins`, `allowMethods`, `allowHeaders`, `allowCredentials`, `maxAgeSeconds`. |
+| Trace Context | `traceContext` | Nonaktif | `enabled: true`. |
+| Idempotency | `idempotency` | Nonaktif | `ttlMs: 86400000`, `maxEntries: 10000`. |
+| Secret Masking | `secretMask` | Nonaktif | `replacement: "[REDACTED]"`. |
+| Load Shedding | `loadShedding` | Nonaktif | `min: 16`, `max: 1024`, `targetP95Ms: 250`. |
+| Shadowing | `shadow` | Nonaktif | `target: "http://127.0.0.1:9999"`, `sampleRate: 0.1`. |
+| Inbound HMAC | `verifyInboundHmac` | Nonaktif | `secret: "${WEBHOOK_SECRET}"`. |
+| SSRF Guard | `ssrfGuard` | Nonaktif | `allowlist: ["internal.example.com"]`. |
+| Security Headers | `securityHeaders` | Nonaktif | `hsts: "max-age=31536000"`, `stripServer: true`. |
+| Sticky Sessions | `stickySession` | Nonaktif | `upstreams: ["a", "b"]`. |
+| Admin API | `admin` | Nonaktif | `basePath: "/__admin"`, `requireAuth: true`. |
+| Record & Replay | `record`, `replay` | Nonaktif | `maxEntries: 1000`, `maxAgeMs: 3600000`. |
+| Audit Stream | `audit` | Nonaktif | `sampleRate: 1`, `includeHeaders: false`. |
 
 ```json
 {
@@ -22,198 +59,32 @@ ke response asli.
     "allowHeaders": ["content-type", "authorization"],
     "allowCredentials": false,
     "maxAgeSeconds": 600
-  }
+  },
+  "traceContext": { "enabled": true },
+  "idempotency": { "enabled": true, "ttlMs": 86400000, "maxEntries": 10000 },
+  "secretMask": { "enabled": true, "replacement": "[REDACTED]" },
+  "loadShedding": { "enabled": true, "min": 16, "max": 1024, "targetP95Ms": 250 }
 }
 ```
 
-- `allowOrigins: ["*"]` merefleksikan origin apa pun (dan mengembalikan origin
-  request saat `allowCredentials` true, karena `*` ilegal bersama credentials).
-- Preflight dari origin yang tidak diizinkan ditolak dengan `403` problem+json.
-- Preflight dijawab **sebelum** auth dan rate limit, jadi tidak butuh key.
+## Interaksi Pipeline (Interactions)
 
-## W3C trace context
+Kebijakan dieksekusi secara berurutan dan deterministik di dalam pipeline tanpa terpengaruh urutan deklarasi dalam file konfigurasi:
 
-Membaca header `traceparent` yang masuk (melanjutkan trace) atau memulai trace
-baru, lalu mengembalikannya di response agar caller bisa mengorelasikan.
+1. **Load Shedding**: Memeriksa kapasitas beban konkurensi; langsung menolak koneksi dengan status 503 jika overloaded.
+2. **CORS Preflight**: Menjawab permintaan `OPTIONS` seketika tanpa memicu overhead autentikasi.
+3. **Trace Context**: Membaca `traceparent` masuk atau membuat identifier trace baru di `ctx.state`.
+4. **Idempotency**: Memeriksa apakah `Idempotency-Key` cocok dengan entri hasil cache yang sudah tersimpan.
+5. **SSRF Guard**: Memvalidasi alamat IP target sebelum request jaringan dikirim ke luar.
+6. **Inbound HMAC**: Memvalidasi tanda tangan kriptografis dari body request.
+7. **Sticky Sessions & Shadowing**: Memilih instans upstream afinitas dan mendaftarkan proses traffic shadowing asinkron.
+8. **Security Headers & Auth**: Menerapkan kebijakan TLS serta mengeksekusi autentikasi dan kuota pemanggil.
+9. **Audit, Record & Replay**: Memancarkan log audit dan menyimpan atau memutar ulang respons request.
+10. **Outbound Secret Masking**: Mengintersepsi body respons upstream, menyamarkan data rahasia sebelum mengirimkan byte ke klien.
 
-```json
-{ "traceContext": { "enabled": true } }
-```
+## Tradeoff dan Mode Kegagalan (Tradeoffs and failure modes)
 
-Trace id dan span id juga tersedia untuk plugin sebagai `ctx.state.traceId`,
-`ctx.state.spanId`, dan `ctx.state.parentSpanId`.
-
-## Idempotency key
-
-Mendeduplikasi request tidak aman. Client mengirim header `Idempotency-Key` pada
-`POST`/`PATCH`; request pertama dijalankan dan response-nya disimpan, lalu
-request ulang dengan key sama akan memutar ulang response tersebut
-(`idempotent-replay: true`).
-
-```json
-{ "idempotency": { "enabled": true, "ttlMs": 86400000, "maxEntries": 10000 } }
-```
-
-- Key sama, body beda → `400` (key dipakai ulang untuk request berbeda).
-- Key sama saat request pertama masih in-flight → `409 Conflict`.
-- Store bersifat per-proses dan dibatasi; tidak dibagi antar replica.
-
-## Masking secret outbound
-
-Meredaksi secret dari response upstream sebelum sampai ke client. Mendeteksi
-JWT, private key PEM, dan field JSON bernama `secret`/`token`/`password`/
-`api_key`.
-
-```json
-{ "secretMask": { "enabled": true, "replacement": "[REDACTED]" } }
-```
-
-Response yang dimasking membawa `x-secret-masked: true` dan
-`x-masked-request-id`. Hanya body text dan JSON yang diperiksa; `content-length`
-dikoreksi dan `transfer-encoding` dihapus saat body berubah.
-
-## Adaptive load shedding
-
-Membuang beban saat proses jenuh, melindunginya dari kolaps. Batas konkurensi
-beradaptasi dengan p95 latency yang teramati: menyusut saat latency tinggi dan
-bertambah saat latency rendah, dalam batas yang dikonfigurasi.
-
-```json
-{ "loadShedding": { "enabled": true, "min": 16, "max": 1024, "targetP95Ms": 250 } }
-```
-
-Saat batas tercapai, request baru mendapat `503` problem+json
-(`Server at capacity, retry shortly`). Slot dilepas saat response selesai,
-termasuk ketika policy lain men-short-circuit request.
-
-## Urutan
-
-Policy berjalan dengan urutan tetap terlepas dari urutan di config: load
-shedding → CORS → trace context → idempotency → SSRF guard → HMAC inbound →
-sticky session → traffic shadowing → security headers → auth → API key →
-consumer rate limit → audit → replay → record → response cache → injeksi
-kredensial upstream. Secret masking berjalan di jalur outbound.
-
-
-## Policy traffic & identitas
-
-### Traffic shadowing
-
-Memirror sebagian trafik live (sampled) ke upstream shadow untuk validasi
-aman. Fire-and-forget: shadow yang lambat/gagal tidak memengaruhi client.
-
-```json
-{ "shadow": { "enabled": true, "target": "http://127.0.0.1:9999", "sampleRate": 0.1 } }
-```
-
-Request mirror membawa `x-shadow: true`; jumlah mirror in-flight dibatasi
-`maxInflight`.
-
-### Verifikasi HMAC inbound
-
-Memverifikasi signature webhook atas body request mentah sebelum diterima.
-
-```json
-{ "verifyInboundHmac": { "enabled": true, "secret": "${WEBHOOK_SECRET}" } }
-```
-
-Menolak dengan `401` problem+json saat signature hilang, salah, atau kedaluwarsa.
-
-### Kuota harian per consumer
-
-Menambah budget request harian di atas rate limit per menit; `429` membawa
-counter harian.
-
-```json
-{ "apiKeys": { "enabled": true, "consumers": [
-  { "consumerId": "c1", "plan": "pro", "rateLimit": 600, "dailyLimit": 100000, "keys": [{ "key": "..." }] }
-] } }
-```
-
-### SSRF guard
-
-Menolak request yang target host-nya alamat private/loopback/link-local (atau
-`localhost`/`.internal`), kecuali di-allowlist.
-
-```json
-{ "ssrfGuard": { "enabled": true, "allowlist": ["internal.example.com"] } }
-```
-
-### Security headers
-
-Menambah header hardening dan menghapus banner server dari response.
-
-```json
-{ "securityHeaders": { "enabled": true, "hsts": "max-age=31536000", "stripServer": true } }
-```
-
-### Sticky session
-
-Mem-pin caller (via header atau cookie) ke satu upstream untuk lokalitas cache.
-
-```json
-{ "stickySession": { "enabled": true, "upstreams": ["a", "b", "c"] } }
-```
-
-### Admin control plane
-
-State operasional read-only dan purge cache, digerbangi identitas yang sama
-(`requireAuth`).
-
-```json
-{ "admin": { "enabled": true, "basePath": "/__admin", "requireAuth": true } }
-```
-
-- `GET /__admin/state` — uptime, state breaker, stat cache, info load-shed,
-  nama policy aktif.
-- `POST /__admin/cache/purge` — body `{ "pattern": "<regex>" }`; mengembalikan
-  jumlah entri yang dipurge.
-
-### Sintaks route OpenAPI `{param}`
-
-Route menerima `{id}` (gaya OpenAPI) maupun `:id`, plus regex group
-(`/orders/:orderId(\d+)`).
-
-```json
-{ "routes": [{ "method": "GET", "path": "/users/{id}" }] }
-```
-
-### Dokumen OpenAPI sebagai sumber routing
-
-Deklarasikan seluruh route dari dokumen OpenAPI 3.1, bukan daftar manual.
-
-```json
-{ "openapi": { "enabled": true, "basePath": "/api", "spec": { "openapi": "3.1.0", "paths": { "/users/{id}": { "get": {} } } } } }
-```
-
-## Policy operasional
-
-### Rekam & replay request
-
-Rekam setiap exchange ke store in-memory berbatas, lalu sajikan kembali tanpa
-menyentuh upstream — berguna untuk debug insiden produksi dan fixture regresi
-yang deterministik.
-
-```json
-{ "record": { "enabled": true, "maxEntries": 1000, "captureBody": true, "methods": ["GET", "POST"] },
-  "replay": { "enabled": true, "headerName": "x-replay-id", "maxAgeMs": 3600000 } }
-```
-
-Kirim `x-replay-id: <requestId>` untuk mendapat respons rekaman. Id tak dikenal
-mengembalikan `404`, rekaman kedaluwarsa `409`. Respons replay membawa `x-replay: hit`.
-
-### Audit event stream
-
-Satu baris JSON ter-redaksi per request ke `stdout`, termasuk request yang
-di-short-circuit policy lain (penolakan auth, load shed, replay).
-
-```json
-{ "audit": { "enabled": true, "includeHeaders": false, "sampleRate": 1 } }
-```
-
-```json
-{"ts":"2026-10-09T20:05:38.875Z","requestId":"req-2","method":"GET","path":"/api/data","status":200,"durationMs":2}
-```
-
-Nilai berformat JWT, blok private key PEM, dan field JSON
-`secret`/`token`/`password`/`api_key` diredaksi sebelum emisi.
+- **Isolasi Penyimpanan di Memori**: Cache idempotensi, rekaman request, dan tabel sesi afinitas disimpan di memori proses lokal. Dalam lingkungan multi-node terdistribusi, request harus diarahkan ke node gateway yang sama atau menggunakan session stickiness di load balancer eksternal.
+- **Osilasi Adaptive Load Shedding**: Menentukan `targetP95Ms` terlalu dekat dengan latensi normal upstream dapat menimbulkan siklus penolakan request yang tidak stabil; pastikan tersedia margin yang memadai antara target P95 dan latensi normal.
+- **Beban Pemrosesan Secret Masking**: Memindai respons untuk mendeteksi JWT dan kunci JSON memerlukan parsing data teks. Penyensoran ini secara sengaja dilewati untuk stream biner (`application/octet-stream`, gambar) guna mencegah pemborosan memori.
+- **Beban Tambahan dari Shadowing**: Trafik yang disalin menghasilkan beban request tambahan pada lingkungan upstream pengujian; pembatasan rasio sampling (`sampleRate`) dan batas konkurensi aktif melindungi server pengujian dari lonjakan beban.

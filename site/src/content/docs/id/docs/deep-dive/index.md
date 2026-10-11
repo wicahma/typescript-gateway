@@ -1,26 +1,33 @@
 ---
 title: "Pendalaman"
-description: "Bagaimana setiap fitur sebenarnya berperilaku: permukaan konfigurasi, tradeoff, interaksi, dan mode kegagalan."
+description: "Bagaimana setiap fitur sebenarnya berperilaku: konfigurasi, tradeoff, interaksi, dan mode kegagalan."
 ---
 
-Panduan menunjukkan apa yang harus kamu ketik. Pendalaman menjelaskan apa yang gateway lakukan dengan itu. Setiap halaman di sini mengambil satu grup fitur dan membahasnya tuntas: permukaan konfigurasinya, default dan alasan di baliknya, bagaimana fitur itu berinteraksi dengan request pipeline, dan apa yang terjadi ketika ia gagal.
+Panduan menunjukkan apa yang harus Anda ketik. Pendalaman menjelaskan apa yang dilakukan gateway terhadapnya. Setiap halaman di sini membahas satu kelompok fitur secara menyeluruh: opsi konfigurasi, nilai bawaan dan alasan pemilihannya, interaksinya dengan pipeline request, serta apa yang terjadi saat sistem mengalami kegagalan.
 
-## Untuk siapa seksi ini
+## Untuk siapa bagian ini
 
-- Developer yang sudah menjalankan gateway dan perlu menyetelnya, bukan sekadar menyalakannya.
-- Engineer yang merancang untuk produksi: retry, timeout, circuit breaker, caching, auth, observability.
-- Reviewer yang perlu menilai apakah sebuah fitur cocok untuk beban kerjanya sebelum diadopsi.
+- Pengembang yang sudah menjalankan gateway dan perlu menyesuaikannya (tuning), bukan sekadar memulainya.
+- Engineer yang merancang sistem produksi: retry, timeout, circuit breaker, caching, autentikasi, observabilitas.
+- Peninjau yang perlu menilai apakah suatu fitur cocok dengan beban kerja sebelum menerapkannya.
 
-## Yang bisa kamu lakukan
+## Struktur: Apa yang Dilakukannya (What it does)
 
-Setiap halaman mengikuti bentuk yang sama, jadi kamu bisa membaca yang kamu butuhkan saja:
+Setiap halaman menjelaskan perilaku subsistem dalam bahasa sederhana, menguraikan tanggung jawab arsitektural, struktur data, dan jaminan dasar.
 
-1. **Apa yang dilakukannya** — perilakunya dalam bahasa sederhana.
-2. **Konfigurasi** — setiap opsi, tipenya, default-nya, dan efeknya.
-3. **Interaksi** — bagaimana ia menyusun diri dengan sisa pipeline dan dalam urutan apa.
-4. **Tradeoff dan mode kegagalan** — biaya mengaktifkannya dan perilakunya saat beban tinggi.
+## Struktur: Konfigurasi (Configuration)
 
-## Kaitannya dengan seksi lain
+Setiap halaman merinci setiap opsi konfigurasi, tipe datanya, nilai bawaan, dan dampak langsungnya pada runtime.
 
-- Mulai dari [Panduan](/id/docs/guides/) kalau kamu belum menjalankan gateway ini.
-- Buka [Referensi](/id/docs/reference/) ketika kamu butuh tanda tangan, tipe kembalian, atau file yang mengimplementasikan sesuatu yang kamu baca di sini.
+## Struktur: Interaksi Pipeline (Interactions)
+
+Setiap halaman mendetailkan bagaimana fitur menyusun diri dengan sisa pipeline, mengidentifikasi posisi hook dan interaksi komunikasi upstream.
+
+## Struktur: Tradeoff dan Mode Kegagalan (Tradeoffs and failure modes)
+
+Setiap halaman mendeskripsikan biaya operasional pengaktifan fitur, overhead memori, dan perilakunya saat terjadi degradasi upstream atau kehabisan sumber daya.
+
+## Hubungannya dengan bagian lain
+
+- Mulai dari [Panduan](/id/docs/guides/) jika Anda belum pernah menjalankan gateway.
+- Kunjungi [Referensi](/id/docs/reference/) saat Anda membutuhkan tanda tangan fungsi, tipe kembalian, atau file implementasi dari apa yang Anda baca di sini.

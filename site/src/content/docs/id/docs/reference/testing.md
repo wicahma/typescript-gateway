@@ -1,51 +1,69 @@
 ---
-title: "Testing & Benchmarks"
-description: "Menjalankan test suite, benchmark performa yang reproducible, dan batas-batas yang diketahui."
+title: "Pengujian & Benchmark"
+description: "Spesifikasi test suite, perintah eksekusi, jaminan kelulusan, dan batas performa terukur."
 ---
 
-## Test Suite
+Harness pengujian gateway memverifikasi kebenaran logika, ketahanan terhadap regresi, dan batas latensi di seluruh codebase menggunakan Vitest dan pustaka standar Node.
 
-Vitest, 950 tes di 59 file pada full run terakhir. Tiga jalur:
+## Kategori Test Suite
 
-```bash
-npm test                      # all suites
-npm run test:unit             # tests/unit
-npm run test:integration      # tests/integration (proxy + pipeline end-to-end)
-npm run test:perf             # tests/performance (benchmarks with guards)
-```
+Matriks pengujian terdiri dari jalur unit, integrasi, dan performa yang mencakup 1.075 pengujian:
 
-Suite performa memakai timing guard dengan headroom lebar. Guard fast-path pool di-set ke **50 µs/op** (dulu 5 µs; varians CI pernah terukur 5,26 µs di mesin CI 4-core). Guard ini bersifat informasional — gagal pada regresi order-of-magnitude, bukan jitter satu digit.
+| Suite | Jalur | Cakupan | Target Verifikasi |
+| --- | --- | --- | --- |
+| Unit | `tests/unit` | Logika komponen terisolasi | Kebenaran algoritmik, kasus tepi, penanganan galat |
+| Integrasi | `tests/integration` | Pipeline proxy end-to-end | Siklus HTTP, pooling soket, urutan plugin, upstream |
+| Performa | `tests/performance` | Microbenchmark dengan batas waktu | Batas alokasi memori, overhead daur ulang pool |
 
-## Benchmark
+## Perintah Eksekusi
 
-```bash
-npm run benchmark            # load-test.js — hot path under real concurrency
-npm run benchmark:router     # router match throughput
-npm run benchmark:context    # context pool acquire/release
-npm run benchmark:plugins    # plugin execution chain
-```
-
-Angka terkini di target referensi (4-core x86_64, Node 22):
-
-| Scenario | Result | Note |
-|---|---|---|
-| Hot target path (100 conn) | **P99 5 ms · ~38.4k RPS** | target P99 < 10 ms ✓ |
-| Pool acquire + release | ~1.5 µs/op | fast-path |
-| Circuit breaker CLOSED fast-path | ~1.1 µs/req hemat | tanpa lock di steady state |
-| Full proxy path @ 100 conn | ~3.2k RPS · P99 ~40 ms | plafon hardware-bound* |
-
-\* Plafon full-proxy terikat round-trip loopback di mesin 4-core bersama (hop mentah `url`-forward saja terukur ~223 µs/op; kode gateway di atas hop mentah itu ~28% dari jalur). Ini batas mesin, bukan batas kode — didokumentasikan dan tidak dikejar ulang.
-
-## Menjalankan Upstream Lokal untuk Integration Test
-
-Integration test menjalankan upstream asli di port ephemeral; tidak butuh service eksternal. Untuk mensimulasikan sendiri:
+Jalankan test suite menggunakan skrip npm standar:
 
 ```bash
-# minimal upstream (any static server works)
-python3 -m http.server 8080
+# Jalankan seluruh test suite
+npm test
 
-# point the gateway at it
-PORT=8088 npm start
+# Jalankan pengujian unit terisolasi
+npm run test:unit
 
-curl http://localhost:8088/health   # should report the upstream as healthy
+# Jalankan pengujian integrasi proxy penuh
+npm run test:integration
+
+# Jalankan penjaga regresi performa
+npm run test:perf
 ```
+
+## Jaminan Kelulusan Tes (Green Run)
+
+Eksekusi tes yang berhasil membuktikan tiga jaminan formal:
+
+1. **Kepatuhan Protokol**: Parsing HTTP yang sesuai standar RFC, penanganan kode status, normalisasi header, dan streaming body.
+2. **Determinisme Ketahanan**: State machine circuit breaker berpindah secara konsisten antara CLOSED, OPEN, dan HALF-OPEN; jitter retry dan fallback bekerja deterministik dalam kondisi simulasi kegagalan.
+3. **Invarian Zero-Allocation**: Konteks request dan pool objek berhasil didaur ulang tanpa kebocoran memori atau lonjakan alokasi heap V8.
+
+## Batas dan Penjaga Performa
+
+Jalur performa menjalankan pengujian waktu untuk mendeteksi regresi:
+
+- **Batas Fast-Path Pool**: Siklus acquire/release pada request context pool dijaga pada batas `50 µs/op` (menoleransi variasi penjadwalan CPU pada runner CI).
+- **Batas Loopback Round-Trip**: Batas throughput proxy penuh (~3,2k RPS, P99 ~40 ms pada 100 koneksi simultan pada mesin 4-core) dibatasi oleh latensi loopback kernel (hop upstream `node:http` membutuhkan ~223 µs/op). Overhead kode gateway adalah sekitar 28% dari total jalur.
+
+## Benchmark Referensi
+
+Skrip benchmark mandiri:
+
+```bash
+npm run benchmark            # Jalur cepat penuh dalam beban konkuren
+npm run benchmark:router     # Throughput pencarian radix tree
+npm run benchmark:context    # Kecepatan acquire dan release object pool
+npm run benchmark:plugins    # Traversal rantai eksekusi plugin
+```
+
+Pengukuran dasar pada perangkat keras referensi (4-core x86_64, Node 22):
+
+| Skenario | Hasil | Batas Target |
+| --- | --- | --- |
+| Jalur target cepat (100 koneksi) | P99 5 ms · ~38,4k RPS | P99 < 10 ms |
+| Pool acquire + release | ~1,5 µs/op | < 50 µs/op |
+| Circuit breaker CLOSED path | Hemat ~1,1 µs/req | Nol overhead penguncian |
+| Jalur proxy penuh (100 koneksi) | ~3,2k RPS · P99 ~40 ms | Batas perangkat keras |

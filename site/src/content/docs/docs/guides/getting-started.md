@@ -3,35 +3,21 @@ title: "Getting Started"
 description: "From zero to a running gateway in about two minutes. No framework knowledge needed."
 ---
 
+At the end of this guide, you will have a running gateway that forwards HTTP requests to a local service with custom headers.
 
-TypeScript Gateway is a reverse proxy and API gateway written in pure
-TypeScript on top of Node's built-in `node:http`. There is no framework
-underneath — install it, write one JSON file, and you have a gateway.
+## Prerequisites
 
-## What you'll need
+Ensure your development environment meets the following requirements before starting:
 
-- **Node.js 20 or newer** — check with `node -v`
-- A backend to proxy to (any HTTP service; for trying things out,
-  `python3 -m http.server 3000` works fine)
+| Requirement | Supported Version | Verification Command |
+| --- | --- | --- |
+| Node.js | 20.0.0 or higher | `node -v` |
+| npm | 9.0.0 or higher | `npm -v` |
+| HTTP Service | Any local HTTP backend | `python3 -m http.server 3000` |
 
-That's the whole list.
+## Step 1: Install and Initialize
 
-## Install
-
-Install it as a dependency of your project:
-
-```bash
-npm install typescript-gateway
-```
-
-That gives you the library and the `tsgate` CLI (via `npx`). If you'd rather
-have `tsgate` globally on your PATH:
-
-```bash
-npm install -g typescript-gateway
-```
-
-## Create your first gateway
+Create a new directory for your gateway project, initialize package settings, and scaffold gateway files:
 
 ```bash
 mkdir my-gateway && cd my-gateway
@@ -40,111 +26,105 @@ npm install typescript-gateway tsx
 npx tsgate init .
 ```
 
-`init` scaffolds three things:
+Expected output:
 
-```
-my-gateway/
-├── package.json          ← depends on typescript-gateway (+ tsx for TS plugins)
-├── gateway.config.json   ← routes, upstreams, plugins
-└── plugins/
-    └── hello.ts          ← an example plugin
+```text
+Scaffolded gateway files in /path/to/my-gateway:
+  - package.json
+  - gateway.config.json
+  - plugins/hello.ts
 ```
 
-Open `gateway.config.json` — the important part is tiny:
+The scaffolding creates `gateway.config.json` for routing definitions and `plugins/hello.ts` for lifecycle hooks.
+
+## Step 2: Configure Route and Upstream
+
+Open `gateway.config.json` and review the default routing configuration:
 
 ```json
 {
-  "server": { "port": 8088 },
-  "routes": [{ "method": "GET", "path": "/api/*" }],
-  "upstreams": [{ "id": "backend", "host": "localhost", "port": 3000 }]
+  "server": {
+    "port": 8088
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/*"
+    }
+  ],
+  "upstreams": [
+    {
+      "id": "backend",
+      "host": "localhost",
+      "port": 3000
+    }
+  ]
 }
 ```
 
-Read it as: *"requests to `GET /api/**` go to the service on
-`localhost:3000`"*. Everything else has sensible defaults.
+The configuration defines the following parameters:
 
-## Run it
+| Field | Setting | Purpose |
+| --- | --- | --- |
+| `server.port` | `8088` | Port where the gateway listens for incoming requests. |
+| `routes[0].path` | `/api/*` | Matches any GET request starting with `/api/`. |
+| `upstreams[0]` | `localhost:3000` | Address of the target HTTP service. |
 
-Start a throwaway backend first so you can see traffic flow:
-
-```bash
-python3 -m http.server 3000 &
-```
-
-Then start the gateway:
-
-```bash
-npx tsgate start
-```
-
-You should see `Gateway started` on port 8088. Try it:
-
-```bash
-curl http://localhost:8088/health
-curl http://localhost:8088/api/test
-```
-
-The second request was proxied to your backend — and the response carries an
-`x-hello: from tsgate plugin` header. That header came from
-`plugins/hello.ts`, the example plugin that `init` created. You just ran a
-gateway with a working plugin without writing any code.
-
-## Your first plugin
-
-Open `plugins/hello.ts`:
-
-```ts
-import type { Plugin } from 'typescript-gateway';
-
-const plugin: Plugin = {
-  name: 'hello',
-  version: '1.0.0',
-  description: 'Adds a response header',
-
-  async postHandler(ctx) {
-    ctx.state['pluginHeaders'] = { 'x-hello': 'from tsgate plugin' };
-  },
-};
-
-export default plugin;
-```
-
-Every `.ts` file in `plugins/` is loaded at startup. Hooks available:
-`preRoute`, `preHandler` (before the upstream call), `postHandler`,
-`postResponse` (after), `onError`, plus `init` and `destroy` for setup and
-teardown. To change response headers, put them in `ctx.state.pluginHeaders` —
-they get merged into the final response.
-
-> **Note:** setting headers directly on `ctx.res` in `postHandler` won't
-> survive — the proxy writes upstream headers after your hook runs. Use
-> `ctx.state.pluginHeaders` instead.
-
-## Check your config without starting
+Validate the configuration file:
 
 ```bash
 npx tsgate validate
 ```
 
-Prints `OK: ... (N routes, M upstreams)` or tells you exactly what's wrong.
+Expected output:
 
-## Where to go next
-
-- **Recipes** — real-world setups: auth, rate limiting, caching, load
-  balancing. See [Usage Guide](/docs/usage).
-- **Configuration** — every option in `gateway.config.json`, explained. See
-  [Configuration](/docs/configuration).
-- **How it works** — the request lifecycle, from socket to upstream and back.
-  See [Architecture](/docs/architecture).
-- **Deep dives** — the Reference section in the sidebar documents each
-  subsystem in full detail.
-
-## Embedding in your own app
-
-The CLI is optional. The gateway is a library too:
-
-```ts
-import { Gateway } from 'typescript-gateway';
-
-const gateway = new Gateway('./gateway.config.json');
-await gateway.start();
+```text
+OK: configuration is valid (1 routes, 1 upstreams)
 ```
+
+## Step 3: Start and Verify Gateway
+
+Start a local HTTP upstream in a separate terminal:
+
+```bash
+python3 -m http.server 3000
+```
+
+Expected output:
+
+```text
+Serving HTTP on 0.0.0.0 port 3000 (http://0.0.0.0:3000/) ...
+```
+
+In your project directory, start the gateway process:
+
+```bash
+npx tsgate start
+```
+
+Expected output:
+
+```text
+Gateway started on http://0.0.0.0:8088
+```
+
+Send a test request through the proxy:
+
+```bash
+curl -i http://localhost:8088/api/
+```
+
+Expected output:
+
+```text
+HTTP/1.1 200 OK
+x-hello: from tsgate plugin
+Content-Type: text/html
+Content-Length: ...
+```
+
+The request succeeds and includes the `x-hello` response header set by `plugins/hello.ts`.
+
+## Next Steps
+
+To learn how to tune timeouts, add environment variables, and configure multiple routes, read [Configuration](/docs/guides/configuration/).

@@ -3,14 +3,52 @@ title: "Feature Pack"
 description: "CORS, W3C trace context, idempotency keys, outbound secret masking, adaptive load shedding, request record/replay, and audit event stream."
 ---
 
+Governance, traffic, and safety policies that ship in the core gateway. All policies are disabled by default.
 
-Governance and safety policies that ship in the core gateway. All are
-disabled by default — enable them by adding a block to `gateway.config.json`.
+## What It Does
 
-## CORS
+The feature pack adds extended operational governance and safety policies without external dependencies:
 
-Answers preflight (`OPTIONS`) requests and adds the `Access-Control-*` headers
-to real responses.
+### Traffic Governance & Resilience
+- **CORS**: Handles preflight (`OPTIONS`) requests and adds standard `Access-Control-*` headers. Preflights execute before authentication and rate limiting.
+- **W3C Trace Context**: Parses inbound `traceparent` headers to propagate distributed traces or seeds new trace and span IDs, exposing them to plugins via `ctx.state`.
+- **Idempotency Keys**: Deduplicates unsafe HTTP methods (`POST`, `PATCH`, `PUT`) by caching responses keyed by `Idempotency-Key` headers. Replaying requests returns `idempotent-replay: true`.
+- **Adaptive Load Shedding**: Dynamically sizes the concurrent request ceiling based on observed P95 latency. Saturated conditions immediately return HTTP 503 Problem Details.
+- **Traffic Shadowing**: Asynchronously mirrors a sampled fraction of production traffic to a test upstream (`x-shadow: true`) with zero impact on caller response latency.
+- **Sticky Sessions**: Affinitizes callers to specific upstream instances via cookie or header hashing.
+
+### Identity & Security Governance
+- **Outbound Secret Masking**: Inspects upstream response bodies for JWTs, PEM private keys, and common sensitive keys (`password`, `token`, `secret`), replacing them with redacted placeholders.
+- **Inbound HMAC Verification**: Validates raw request body signatures against shared secrets before request routing.
+- **Daily Quotas**: Implements 24-hour request ceilings per authenticated consumer identity alongside short-term rate limits.
+- **SSRF Guard**: Restricts outbound proxying to private, loopback, or cloud metadata IP ranges unless explicitly allowlisted.
+- **Security Headers**: Injects baseline hardening headers (HSTS, CSP, X-Frame-Options) and strips internal server identifying headers.
+
+### Operations & Diagnostics
+- **Admin Control Plane**: Provides secured introspection endpoints (`/__admin/state`) and cache purge mechanisms (`POST /__admin/cache/purge`).
+- **OpenAPI Route Generation**: Imports route manifests directly from OpenAPI 3.1 specification documents, supporting both `{param}` and `:param` path syntax.
+- **Request Record & Replay**: Stores incoming requests and responses in memory to allow offline reproduction and test case generation (`x-replay-id`).
+- **Audit Event Stream**: Emits NDJSON structured audit records to stdout with automatic redaction of credential fields.
+
+## Configuration
+
+Feature pack policies are enabled in `gateway.config.json`:
+
+| Policy | Configuration Block | Default | Key Controls |
+|---|---|---|---|
+| CORS | `cors` | Disabled | `allowOrigins`, `allowMethods`, `allowHeaders`, `allowCredentials`, `maxAgeSeconds`. |
+| Trace Context | `traceContext` | Disabled | `enabled: true`. |
+| Idempotency | `idempotency` | Disabled | `ttlMs: 86400000`, `maxEntries: 10000`. |
+| Secret Masking | `secretMask` | Disabled | `replacement: "[REDACTED]"`. |
+| Load Shedding | `loadShedding` | Disabled | `min: 16`, `max: 1024`, `targetP95Ms: 250`. |
+| Shadowing | `shadow` | Disabled | `target: "http://127.0.0.1:9999"`, `sampleRate: 0.1`. |
+| Inbound HMAC | `verifyInboundHmac` | Disabled | `secret: "${WEBHOOK_SECRET}"`. |
+| SSRF Guard | `ssrfGuard` | Disabled | `allowlist: ["internal.example.com"]`. |
+| Security Headers | `securityHeaders` | Disabled | `hsts: "max-age=31536000"`, `stripServer: true`. |
+| Sticky Sessions | `stickySession` | Disabled | `upstreams: ["a", "b"]`. |
+| Admin API | `admin` | Disabled | `basePath: "/__admin"`, `requireAuth: true`. |
+| Record & Replay | `record`, `replay` | Disabled | `maxEntries: 1000`, `maxAgeMs: 3600000`. |
+| Audit Stream | `audit` | Disabled | `sampleRate: 1`, `includeHeaders: false`. |
 
 ```json
 {
@@ -21,199 +59,32 @@ to real responses.
     "allowHeaders": ["content-type", "authorization"],
     "allowCredentials": false,
     "maxAgeSeconds": 600
-  }
+  },
+  "traceContext": { "enabled": true },
+  "idempotency": { "enabled": true, "ttlMs": 86400000, "maxEntries": 10000 },
+  "secretMask": { "enabled": true, "replacement": "[REDACTED]" },
+  "loadShedding": { "enabled": true, "min": 16, "max": 1024, "targetP95Ms": 250 }
 }
 ```
 
-- `allowOrigins: ["*"]` reflects any origin (and echoes the request origin when
-  `allowCredentials` is true, since `*` is illegal with credentials).
-- A preflight from a disallowed origin is rejected with `403` problem+json.
-- Preflights are answered **before** auth and rate limiting, so they never
-  require a key.
+## Interactions
 
-## W3C trace context
+Feature pack policies execute in a deterministic pipeline sequence regardless of their declaration order in the configuration file:
 
-Reads an incoming `traceparent` header (continuing the trace) or starts a new
-one, and echoes it on the response so callers can correlate.
+1. **Load Shedding**: Verifies concurrency headroom; drops incoming connections with 503 if overloaded.
+2. **CORS Preflight**: Responds to HTTP `OPTIONS` requests immediately without incurring auth overhead.
+3. **Trace Context**: Parses incoming `traceparent` or generates trace identifiers on `ctx.state`.
+4. **Idempotency**: Checks whether an `Idempotency-Key` exists and has an existing cached result.
+5. **SSRF Guard**: Validates destination IP targets before network requests are dispatched.
+6. **Inbound HMAC**: Validates cryptographic payload signatures.
+7. **Sticky Sessions & Shadowing**: Selects session affinity instances and registers asynchronous shadow tasks.
+8. **Security Headers & Auth**: Enforces TLS policies and executes authentication and quota policies.
+9. **Audit, Record & Replay**: Emits audit records and stores or replayed responses.
+10. **Outbound Secret Masking**: Intercepts upstream payload bodies, redacting secrets before transmitting bytes to clients.
 
-```json
-{ "traceContext": { "enabled": true } }
-```
+## Tradeoffs and Failure Modes
 
-The trace id and span id are also available to plugins as
-`ctx.state.traceId`, `ctx.state.spanId`, and `ctx.state.parentSpanId`.
-
-## Idempotency keys
-
-Deduplicates unsafe requests. A client sends an `Idempotency-Key` header on a
-`POST`/`PATCH`; the first request is executed and its response stored, and any
-repeat with the same key replays that stored response (`idempotent-replay:
-true`).
-
-```json
-{ "idempotency": { "enabled": true, "ttlMs": 86400000, "maxEntries": 10000 } }
-```
-
-- Same key, different body → `400` (the key was reused for a different request).
-- Same key while the first is still in flight → `409 Conflict`.
-- The store is per-process and bounded; it is not shared across replicas.
-
-## Outbound secret masking
-
-Redacts secrets from upstream responses before they reach the client. Detects
-JWTs, PEM private keys, and JSON fields named `secret`/`token`/`password`/
-`api_key`.
-
-```json
-{ "secretMask": { "enabled": true, "replacement": "[REDACTED]" } }
-```
-
-Masked responses carry `x-secret-masked: true` and `x-masked-request-id`. Only
-text and JSON bodies are inspected; `content-length` is corrected and
-`transfer-encoding` is dropped when the body changes.
-
-## Adaptive load shedding
-
-Sheds load when the process is saturated, protecting it from collapse. The
-concurrency limit adapts to observed p95 latency: it shrinks under high latency
-and grows when latency is low, within the configured bounds.
-
-```json
-{ "loadShedding": { "enabled": true, "min": 16, "max": 1024, "targetP95Ms": 250 } }
-```
-
-When the limit is reached, new requests get a `503` problem+json
-(`Server at capacity, retry shortly`). The slot is released when the response
-completes, including when a later policy short-circuits the request.
-
-## Ordering
-
-Policies run in a fixed order regardless of the config order: load shedding →
-CORS → trace context → idempotency → SSRF guard → inbound HMAC → sticky
-sessions → traffic shadowing → security headers → auth → API keys → consumer
-rate limit → audit → replay → record → response cache → upstream credential
-injection. Secret masking runs on the outbound path.
-
-
-## Traffic & identity policies
-
-### Traffic shadowing
-
-Mirror a sampled fraction of live traffic to a shadow upstream for safe
-validation. Fire-and-forget: a slow or failing shadow never affects the client.
-
-```json
-{ "shadow": { "enabled": true, "target": "http://127.0.0.1:9999", "sampleRate": 0.1 } }
-```
-
-Mirrored requests carry `x-shadow: true`; in-flight mirrors are bounded by
-`maxInflight`.
-
-### Inbound HMAC verification
-
-Verify a webhook signature over the raw request body before accepting it.
-
-```json
-{ "verifyInboundHmac": { "enabled": true, "secret": "${WEBHOOK_SECRET}" } }
-```
-
-Rejects with `401` problem+json on a missing, wrong, or expired signature.
-
-### Daily quota per consumer
-
-Adds a rolling daily request budget on top of the per-minute rate limit; the
-`429` carries the daily counters.
-
-```json
-{ "apiKeys": { "enabled": true, "consumers": [
-  { "consumerId": "c1", "plan": "pro", "rateLimit": 600, "dailyLimit": 100000, "keys": [{ "key": "..." }] }
-] } }
-```
-
-### SSRF guard
-
-Rejects requests whose target host resolves to a private/loopback/link-local
-address (or `localhost`/`.internal`), unless allowlisted.
-
-```json
-{ "ssrfGuard": { "enabled": true, "allowlist": ["internal.example.com"] } }
-```
-
-### Security headers
-
-Adds hardening headers and strips server banners from responses.
-
-```json
-{ "securityHeaders": { "enabled": true, "hsts": "max-age=31536000", "stripServer": true } }
-```
-
-### Sticky sessions
-
-Pins a caller (by header or cookie) to one upstream for cache locality.
-
-```json
-{ "stickySession": { "enabled": true, "upstreams": ["a", "b", "c"] } }
-```
-
-### Admin control plane
-
-Read-only operational state and cache purge, gated by the same identity as the
-rest of the gateway (`requireAuth`).
-
-```json
-{ "admin": { "enabled": true, "basePath": "/__admin", "requireAuth": true } }
-```
-
-- `GET /__admin/state` — uptime, breaker states, cache stats, load-shed info,
-  active policy names.
-- `POST /__admin/cache/purge` — body `{ "pattern": "<regex>" }`; returns the
-  purged entry count.
-
-### OpenAPI `{param}` route syntax
-
-Routes accept `{id}` (OpenAPI style) as well as `:id`, plus regex groups
-(`/orders/:orderId(\d+)`).
-
-```json
-{ "routes": [{ "method": "GET", "path": "/users/{id}" }] }
-```
-
-### OpenAPI document as routing source
-
-Declare every route from an OpenAPI 3.1 document instead of hand-listing them.
-
-```json
-{ "openapi": { "enabled": true, "basePath": "/api", "spec": { "openapi": "3.1.0", "paths": { "/users/{id}": { "get": {} } } } } }
-```
-
-## Operations policies
-
-### Request record & replay
-
-Capture every exchange into a bounded in-memory store, then serve it back
-without touching the upstream — useful for debugging production incidents and
-for deterministic regression fixtures.
-
-```json
-{ "record": { "enabled": true, "maxEntries": 1000, "captureBody": true, "methods": ["GET", "POST"] },
-  "replay": { "enabled": true, "headerName": "x-replay-id", "maxAgeMs": 3600000 } }
-```
-
-Send `x-replay-id: <requestId>` to get the recorded response back. Unknown ids
-return `404`, expired records `409`. The replayed response carries `x-replay: hit`.
-
-### Audit event stream
-
-One redacted JSON line per request on `stdout`, including requests short-circuited
-by another policy (auth rejection, load shed, replay).
-
-```json
-{ "audit": { "enabled": true, "includeHeaders": false, "sampleRate": 1 } }
-```
-
-```json
-{"ts":"2026-10-09T20:05:38.875Z","requestId":"req-2","method":"GET","path":"/api/data","status":200,"durationMs":2}
-```
-
-JWT-shaped values, PEM private key blocks, and `secret`/`token`/`password`/`api_key`
-JSON fields are redacted before emission.
+- **In-Memory Store Isolation**: The idempotency cache, request recording engine, and sticky session affinity table are maintained in process memory. In a distributed multi-instance deployment, requests must share a routing layer or stick to a single gateway node to share state.
+- **Adaptive Load Shedding Oscillation**: Setting `targetP95Ms` too close to normal upstream response latency can cause rapid cycling between shedding and normal operation; configure sufficient headroom between target P95 and normal latency.
+- **Secret Masking Performance**: Scanning response bodies for JWTs and JSON keys requires parsing JSON or buffering text chunks. Masking is intentionally bypassed for binary streams (`application/octet-stream`, images) to prevent memory bloating.
+- **Shadowing Upstream Pressure**: Shadowed traffic creates additional request volume against upstream test environments; rate sampling (`sampleRate`) and max inflight boundaries prevent cascading test server degradation.
