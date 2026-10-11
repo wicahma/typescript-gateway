@@ -7,6 +7,12 @@ import { RequestPipeline } from '../pipeline/request-pipeline.js';
 import { metrics } from '../utils/metrics.js';
 import { logger } from '../utils/logger.js';
 
+export function resolveAccessLogInterval(rate: number | undefined): number {
+  if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) return 1;
+  if (rate >= 1) return 1;
+  return Math.max(1, Math.round(1 / rate));
+}
+
 /**
  * Native HTTP server implementation
  *
@@ -28,10 +34,7 @@ export class Server {
   constructor(config: ServerConfig, router: Router) {
     this.config = config;
     this.router = router;
-    this.accessLogSampleRate = Math.max(
-      1,
-      ((config as unknown as Record<string, unknown>)['accessLogSampleRate'] as number) ?? 1
-    );
+    this.accessLogSampleRate = resolveAccessLogInterval(config.accessLogSampleRate);
 
     // Initialize request context pool with configurable size
     this.contextPool = new ContextPool(1000);

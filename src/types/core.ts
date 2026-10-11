@@ -262,6 +262,8 @@ export interface ServerConfig {
   maxHeaderSize: number;
   /** Max request body size in bytes */
   maxBodySize: number;
+  /** Access log sampling rate (0.0 to 1.0) */
+  accessLogSampleRate?: number;
 }
 
 /**
@@ -459,6 +461,11 @@ export interface MonitoringConfig {
     samplingRate: number;
     /** Export interval in milliseconds */
     exportInterval: number;
+  };
+  /** Access log sampling configuration */
+  sampling: {
+    /** Access log sampling ratio (0.0 to 1.0); 1.0 logs every request */
+    rate: number;
   };
   /** Logging configuration */
   logging: {

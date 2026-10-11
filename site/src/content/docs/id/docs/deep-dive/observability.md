@@ -25,8 +25,9 @@ Pengumpulan metrik performa tinggi yang menghindari beban garbage collector:
 
 ### Native Structured Logger
 
-Pencatat log JSON berkecepatan tinggi yang menulis langsung ke `process.stdout.write`:
-- **Nol Alokasi String**: Menghindari pemborosan memori akibat format string pada jalur request utama.
+Pencatat log JSON berkecepatan tinggi dengan pemisah baris baru:
+- **Write ter-buffer**: baris terakumulasi di memori dan di-flush pada 64 KiB atau setelah 1 detik, menggantikan satu `process.stdout.write` per baris (2447 ns/op) dengan satu write per batch (276 ns/op).
+- **Timestamp ter-cache**: timestamp ISO dihitung sekali per detik utuh (72 ns/op) alih-alih per baris (837 ns/op).
 - **Pengayaan Context**: Menyisipkan `requestId`, timestamp, pengenal rute, dan durasi latensi.
 
 ### Live Performance Dashboard
@@ -35,7 +36,7 @@ Dashboard operasional berbasis terminal (`src/dashboard/index.ts`) yang menyedia
 
 ### Sampling Access Log
 
-Strategi sampling head/tail yang dapat dikonfigurasi untuk mencatat persentase request sukses yang representatif sambil tetap mencatat 100% respons eror (HTTP >= 400).
+Rasio sampling (`monitoring.sampling.rate`) mencatat persentase request sukses yang representatif sambil tetap mencatat 100% error server (HTTP >= 500). Rasio dikonversi menjadi interval: `0.5` mencatat setiap request kedua, `0.1` setiap kesepuluh.
 
 ## Konfigurasi (Configuration)
 
@@ -43,15 +44,24 @@ Pengaturan observabilitas dikelola melalui blok konfigurasi `monitoring` dan nil
 
 | Opsi | Tipe | Nilai Bawaan | Dampak |
 | --- | --- | --- | --- |
-| `monitoring.metrics.enabled` | boolean | `true` | Mengaktifkan pengumpulan metrik latensi dan throughput. |
-| `monitoring.metrics.path` | string | `"/metrics"` | Endpoint path untuk mengekspos metrik Prometheus dan JSON. |
-| `monitoring.logging.level` | string | `"info"` | Level log minimum (`debug`, `info`, `warn`, `error`). |
-| `monitoring.logging.format` | string | `"json"` | Format keluaran log (`json`, `text`). |
-| `monitoring.sampling.rate` | number | `1.0` | Rasio sampling log akses request masuk (0.0 hingga 1.0). |
-| `monitoring.sampling.alwaysLogErrors` | boolean | `true` | Memaksa pencatatan log untuk semua request dengan status >= 400. |
-| `profiler.samplingInterval` | number | `1000` | Interval sampling CPU profiling dalam mikrodetik. |
-| `profiler.maxSamples` | number | `10000` | Jumlah sampel stack maksimum sebelum otomatis berhenti. |
-| `memory.retentionDays` | number | `7` | Durasi hari penyimpanan file snapshot heap di disk. |
+| `monitoring.metrics.enabled` | boolean | `true` | Menambahkan tampilan per-route dan per-upstream ke payload `/metrics`. |
+| `monitoring.export.prometheus.path` | string | `"/metrics"` | Path endpoint metrik. Path default tetap terdaftar untuk kompatibilitas saat path kustom diset. |
+| `monitoring.sampling.rate` | number | `1.0` | Rasio sampling log akses (0.0 hingga 1.0). `1.0` mencatat setiap request; `0.5` setiap request kedua; `0.1` setiap kesepuluh. Response dengan status `>= 500` selalu dicatat terlepas dari rasio. |
+
+Blok `monitoring` opsional secara keseluruhan, tetapi tipe `MonitoringConfig` mendeklarasikan setiap sub-field sebagai wajib, jadi menyediakan `monitoring` berarti menyediakan bentuk lengkapnya (`metrics`, `health`, `export.prometheus`, `tracing`, `sampling`, `logging`). Loader tidak memvalidasi mendalam atau mengisi default blok ini — tiga field di atas adalah satu-satunya yang dibaca runtime.
+
+Level log bukan bagian dari file config: ia dibaca dari environment variable `LOG_LEVEL` (`trace`, `debug`, `info`, `warn`, `error`, `fatal`), default `info`. Tidak ada key `monitoring.logging.level` atau `monitoring.logging.format` — keluaran log selalu JSON dengan pemisah baris baru.
+
+### Buffering log
+
+Baris log di-buffer di memori dan di-flush saat salah satu ambang tercapai:
+
+- **Ukuran**: 64 KiB output terakumulasi (`FLUSH_BYTES`).
+- **Waktu**: 1 detik sejak baris pertama yang belum di-flush (`FLUSH_MS`).
+
+Hook `process.on('exit')` mem-flush sisa buffer, dan `logger.flush()` memaksa flush sesuai permintaan. Batching menggantikan satu `process.stdout.write` per baris (terukur 2447 ns/op) dengan satu write per batch (276 ns/op) — 8.9x lebih murah di jalur logging. Timestamp di-cache per detik utuh (72 ns/op vs 837 ns/op untuk `toISOString()` baru).
+
+Jika `destination` diset, batch ditambahkan dengan `appendFileSync`; kegagalan write jatuh kembali ke `process.stdout.write`.
 
 ## Interaksi Pipeline (Interactions)
 
