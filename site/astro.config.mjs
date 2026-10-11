@@ -28,6 +28,8 @@ for (const [slug, section] of Object.entries(MOVES)) {
 
 redirects['/docs/'] = '/docs/guides/';
 redirects['/id/docs/'] = '/id/docs/guides/';
+redirects['/id'] = '/id/docs/guides/';
+redirects['/id/'] = '/id/docs/guides/';
 
 const GUIDES = ['getting-started', 'configuration', 'usage'];
 const DEEP_DIVE = [
