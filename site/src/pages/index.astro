@@ -80,45 +80,32 @@ const ticker = [
   <main>
     <section class="hero-shell">
       <div class="hero-card">
+        <div class="hero-top">
+          <p class="eyebrow">
+            <span>MIT</span>
+            <span>0 runtime dependencies</span>
+            <span>node &ge; 20</span>
+            <span>v{version}</span>
+          </p>
+
+          <h1>
+            The API gateway<br />for Node.js.
+          </h1>
+
+          <p class="lede">
+            Pure TypeScript on native <code>node:http</code>. No framework, no runtime
+            dependencies. Just a radix tree and a keep-alive pool. 52 features in one
+            process: routing, auth, caching, rate limits, circuit breaking, metrics.
+          </p>
+        </div>
+
         <div class="hero-grid">
-          <div class="hero-copy">
-            <p class="eyebrow">
-              <span>MIT</span>
-              <span>0 runtime dependencies</span>
-              <span>node &ge; 20</span>
-              <span>v{version}</span>
-            </p>
-
-            <h1>
-              The API gateway<br />for Node.js.
-            </h1>
-
-            <p class="lede">
-              Pure TypeScript on native <code>node:http</code>. No framework, no runtime
-              dependencies. Just a radix tree and a keep-alive pool. 52 features in one
-              process: routing, auth, caching, rate limits, circuit breaking, metrics.
-            </p>
-
-            <div class="install">
-              <div class="install-head">
-                <span class="file">quickstart</span>
-                <button type="button" class="copy-btn" data-copy aria-label="Copy quick start commands">copy</button>
-              </div>
-              <pre><code>{quickstart}</code></pre>
+          <div class="install">
+            <div class="install-head">
+              <span class="file">quickstart</span>
+              <button type="button" class="copy-btn" data-copy aria-label="Copy quick start commands">copy</button>
             </div>
-
-            <div class="actions">
-              <a href="/docs/getting-started" class="btn-primary">Get started</a>
-              <a
-                href="https://github.com/wicahma/typescript-gateway"
-                class="btn-ghost"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                GitHub ↗
-              </a>
-              <a href="/id/docs/getting-started" class="lang-link" lang="id">Bahasa Indonesia</a>
-            </div>
+            <pre><code>{quickstart}</code></pre>
           </div>
 
           <div class="hero-panel" aria-label="Simulated request log">
@@ -137,6 +124,19 @@ const ticker = [
             </div>
             <p class="panel-note">simulated stream · the scale matches the loopback benchmark below</p>
           </div>
+        </div>
+
+        <div class="actions">
+          <a href="/docs/getting-started" class="btn-primary">Get started</a>
+          <a
+            href="https://github.com/wicahma/typescript-gateway"
+            class="btn-ghost"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub ↗
+          </a>
+          <a href="/id/docs/getting-started" class="lang-link" lang="id">Bahasa Indonesia</a>
         </div>
 
         <span class="sweep" aria-hidden="true"></span>
@@ -341,12 +341,13 @@ const ticker = [
 
   .hero-grid {
     display: grid;
-    grid-template-columns: 1.05fr 0.95fr;
-    gap: clamp(2rem, 5vw, 4rem);
-    align-items: center;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(1.25rem, 3vw, 2rem);
+    align-items: stretch;
+    margin-top: clamp(2rem, 5vw, 3rem);
   }
 
-  .hero-copy {
+  .hero-top {
     min-width: 0;
   }
 
@@ -382,7 +383,6 @@ const ticker = [
     font-weight: 300;
     line-height: 1.85;
     color: var(--soft);
-    max-width: 34rem;
   }
 
   .lede code {
@@ -395,12 +395,13 @@ const ticker = [
   }
 
   .install {
-    margin-top: 2.25rem;
+    margin-top: 0;
+    display: flex;
+    flex-direction: column;
     background: rgba(0, 0, 0, 0.45);
     border: 1px solid var(--stroke);
     border-radius: 16px;
     overflow: hidden;
-    max-width: 30rem;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }
@@ -418,6 +419,7 @@ const ticker = [
   }
 
   .install pre {
+    flex: 1;
     padding: 1.1rem 1.2rem;
     font-size: 0.78rem;
     line-height: 1.85;
