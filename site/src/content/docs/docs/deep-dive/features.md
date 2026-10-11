@@ -1,9 +1,6 @@
 ---
 title: "Feature Matrix"
 description: "All 52 features across 7 groups, with implementation status."
-order: 11
-section: "Features"
-track: "reference"
 ---
 
 

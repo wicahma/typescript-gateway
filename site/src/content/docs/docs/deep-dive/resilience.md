@@ -1,9 +1,6 @@
 ---
 title: "Resilience"
 description: "Circuit breaker, retries, health checks, fallbacks, and timeout budgets."
-order: 5
-section: "Features"
-track: "reference"
 ---
 
 Every feature in this group is **implemented and verified**, each with unit and integration coverage in the repo test suite.

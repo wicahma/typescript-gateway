@@ -1,9 +1,6 @@
 ---
 title: "Payload Handling"
 description: "Body parsing, transformasi request/response, dan compression native."
-order: 7
-section: "Features"
-track: "reference"
 ---
 
 Setiap fitur di grup ini sudah **terimplementasi dan terverifikasi**, masing-masing dengan cakupan unit dan integration test di test suite repo.

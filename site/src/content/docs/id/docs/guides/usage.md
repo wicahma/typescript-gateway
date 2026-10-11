@@ -1,9 +1,6 @@
 ---
 title: "Panduan Penggunaan"
 description: "Resep praktis: proxying, auth, rate limiting, caching, load balancing, dan plugin kustom."
-order: 12
-section: "Guide"
-track: "guide"
 ---
 
 Resep end-to-end buat setup gateway yang paling umum. Semua contoh memakai skema config asli dari `src/types/config.ts` dan `src/types/identity.ts` — nggak ada yang sekadar wacana.

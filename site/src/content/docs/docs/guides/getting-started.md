@@ -1,9 +1,6 @@
 ---
 title: "Getting Started"
 description: "From zero to a running gateway in about two minutes. No framework knowledge needed."
-order: 1
-section: "Guide"
-track: "guide"
 ---
 
 

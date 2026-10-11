@@ -1,9 +1,6 @@
 ---
 title: "Resilience"
 description: "Circuit breaker, retry, health check, fallback, dan timeout budget."
-order: 5
-section: "Features"
-track: "reference"
 ---
 
 Setiap fitur di grup ini sudah **terimplementasi dan terverifikasi**, masing-masing dengan cakupan unit dan integration test di test suite repo.

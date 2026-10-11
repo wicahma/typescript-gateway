@@ -1,9 +1,6 @@
 ---
 title: "Core Routing & Proxy"
 description: "Radix router, reverse proxy pipeline, policy chaining, dan context pooling tanpa alokasi."
-order: 4
-section: "Features"
-track: "reference"
 ---
 
 Setiap fitur di grup ini sudah **terimplementasi dan terverifikasi**, masing-masing dengan cakupan unit dan integration test di test suite repo.

@@ -1,9 +1,6 @@
 ---
 title: "Traffic Control"
 description: "Rate limiting, response caching, and load balancing across upstreams."
-order: 6
-section: "Features"
-track: "reference"
 ---
 
 Every feature in this group is **implemented and verified**, each with unit and integration coverage in the repo test suite.

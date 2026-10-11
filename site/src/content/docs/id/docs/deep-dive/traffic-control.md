@@ -1,9 +1,6 @@
 ---
 title: "Traffic Control"
 description: "Rate limiting, response caching, dan load balancing lintas upstream."
-order: 6
-section: "Features"
-track: "reference"
 ---
 
 Setiap fitur di grup ini sudah **terimplementasi dan terverifikasi**, masing-masing dengan cakupan unit dan integration test di test suite repo.

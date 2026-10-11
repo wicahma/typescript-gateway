@@ -1,9 +1,6 @@
 ---
 title: "Observability"
 description: "Lock-free metrics, structured logging, live dashboard, and in-process profiling."
-order: 8
-section: "Features"
-track: "reference"
 ---
 
 Every feature in this group is **implemented and verified**, each with unit and integration coverage in the repo test suite.

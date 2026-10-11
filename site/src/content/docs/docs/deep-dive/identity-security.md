@@ -1,9 +1,6 @@
 ---
 title: "Identity & Security"
 description: "JWT auth, API-key engine, upstream credential injection, RFC 7807 errors."
-order: 10
-section: "Features"
-track: "reference"
 ---
 
 Every feature in this group is **implemented and verified**, each with unit and integration coverage in the repo test suite.

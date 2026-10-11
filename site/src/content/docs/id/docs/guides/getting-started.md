@@ -1,9 +1,6 @@
 ---
 title: "Memulai"
 description: "Dari nol sampai gateway jalan dalam sekitar dua menit. Nggak perlu paham framework apa pun."
-order: 1
-section: "Guide"
-track: "guide"
 ---
 
 TypeScript Gateway adalah reverse proxy dan API gateway yang ditulis murni pakai

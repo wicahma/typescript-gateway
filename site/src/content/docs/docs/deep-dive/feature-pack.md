@@ -1,9 +1,6 @@
 ---
 title: "Feature Pack"
 description: "CORS, W3C trace context, idempotency keys, outbound secret masking, adaptive load shedding, request record/replay, and audit event stream."
-order: 14
-section: "Guide"
-track: "reference"
 ---
 
 

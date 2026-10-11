@@ -1,9 +1,6 @@
 ---
 title: "Arsitektur & Pipeline"
 description: "Mengintip ke dalam request pipeline tanpa dependency dan tanpa alokasi."
-order: 2
-section: "Architecture"
-track: "guide"
 ---
 
 

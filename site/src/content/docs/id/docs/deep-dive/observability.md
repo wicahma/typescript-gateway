@@ -1,9 +1,6 @@
 ---
 title: "Observability"
 description: "Metrics lock-free, structured logging, dashboard live, dan profiling in-process."
-order: 8
-section: "Features"
-track: "reference"
 ---
 
 Setiap fitur di grup ini sudah **terimplementasi dan terverifikasi**, masing-masing dengan cakupan unit dan integration test di test suite repo.

@@ -1,9 +1,6 @@
 ---
 title: "Testing & Benchmarks"
 description: "Menjalankan test suite, benchmark performa yang reproducible, dan batas-batas yang diketahui."
-order: 13
-section: "Guide"
-track: "reference"
 ---
 
 ## Test Suite

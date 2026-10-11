@@ -1,9 +1,6 @@
 ---
 title: "Usage Guide"
 description: "Practical recipes: proxying, auth, rate limiting, caching, load balancing, and custom plugins."
-order: 12
-section: "Guide"
-track: "guide"
 ---
 
 

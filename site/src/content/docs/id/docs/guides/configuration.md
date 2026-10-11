@@ -1,9 +1,6 @@
 ---
 title: "Referensi Konfigurasi"
 description: "Konfigurasi JSON deklaratif dengan interpolasi environment variable."
-order: 3
-section: "Configuration"
-track: "guide"
 ---
 
 Gateway dikonfigurasi lewat file JSON deklaratif (default: `config/gateway.config.json`). Semua field string mendukung interpolasi environment variable.

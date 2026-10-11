@@ -1,9 +1,6 @@
 ---
 title: "Operations & Configuration"
 description: "Config loading dan validasi zero-dependency, plugin execution chain, auto-tuning."
-order: 9
-section: "Features"
-track: "reference"
 ---
 
 Setiap fitur di grup ini sudah **terimplementasi dan terverifikasi**, masing-masing dengan cakupan unit dan integration test di test suite repo.

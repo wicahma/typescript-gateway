@@ -1,9 +1,6 @@
 ---
 title: "Architecture & Pipeline"
 description: "Under the hood of the zero-dependency zero-allocation request pipeline."
-order: 2
-section: "Architecture"
-track: "guide"
 ---
 
 

@@ -1,9 +1,6 @@
 ---
 title: "Identity & Security"
 description: "JWT auth, API-key engine, injeksi kredensial upstream, error RFC 7807."
-order: 10
-section: "Features"
-track: "reference"
 ---
 
 Setiap fitur di grup ini sudah **terimplementasi dan terverifikasi**, masing-masing dengan cakupan unit dan integration test di test suite repo.

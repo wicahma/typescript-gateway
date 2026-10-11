@@ -1,9 +1,6 @@
 ---
 title: "Feature Matrix"
 description: "Semua 52 fitur di 7 grup, dengan status implementasi."
-order: 11
-section: "Features"
-track: "reference"
 ---
 
 Semua 52 fitur di 7 grup, masing-masing dengan cakupan unit dan integration test. 1069/1069 tes hijau saat penulisan.

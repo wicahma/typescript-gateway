@@ -1,9 +1,6 @@
 ---
 title: "Core Routing & Proxy"
 description: "Radix router, reverse proxy pipeline, policy chaining, and zero-allocation context pooling."
-order: 4
-section: "Features"
-track: "reference"
 ---
 
 Every feature in this group is **implemented and verified**, each with unit and integration coverage in the repo test suite.

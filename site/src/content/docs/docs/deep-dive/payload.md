@@ -1,9 +1,6 @@
 ---
 title: "Payload Handling"
 description: "Body parsing, request/response transformation, and native compression."
-order: 7
-section: "Features"
-track: "reference"
 ---
 
 Every feature in this group is **implemented and verified**, each with unit and integration coverage in the repo test suite.

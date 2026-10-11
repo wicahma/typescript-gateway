@@ -1,9 +1,6 @@
 ---
 title: "Configuration Reference"
 description: "Declarative JSON configuration with environment variable interpolation."
-order: 3
-section: "Configuration"
-track: "guide"
 ---
 
 

@@ -1,9 +1,6 @@
 ---
 title: "Operations & Configuration"
 description: "Zero-dependency config loading and validation, plugin execution chain, auto-tuning."
-order: 9
-section: "Features"
-track: "reference"
 ---
 
 Every feature in this group is **implemented and verified**, each with unit and integration coverage in the repo test suite.
