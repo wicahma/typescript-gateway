@@ -32,7 +32,7 @@ redirects['/docs/'] = '/docs/guides/';
 redirects['/id/docs/'] = '/id/docs/guides/';
 redirects['/id'] = '/id/docs/guides/';
 
-const GUIDES = ['getting-started', 'configuration', 'usage'];
+const GUIDES = ['getting-started', 'configuration', 'usage', 'writing-plugins'];
 const DEEP_DIVE = [
   'architecture',
   'core-routing',
