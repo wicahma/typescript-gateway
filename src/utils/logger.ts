@@ -1,6 +1,62 @@
 import { hostname } from 'os';
 import { appendFileSync } from 'fs';
 
+const FLUSH_BYTES = 65536;
+const FLUSH_MS = 1000;
+
+let buffer = '';
+let flushTimer: NodeJS.Timeout | null = null;
+let destination: string | undefined;
+let exitHookRegistered = false;
+
+let cachedSecond = -1;
+let cachedIso = '';
+
+function isoNow(): string {
+  const s = Math.floor(Date.now() / 1000);
+  if (s !== cachedSecond) {
+    cachedSecond = s;
+    cachedIso = new Date(s * 1000).toISOString();
+  }
+  return cachedIso;
+}
+
+export function flushLogs(): void {
+  if (flushTimer !== null) {
+    clearTimeout(flushTimer);
+    flushTimer = null;
+  }
+  if (buffer === '') return;
+  const out = buffer;
+  buffer = '';
+  if (destination) {
+    try {
+      appendFileSync(destination, out);
+      return;
+    } catch {
+      process.stdout.write(out);
+      return;
+    }
+  }
+  process.stdout.write(out);
+}
+
+function scheduleFlush(): void {
+  if (flushTimer !== null) return;
+  flushTimer = setTimeout(flushLogs, FLUSH_MS);
+  flushTimer.unref();
+}
+
+function setDestination(d: string | undefined): void {
+  destination = d;
+}
+
+function registerExitHook(): void {
+  if (exitHookRegistered) return;
+  exitHookRegistered = true;
+  process.on('exit', flushLogs);
+}
+
 export enum LogLevel {
   TRACE = 'trace',
   DEBUG = 'debug',
@@ -46,6 +102,7 @@ export interface Logger {
   error(obj: unknown, msg?: string): void;
   fatal(obj: unknown, msg?: string): void;
   child(bindings: Record<string, unknown>): Logger;
+  flush?(): void;
 }
 
 class FastNativeLogger implements Logger {
@@ -65,8 +122,14 @@ class FastNativeLogger implements Logger {
     this.levelWeight = LEVEL_WEIGHT[level] ?? 30;
     this.bindings = bindings;
     this.destination = destination;
+    setDestination(destination);
+    registerExitHook();
     this.pid = process.pid;
     this.host = hostname();
+  }
+
+  flush(): void {
+    flushLogs();
   }
 
   child(bindings: Record<string, unknown>): Logger {
@@ -83,25 +146,21 @@ class FastNativeLogger implements Logger {
 
     let payload: Record<string, unknown>;
     if (typeof obj === 'string') {
-      payload = { level, time: new Date().toISOString(), pid: this.pid, hostname: this.host, ...this.bindings, msg: obj };
+      payload = { level, time: isoNow(), pid: this.pid, hostname: this.host, ...this.bindings, msg: obj };
     } else if (obj && typeof obj === 'object') {
-      payload = { level, time: new Date().toISOString(), pid: this.pid, hostname: this.host, ...this.bindings, ...(obj as Record<string, unknown>) };
+      payload = { level, time: isoNow(), pid: this.pid, hostname: this.host, ...this.bindings, ...(obj as Record<string, unknown>) };
       if (msg) payload['msg'] = msg;
     } else {
-      payload = { level, time: new Date().toISOString(), pid: this.pid, hostname: this.host, ...this.bindings, data: obj };
+      payload = { level, time: isoNow(), pid: this.pid, hostname: this.host, ...this.bindings, data: obj };
       if (msg) payload['msg'] = msg;
     }
 
-    const line = JSON.stringify(payload) + '\n';
-    if (this.destination) {
-      try {
-        appendFileSync(this.destination, line);
-      } catch {
-        process.stdout.write(line);
-      }
-    } else {
-      process.stdout.write(line);
+    buffer += JSON.stringify(payload) + '\n';
+    if (buffer.length >= FLUSH_BYTES) {
+      flushLogs();
+      return;
     }
+    scheduleFlush();
   }
 
   trace(obj: unknown, msg?: string): void { this.write(LogLevel.TRACE, obj, msg); }

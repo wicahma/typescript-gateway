@@ -81,6 +81,7 @@ export class Gateway {
       ...config.server,
       port: this.boundPort,
       host: this.boundHost,
+      accessLogSampleRate: config.monitoring?.sampling?.rate,
     };
 
     this.server = new Server(serverConfig, this.router);

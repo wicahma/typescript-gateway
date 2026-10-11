@@ -160,3 +160,4 @@ dist/
 
 # Local agent workspace (plans, scratch)
 .hermes/
+.pi/
