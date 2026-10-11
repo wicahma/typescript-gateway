@@ -18,8 +18,8 @@ zero runtime dependencies, one process, no frameworks.
 
 [npm](https://www.npmjs.com/package/typescript-gateway) ·
 [Documentation](https://tsgate.diama.dev) ·
-[Getting Started](https://tsgate.diama.dev/docs/getting-started) ·
-[Feature Matrix](https://tsgate.diama.dev/docs/features) ·
+[Getting Started](https://tsgate.diama.dev/docs/guides/getting-started) ·
+[Feature Matrix](https://tsgate.diama.dev/docs/deep-dive/features) ·
 [Report a bug](https://github.com/wicahma/typescript-gateway/issues)
 
 </div>
@@ -118,7 +118,7 @@ dashboard · CPU/memory profilers
 **Operations** — validated config with env interpolation and hot reload ·
 plugin chain with isolated async hooks · auto-tuner
 
-Full details: [Feature Matrix](https://tsgate.diama.dev/docs/features) —
+Full details: [Feature Matrix](https://tsgate.diama.dev/docs/deep-dive/features) —
 52 features across 7 groups.
 
 ## Performance

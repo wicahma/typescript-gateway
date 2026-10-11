@@ -46,18 +46,18 @@ const bench = [
 ];
 
 const docs = [
-  { href: '/docs/getting-started', label: 'Getting Started', desc: 'install, first config, first plugin' },
-  { href: '/docs/architecture', label: 'Architecture & Pipeline', desc: 'request lifecycle, socket to upstream' },
-  { href: '/docs/configuration', label: 'Configuration Reference', desc: 'every option in gateway.config.json' },
-  { href: '/docs/usage', label: 'Usage Guide', desc: 'recipes: proxying, auth, caching, plugins' },
-  { href: '/docs/core-routing', label: 'Core Routing & Proxy', desc: 'radix router, proxy pipeline, pooling' },
-  { href: '/docs/resilience', label: 'Resilience', desc: 'breaker, retries, health, fallbacks' },
-  { href: '/docs/traffic-control', label: 'Traffic Control', desc: 'rate limits, cache, load balancing' },
-  { href: '/docs/payload', label: 'Payload Handling', desc: 'parsing, transformation, compression' },
-  { href: '/docs/observability', label: 'Observability', desc: 'metrics, logging, live dashboard' },
-  { href: '/docs/operations', label: 'Operations', desc: 'config validation, plugin chain, tuner' },
-  { href: '/docs/identity-security', label: 'Identity & Security', desc: 'JWT, API keys, RFC 7807' },
-  { href: '/docs/features', label: 'Feature Matrix', desc: 'every feature and benchmark' },
+  { href: '/docs/guides/getting-started', label: 'Getting Started', desc: 'install, first config, first plugin' },
+  { href: '/docs/deep-dive/architecture', label: 'Architecture & Pipeline', desc: 'request lifecycle, socket to upstream' },
+  { href: '/docs/guides/configuration', label: 'Configuration Reference', desc: 'every option in gateway.config.json' },
+  { href: '/docs/guides/usage', label: 'Usage Guide', desc: 'recipes: proxying, auth, caching, plugins' },
+  { href: '/docs/deep-dive/core-routing', label: 'Core Routing & Proxy', desc: 'radix router, proxy pipeline, pooling' },
+  { href: '/docs/deep-dive/resilience', label: 'Resilience', desc: 'breaker, retries, health, fallbacks' },
+  { href: '/docs/deep-dive/traffic-control', label: 'Traffic Control', desc: 'rate limits, cache, load balancing' },
+  { href: '/docs/deep-dive/payload', label: 'Payload Handling', desc: 'parsing, transformation, compression' },
+  { href: '/docs/deep-dive/observability', label: 'Observability', desc: 'metrics, logging, live dashboard' },
+  { href: '/docs/deep-dive/operations', label: 'Operations', desc: 'config validation, plugin chain, tuner' },
+  { href: '/docs/deep-dive/identity-security', label: 'Identity & Security', desc: 'JWT, API keys, RFC 7807' },
+  { href: '/docs/deep-dive/features', label: 'Feature Matrix', desc: 'every feature and benchmark' },
 ];
 
 const ticker = [
@@ -127,7 +127,7 @@ const ticker = [
         </div>
 
         <div class="actions">
-          <a href="/docs/getting-started" class="btn-primary">Get started</a>
+          <a href="/docs/guides/getting-started" class="btn-primary">Get started</a>
           <a
             href="https://github.com/wicahma/typescript-gateway"
             class="btn-ghost"
@@ -136,7 +136,7 @@ const ticker = [
           >
             GitHub ↗
           </a>
-          <a href="/id/docs/getting-started" class="lang-link" lang="id">Bahasa Indonesia</a>
+          <a href="/id/docs/guides/getting-started" class="lang-link" lang="id">Bahasa Indonesia</a>
         </div>
 
         <span class="sweep" aria-hidden="true"></span>
@@ -190,7 +190,7 @@ const ticker = [
         </div>
         <p class="caps-note">
           Every capability ships with unit and integration coverage in the repo.
-          Details in the <a href="/docs/features">feature matrix</a>.
+          Details in the <a href="/docs/deep-dive/features">feature matrix</a>.
         </p>
       </section>
 
@@ -218,7 +218,7 @@ const ticker = [
           macOS arm64 · Node v22.21.1 · loopback · 2026-10-05. The fast-path tax is proxy
           parse/socket cost in JavaScript; it disappears on latency-bound upstreams and
           inverts with the response cache. Full method and caveats:
-          <a href="/docs/testing">testing &amp; benchmarks</a>.
+          <a href="/docs/reference/testing">testing &amp; benchmarks</a>.
         </p>
       </section>
 
@@ -236,7 +236,7 @@ const ticker = [
         </nav>
         <p class="docs-note">
           Seluruh panduan juga tersedia dalam
-          <a href="/id/docs/getting-started" lang="id">Bahasa Indonesia</a>.
+          <a href="/id/docs/guides/getting-started" lang="id">Bahasa Indonesia</a>.
         </p>
       </section>
 
@@ -247,7 +247,7 @@ const ticker = [
           Everything else has sensible defaults.
         </p>
         <div class="actions">
-          <a href="/docs/getting-started" class="btn-primary">Get started</a>
+          <a href="/docs/guides/getting-started" class="btn-primary">Get started</a>
           <a
             href="https://github.com/wicahma/typescript-gateway"
             class="btn-ghost"
