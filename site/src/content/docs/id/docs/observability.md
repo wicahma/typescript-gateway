@@ -133,9 +133,50 @@ Tujuan: latensi p50/p95/p99, RPS, error rate, dan throughput tersedia kapan saja
 | Window error-rate | `[60, 300, 900]` detik | `AdvancedMetricsConfig.timeWindows` |
 | Pelaporan periodik | `60000` ms (log snapshot metrics) | `Gateway.setupMetricsReporting()` |
 | Endpoint snapshot | `GET /metrics` | system route, didaftarkan di `src/index.ts` |
+| Path endpoint metrics | `/metrics` | `monitoring.export.prometheus.path` |
+| Format teks Prometheus | opt-in per request | `Accept: text/plain` atau `?format=prometheus` |
 
 Tidak ada field khusus di `gateway.config.json` untuk fitur ini — semuanya
 diinstansiasi dengan default di kode (zero-config by design).
+
+### Prometheus text exposition
+
+`GET /metrics` melayani JSON secara default. Tambahkan `Accept: text/plain` (atau
+`?format=prometheus`) dan snapshot yang sama dirender dalam format Prometheus text
+exposition `0.0.4` dengan `Content-Type: text/plain; version=0.0.4; charset=utf-8`,
+siap dipakai scrape config:
+
+```yaml
+scrape_configs:
+  - job_name: tsgate
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['localhost:8080']
+```
+
+Setiap metrik membawa `# HELP` dan `# TYPE`. Serializer
+(`src/observability/prometheus-format.ts`) adalah fungsi murni atas objek snapshot —
+tidak menambah koleksi sendiri, jadi satu scrape tidak menambah biaya selain serialisasi.
+
+Series inti: `gateway_requests_total`, `gateway_errors_total`, `gateway_auth_failures_total`
+(counter); `gateway_requests_per_second`, `gateway_active_connections`,
+`gateway_latency_{avg,p50,p95,p99}_milliseconds` (gauge);
+`gateway_memory_{heap_used,heap_total,rss,external,array_buffers}_bytes` (gauge);
+`gateway_cpu_{user,system}_microseconds` (counter).
+
+Set `monitoring.metrics.enabled: true` untuk menambah series per-route dan per-upstream,
+yang membawa label: `gateway_route_requests_total{route=…}`,
+`gateway_route_errors_total{route=…}`, `gateway_route_latency_avg_milliseconds{route=…}`,
+`gateway_route_status_codes_total{route=…,code=…}`,
+`gateway_upstream_requests_total{upstream_id=…}`,
+`gateway_upstream_errors_total{upstream_id=…}`,
+`gateway_upstream_success_total{upstream_id=…}`,
+`gateway_upstream_latency_avg_milliseconds{upstream_id=…}`.
+
+Nilai label di-escape untuk backslash, double-quote, dan newline sesuai spesifikasi
+exposition. Counter dan gauge dari record `snapshot.counters` / `snapshot.gauges` custom
+juga diemit, dan entri `snapshot.histograms` menjadi triple `_bucket{le=…}` / `_sum` /
+`_count`. Response JSON yang lama tidak berubah bila tidak ada selector yang dipakai.
 
 ### Edge case
 

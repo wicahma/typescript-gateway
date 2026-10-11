@@ -133,9 +133,49 @@ Goal: p50/p95/p99 latency, RPS, error rate, and throughput are available at any 
 | Error-rate windows | `[60, 300, 900]` seconds | `AdvancedMetricsConfig.timeWindows` |
 | Periodic reporting | `60000` ms (logs a metrics snapshot) | `Gateway.setupMetricsReporting()` |
 | Snapshot endpoint | `GET /metrics` | system route, registered in `src/index.ts` |
+| Metrics endpoint path | `/metrics` | `monitoring.export.prometheus.path` |
+| Prometheus text format | opt-in per request | `Accept: text/plain` or `?format=prometheus` |
 
 No dedicated `gateway.config.json` fields for this feature — everything
 is instantiated with in-code defaults (zero-config by design).
+
+### Prometheus text exposition
+
+`GET /metrics` serves JSON by default. Add `Accept: text/plain` (or `?format=prometheus`)
+and the same snapshot is rendered as Prometheus text exposition format `0.0.4` with
+`Content-Type: text/plain; version=0.0.4; charset=utf-8`, ready for a scrape config:
+
+```yaml
+scrape_configs:
+  - job_name: tsgate
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['localhost:8080']
+```
+
+Every metric carries `# HELP` and `# TYPE`. The serializer
+(`src/observability/prometheus-format.ts`) is a pure function over the snapshot object —
+it adds no collection of its own, so a scrape costs nothing beyond serialization.
+
+Core series: `gateway_requests_total`, `gateway_errors_total`, `gateway_auth_failures_total`
+(counters); `gateway_requests_per_second`, `gateway_active_connections`,
+`gateway_latency_{avg,p50,p95,p99}_milliseconds` (gauges);
+`gateway_memory_{heap_used,heap_total,rss,external,array_buffers}_bytes` (gauges);
+`gateway_cpu_{user,system}_microseconds` (counters).
+
+Set `monitoring.metrics.enabled: true` to add the per-route and per-upstream series, which
+carry labels: `gateway_route_requests_total{route=…}`, `gateway_route_errors_total{route=…}`,
+`gateway_route_latency_avg_milliseconds{route=…}`,
+`gateway_route_status_codes_total{route=…,code=…}`,
+`gateway_upstream_requests_total{upstream_id=…}`,
+`gateway_upstream_errors_total{upstream_id=…}`,
+`gateway_upstream_success_total{upstream_id=…}`,
+`gateway_upstream_latency_avg_milliseconds{upstream_id=…}`.
+
+Label values escape backslash, double-quote, and newline per the exposition spec. Counters
+and gauges from custom `snapshot.counters` / `snapshot.gauges` records are emitted too, and
+`snapshot.histograms` entries become `_bucket{le=…}` / `_sum` / `_count` triples. The
+existing JSON response is unchanged when neither selector is present.
 
 ### Edge cases
 
