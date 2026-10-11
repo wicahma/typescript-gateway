@@ -14,7 +14,7 @@ const facts = [
   { k: 'runtime deps', v: '0' },
   { k: 'hot path p99', v: '5ms' },
   { k: 'features', v: '52' },
-  { k: 'tests', v: '1069 ✓' },
+  { k: 'tests', v: '1086 ✓' },
 ];
 
 const steps = [
@@ -220,6 +220,29 @@ const ticker = [
           inverts with the response cache. Full method and caveats:
           <a href="/docs/reference/testing">testing &amp; benchmarks</a>.
         </p>
+      </section>
+
+      <section class="seo-perf">
+        <p class="sec-label">seo &amp; performance</p>
+        <h2>Audited for zero-latency execution.</h2>
+        <div class="seo-grid">
+          <div class="seo-card">
+            <h3>Zero Runtime Dependencies</h3>
+            <p>Built entirely on native Node.js APIs and radix trees without external library bloat or security surface area.</p>
+          </div>
+          <div class="seo-card">
+            <h3>Pure TypeScript Architecture</h3>
+            <p>Strict TypeScript codebase ensuring type safety across middleware chains, routing, and configuration.</p>
+          </div>
+          <div class="seo-card">
+            <h3>Edge &amp; Node Compatibility</h3>
+            <p>Designed for high-throughput execution in modern Node.js runtimes and edge-compatible serverless environments.</p>
+          </div>
+          <div class="seo-card">
+            <h3>Zero-Config Deployment</h3>
+            <p>Single JSON configuration file with intelligent defaults for routing, proxying, caching, and resilience.</p>
+          </div>
+        </div>
       </section>
 
       <section class="docs-entry">
@@ -1014,6 +1037,46 @@ const ticker = [
     }
     .log-window {
       scroll-behavior: auto;
+    }
+  }
+
+  .seo-perf {
+    padding: clamp(3.5rem, 8vw, 7.5rem) 0;
+  }
+
+  .seo-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+
+  .seo-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 2rem;
+  }
+
+  .seo-card h3 {
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.75rem;
+    color: var(--ink);
+  }
+
+  .seo-card p {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 300;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+
+  @media (max-width: 768px) {
+    .seo-grid {
+      grid-template-columns: 1fr;
     }
   }
 </style>

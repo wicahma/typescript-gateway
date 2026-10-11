@@ -3,12 +3,14 @@ interface Props {
   title: string;
   description?: string;
   canonical?: string;
+  version?: string;
 }
 
 const {
   title,
   description = "A simple gateway, it's all you need. Production-grade TypeScript HTTP API gateway with zero runtime dependencies.",
   canonical = Astro.url.href,
+  version = "1.0.0",
 } = Astro.props;
 
 const siteUrl = "https://tsgate.diama.dev";
@@ -28,11 +30,13 @@ const siteUrl = "https://tsgate.diama.dev";
     <meta property="og:url" content={canonical} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
+    <meta property="og:image" content="https://tsgate.diama.dev/og.png" />
     <meta property="og:site_name" content="TypeScript Gateway" />
 
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content="https://tsgate.diama.dev/og.png" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -49,6 +53,9 @@ const siteUrl = "https://tsgate.diama.dev";
       "name": "TypeScript Gateway",
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "Linux, macOS, Windows",
+      "softwareVersion": version,
+      "programmingLanguage": "TypeScript",
+      "codeRepository": "https://github.com/wicahma/typescript-gateway",
       "offers": {
         "@type": "Offer",
         "price": "0",
