@@ -1,0 +1,36 @@
+# TypeScript Gateway (tsgate)
+
+> A simple gateway, it's all you need. Production-grade TypeScript HTTP API gateway with zero runtime dependencies.
+
+## Overview
+TypeScript Gateway is a high-performance, lightweight API gateway built natively in TypeScript. Designed for high throughput, low latency, and zero runtime dependencies outside Node.js built-ins.
+
+## Core Features
+- Zero runtime dependencies
+- High-performance routing with wildcard and regex parameters
+- Comprehensive middleware pipeline (auth, rate limiting, load shedding, caching, transformation, SSRF guard, HMAC verification)
+- Resilient load balancing and circuit breaking
+- Real-time observability, metrics aggregation, and Prometheus formatting
+- Dynamic plugin execution system
+
+## Architecture
+- Functional core, imperative shell design
+- Pluggable policy execution pipeline
+- Zero-allocation fast paths for core routing and load balancing
+
+## Documentation & Guides
+- Getting Started: https://tsgate.diama.dev/docs/guides/getting-started
+- Configuration: https://tsgate.diama.dev/docs/guides/configuration
+- Core Routing Deep Dive: https://tsgate.diama.dev/docs/deep-dive/architecture
+- Resilience & Load Shedding: https://tsgate.diama.dev/docs/deep-dive/resilience
+- Observability & Metrics: https://tsgate.diama.dev/docs/deep-dive/observability
+- Reference API: https://tsgate.diama.dev/docs/reference/
+- Writing Plugins: https://tsgate.diama.dev/docs/guides/writing-plugins
+
+## API Endpoints & Gateway Capabilities
+- HTTP proxy forwarding with upstream streaming
+- Rate limiting (token bucket / fixed window)
+- HMAC signature verification and validation
+- SSRF guard and security header injection
+- Upstream authentication and credential store
+- WebSocket tunneling and bidirectional proxying

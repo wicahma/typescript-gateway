@@ -65,6 +65,50 @@ const siteUrl = "https://tsgate.diama.dev";
       "url": siteUrl
     })} />
 
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is TypeScript Gateway?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "TypeScript Gateway (tsgate) is a production-grade TypeScript HTTP API gateway with zero runtime dependencies, offering high throughput, advanced routing, resilience, and security policies."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does TypeScript Gateway have any runtime dependencies?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No, TypeScript Gateway has zero runtime dependencies outside Node.js built-in modules."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How fast is routing in TypeScript Gateway?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "TypeScript Gateway features zero-allocation fast paths and optimized regex/wildcard parameter routing capable of handling millions of requests per second with sub-millisecond overhead."
+          }
+        }
+      ]
+    })} />
+
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "TypeScript Gateway Architecture & API Documentation",
+      "description": "Comprehensive technical documentation, architecture deep dives, routing models, and security policies for TypeScript Gateway.",
+      "url": siteUrl,
+      "author": {
+        "@type": "Organization",
+        "name": "TypeScript Gateway Contributors"
+      },
+      "proficiencyLevel": "Advanced"
+    })} />
+
     <style is:global>
       :root {
         --bg: #050303;

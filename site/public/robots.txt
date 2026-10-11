@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://tsgate.diama.dev/sitemap-index.xml
+Sitemap: https://tsgate.diama.dev/sitemap.xml
