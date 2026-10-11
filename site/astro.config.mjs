@@ -1,13 +1,36 @@
-// @ts-check
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import starlight from '@astrojs/starlight';
 
-// Old Indonesian doc URLs (/docs/id/*) moved to Starlight locale routing (/id/docs/*).
-const idSlugs = [
-  'getting-started',
+const MOVES = {
+  'getting-started': 'guides',
+  configuration: 'guides',
+  usage: 'guides',
+  architecture: 'deep-dive',
+  'core-routing': 'deep-dive',
+  resilience: 'deep-dive',
+  'traffic-control': 'deep-dive',
+  payload: 'deep-dive',
+  observability: 'deep-dive',
+  operations: 'deep-dive',
+  'identity-security': 'deep-dive',
+  features: 'deep-dive',
+  'feature-pack': 'deep-dive',
+  testing: 'reference',
+};
+
+const redirects = {};
+for (const [slug, section] of Object.entries(MOVES)) {
+  redirects[`/docs/${slug}`] = `/docs/${section}/${slug}`;
+  redirects[`/id/docs/${slug}`] = `/id/docs/${section}/${slug}`;
+  redirects[`/docs/id/${slug}`] = `/id/docs/${section}/${slug}`;
+  redirects[`/docs/docs/${slug}`] = `/docs/${section}/${slug}`;
+  redirects[`/docs/id/docs/${slug}`] = `/id/docs/${section}/${slug}`;
+}
+
+const GUIDES = ['getting-started', 'configuration', 'usage'];
+const DEEP_DIVE = [
   'architecture',
-  'configuration',
   'core-routing',
   'resilience',
   'traffic-control',
@@ -17,12 +40,23 @@ const idSlugs = [
   'identity-security',
   'features',
   'feature-pack',
-  'usage',
+];
+const REFERENCE = [
+  'index',
+  'entrypoints',
+  'core',
+  'pipeline',
+  'plugins',
+  'identity',
+  'config',
+  'types',
+  'utils',
+  'profiling',
+  'monitoring',
+  'observability',
+  'admin',
   'testing',
 ];
-const redirects = Object.fromEntries(
-  idSlugs.map((s) => [`/docs/id/${s}`, `/id/docs/${s}`]),
-);
 
 export default defineConfig({
   site: 'https://tsgate.diama.dev',
@@ -34,7 +68,6 @@ export default defineConfig({
         "A simple gateway, it's all you need. Production-grade TypeScript HTTP API gateway with zero runtime dependencies.",
       logo: { src: './src/assets/logo.svg' },
       components: {
-        // dark-first initial theme (tsgate design system)
         ThemeProvider: './src/components/ThemeProvider.astro',
       },
       social: [
@@ -51,27 +84,18 @@ export default defineConfig({
       sidebar: [
         {
           label: 'Guides',
-          items: [
-            'docs/getting-started',
-            'docs/architecture',
-            'docs/configuration',
-            'docs/usage',
-          ],
+          translations: { id: 'Panduan' },
+          items: GUIDES.map((s) => `docs/guides/${s}`),
+        },
+        {
+          label: 'Deep Dive',
+          translations: { id: 'Pendalaman' },
+          items: DEEP_DIVE.map((s) => `docs/deep-dive/${s}`),
         },
         {
           label: 'Reference',
-          items: [
-            'docs/core-routing',
-            'docs/resilience',
-            'docs/traffic-control',
-            'docs/payload',
-            'docs/observability',
-            'docs/operations',
-            'docs/identity-security',
-            'docs/features',
-            'docs/feature-pack',
-            'docs/testing',
-          ],
+          translations: { id: 'Referensi' },
+          items: REFERENCE.map((s) => `docs/reference/${s}`),
         },
       ],
       customCss: ['./src/custom.css'],
