@@ -24,9 +24,10 @@ for (const [slug, section] of Object.entries(MOVES)) {
   redirects[`/docs/${slug}`] = `/docs/${section}/${slug}`;
   redirects[`/id/docs/${slug}`] = `/id/docs/${section}/${slug}`;
   redirects[`/docs/id/${slug}`] = `/id/docs/${section}/${slug}`;
-  redirects[`/docs/docs/${slug}`] = `/docs/${section}/${slug}`;
-  redirects[`/docs/id/docs/${slug}`] = `/id/docs/${section}/${slug}`;
 }
+
+redirects['/docs/'] = '/docs/guides/';
+redirects['/id/docs/'] = '/id/docs/guides/';
 
 const GUIDES = ['getting-started', 'configuration', 'usage'];
 const DEEP_DIVE = [
@@ -95,7 +96,9 @@ export default defineConfig({
         {
           label: 'Reference',
           translations: { id: 'Referensi' },
-          items: REFERENCE.map((s) => `docs/reference/${s}`),
+          items: REFERENCE.map((s) =>
+            s === 'index' ? 'docs/reference' : `docs/reference/${s}`
+          ),
         },
       ],
       customCss: ['./src/custom.css'],
