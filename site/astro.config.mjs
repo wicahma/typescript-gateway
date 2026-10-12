@@ -111,7 +111,7 @@ export default defineConfig({
           attrs: {
             defer: true,
             'data-domain': 'tsgate.diama.dev',
-            src: 'https://analytics.diama.dev/js/script.file-downloads.outbound-links.js',
+            src: 'https://analytics.diama.dev/js/script.file-downloads.outbound-links.tagged-events.js',
           },
         },
         {
