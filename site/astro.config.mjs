@@ -107,6 +107,14 @@ export default defineConfig({
       customCss: ['./src/custom.css'],
       head: [
         {
+          tag: 'script',
+          attrs: {
+            defer: true,
+            'data-domain': 'tsgate.diama.dev',
+            src: 'https://analytics.diama.dev/js/script.file-downloads.outbound-links.js',
+          },
+        },
+        {
           tag: 'link',
           attrs: { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         },
